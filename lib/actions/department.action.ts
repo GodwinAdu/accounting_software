@@ -176,5 +176,6 @@ async function _deleteDepartment(user: User, id: string) {
 export const createDepartment = await withAuth(_createDepartment);
 export const fetchDepartmentById = await withAuth(_fetchDepartmentById);
 export const getAllDepartments = await withAuth(_getAllDepartments);
+export const fetchDepartments = await withAuth(_getAllDepartments);
 export const updateDepartment = await withAuth(_updateDepartment);
 export const deleteDepartment = await withAuth(_deleteDepartment)
