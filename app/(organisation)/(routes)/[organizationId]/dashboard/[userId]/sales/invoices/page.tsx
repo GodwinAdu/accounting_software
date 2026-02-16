@@ -2,11 +2,11 @@ import { currentUser } from "@/lib/helpers/session";
 import { redirect } from "next/navigation";
 import Heading from "@/components/commons/Header";
 import { Separator } from "@/components/ui/separator";
-import BankAccountsList from "./_components/bank-accounts-list";
+import InvoicesList from "./_components/invoices-list";
 
 type Props = Promise<{ organizationId: string; userId: string }>;
 
-export default async function BankAccountsPage({ params }: { params: Props }) {
+export default async function InvoicesPage({ params }: { params: Props }) {
   const user = await currentUser();
 
   if (!user) {
@@ -18,11 +18,11 @@ export default async function BankAccountsPage({ params }: { params: Props }) {
   return (
     <div className="space-y-6">
       <Heading
-        title="Bank Accounts"
-        description="Manage your business bank accounts and connections"
+        title="Invoices"
+        description="Create and manage customer invoices"
       />
       <Separator />
-      <BankAccountsList organizationId={organizationId} userId={userId} />
+      <InvoicesList organizationId={organizationId} userId={userId} />
     </div>
   );
 }

@@ -2,11 +2,11 @@ import { currentUser } from "@/lib/helpers/session";
 import { redirect } from "next/navigation";
 import Heading from "@/components/commons/Header";
 import { Separator } from "@/components/ui/separator";
-import BankAccountsList from "./_components/bank-accounts-list";
+import BankFeedsList from "./_components/bank-feeds-list";
 
 type Props = Promise<{ organizationId: string; userId: string }>;
 
-export default async function BankAccountsPage({ params }: { params: Props }) {
+export default async function BankFeedsPage({ params }: { params: Props }) {
   const user = await currentUser();
 
   if (!user) {
@@ -18,11 +18,11 @@ export default async function BankAccountsPage({ params }: { params: Props }) {
   return (
     <div className="space-y-6">
       <Heading
-        title="Bank Accounts"
-        description="Manage your business bank accounts and connections"
+        title="Bank Feeds"
+        description="Connect your bank accounts for automatic transaction imports"
       />
       <Separator />
-      <BankAccountsList organizationId={organizationId} userId={userId} />
+      <BankFeedsList organizationId={organizationId} userId={userId} />
     </div>
   );
 }
