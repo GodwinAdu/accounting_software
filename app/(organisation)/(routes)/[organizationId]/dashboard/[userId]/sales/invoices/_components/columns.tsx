@@ -2,21 +2,18 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Eye, Edit, Send, Trash2 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Edit, Trash2 } from "lucide-react";
+import { useParams, usePathname } from "next/navigation";
+import { deleteInvoice } from "@/lib/actions/invoice.action";
+import { CellAction } from "@/components/table/cell-action";
+import PayInvoiceButton from "@/components/payment/pay-invoice-button";
 
 export type Invoice = {
+  _id: string;
   id: string;
   invoiceNumber: string;
   customer: string;
+  customerEmail?: string;
   date: string;
   dueDate: string;
   amount: number;
@@ -83,34 +80,42 @@ export const columns: ColumnDef<Invoice>[] = [
     id: "actions",
     cell: ({ row }) => {
       const invoice = row.original;
+      const params = useParams();
+      const pathname = usePathname();
+
+      if (invoice.status === "sent" || invoice.status === "overdue") {
+        return (
+          <PayInvoiceButton
+            invoiceId={invoice._id}
+            amount={invoice.balance}
+            currency="GHS"
+            customerEmail={invoice.customerEmail || ""}
+          />
+        );
+      }
+
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem>
-              <Eye className="mr-2 h-4 w-4" />
-              View
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Edit className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Send className="mr-2 h-4 w-4" />
-              Send
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <CellAction
+          data={invoice}
+          actions={[
+            {
+              label: "Edit",
+              type: "edit",
+              icon: <Edit className="h-4 w-4" />,
+              permissionKey: "invoices_update",
+            },
+            {
+              label: "Delete",
+              type: "delete",
+              icon: <Trash2 className="h-4 w-4" />,
+              permissionKey: "invoices_delete",
+            },
+          ]}
+          onDelete={async (id) => {
+            const result = await deleteInvoice(id, pathname);
+            if (result.error) throw new Error(result.error);
+          }}
+        />
       );
     },
   },

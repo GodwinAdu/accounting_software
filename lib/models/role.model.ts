@@ -27,6 +27,13 @@ interface IRole extends Document {
         bankFeeds_view?: boolean
         bankFeeds_update?: boolean
         bankFeeds_delete?: boolean
+        bankTransfers_create?: boolean
+        bankTransfers_view?: boolean
+        bankRules_create?: boolean
+        bankRules_view?: boolean
+        bankRules_update?: boolean
+        bankRules_delete?: boolean
+        cashForecast_view?: boolean
         
         // Sales & Invoicing Module
         sales_view?: boolean
@@ -54,6 +61,13 @@ interface IRole extends Document {
         salesReceipts_view?: boolean
         salesReceipts_update?: boolean
         salesReceipts_delete?: boolean
+        creditNotes_create?: boolean
+        creditNotes_view?: boolean
+        creditNotes_update?: boolean
+        creditNotes_delete?: boolean
+        customerPortal_view?: boolean
+        paymentReminders_create?: boolean
+        paymentReminders_view?: boolean
         
         // Expenses & Bills Module
         expenses_view?: boolean
@@ -80,6 +94,10 @@ interface IRole extends Document {
         expenseCategories_view?: boolean
         expenseCategories_update?: boolean
         expenseCategories_delete?: boolean
+        expenseApprovals_create?: boolean
+        expenseApprovals_view?: boolean
+        expenseApprovals_update?: boolean
+        vendorPortal_view?: boolean
         
         // Payroll Module
         payroll_view?: boolean
@@ -104,6 +122,15 @@ interface IRole extends Document {
         deductions_view?: boolean
         deductions_update?: boolean
         deductions_delete?: boolean
+        benefits_create?: boolean
+        benefits_view?: boolean
+        benefits_update?: boolean
+        benefits_delete?: boolean
+        employeePortal_view?: boolean
+        loans_create?: boolean
+        loans_view?: boolean
+        loans_update?: boolean
+        loans_delete?: boolean
         
         // Accounting Module
         accounting_view?: boolean
@@ -116,6 +143,9 @@ interface IRole extends Document {
         journalEntries_update?: boolean
         journalEntries_delete?: boolean
         generalLedger_view?: boolean
+        periodClose_create?: boolean
+        periodClose_view?: boolean
+        multiEntity_view?: boolean
         
         // Tax Management Module
         tax_view?: boolean
@@ -138,10 +168,31 @@ interface IRole extends Document {
         formW2_delete?: boolean
         
         // Products & Services Module
-        products_create?: boolean
         products_view?: boolean
+        products_create?: boolean
         products_update?: boolean
         products_delete?: boolean
+        productCategories_create?: boolean
+        productCategories_view?: boolean
+        productCategories_update?: boolean
+        productCategories_delete?: boolean
+        inventory_create?: boolean
+        inventory_view?: boolean
+        inventory_update?: boolean
+        inventory_delete?: boolean
+        stockAdjustments_create?: boolean
+        stockAdjustments_view?: boolean
+        stockAdjustments_update?: boolean
+        stockAdjustments_delete?: boolean
+        warehouses_create?: boolean
+        warehouses_view?: boolean
+        warehouses_update?: boolean
+        warehouses_delete?: boolean
+        stockTransfers_create?: boolean
+        stockTransfers_view?: boolean
+        stockTransfers_update?: boolean
+        reorderAlerts_view?: boolean
+        batchExpiry_view?: boolean
         
         // Reports Module
         reports_view?: boolean
@@ -175,6 +226,49 @@ interface IRole extends Document {
         integrations_update?: boolean
         integrations_delete?: boolean
         auditLogs_view?: boolean
+        
+        // Projects Module
+        projects_view?: boolean
+        projects_create?: boolean
+        projects_update?: boolean
+        projects_delete?: boolean
+        projectBudgets_view?: boolean
+        projectTime_view?: boolean
+        projectProfitability_view?: boolean
+        
+        // CRM Module
+        crm_view?: boolean
+        leads_create?: boolean
+        leads_view?: boolean
+        leads_update?: boolean
+        leads_delete?: boolean
+        opportunities_create?: boolean
+        opportunities_view?: boolean
+        opportunities_update?: boolean
+        opportunities_delete?: boolean
+        contacts_create?: boolean
+        contacts_view?: boolean
+        contacts_update?: boolean
+        contacts_delete?: boolean
+        
+        // Budgeting Module
+        budgeting_view?: boolean
+        budgets_create?: boolean
+        budgets_view?: boolean
+        budgets_update?: boolean
+        budgets_delete?: boolean
+        forecasting_view?: boolean
+        
+        // Fixed Assets Module
+        assets_view?: boolean
+        assets_create?: boolean
+        assets_update?: boolean
+        assets_delete?: boolean
+        depreciation_view?: boolean
+        assetCategories_view?: boolean
+        
+        // AI Module
+        ai_view?: boolean
     }
     createdBy?: Schema.Types.ObjectId | null
     modifiedBy?: Schema.Types.ObjectId | null
@@ -215,6 +309,13 @@ const RoleSchema: Schema<IRole> = new Schema({
         bankFeeds_view: { type: Boolean, default: false },
         bankFeeds_update: { type: Boolean, default: false },
         bankFeeds_delete: { type: Boolean, default: false },
+        bankTransfers_create: { type: Boolean, default: false },
+        bankTransfers_view: { type: Boolean, default: false },
+        bankRules_create: { type: Boolean, default: false },
+        bankRules_view: { type: Boolean, default: false },
+        bankRules_update: { type: Boolean, default: false },
+        bankRules_delete: { type: Boolean, default: false },
+        cashForecast_view: { type: Boolean, default: false },
         
         // Sales & Invoicing Module
         sales_view: { type: Boolean, default: false },
@@ -242,6 +343,13 @@ const RoleSchema: Schema<IRole> = new Schema({
         salesReceipts_view: { type: Boolean, default: false },
         salesReceipts_update: { type: Boolean, default: false },
         salesReceipts_delete: { type: Boolean, default: false },
+        creditNotes_create: { type: Boolean, default: false },
+        creditNotes_view: { type: Boolean, default: false },
+        creditNotes_update: { type: Boolean, default: false },
+        creditNotes_delete: { type: Boolean, default: false },
+        customerPortal_view: { type: Boolean, default: false },
+        paymentReminders_create: { type: Boolean, default: false },
+        paymentReminders_view: { type: Boolean, default: false },
         
         // Expenses & Bills Module
         expenses_view: { type: Boolean, default: false },
@@ -268,6 +376,10 @@ const RoleSchema: Schema<IRole> = new Schema({
         expenseCategories_view: { type: Boolean, default: false },
         expenseCategories_update: { type: Boolean, default: false },
         expenseCategories_delete: { type: Boolean, default: false },
+        expenseApprovals_create: { type: Boolean, default: false },
+        expenseApprovals_view: { type: Boolean, default: false },
+        expenseApprovals_update: { type: Boolean, default: false },
+        vendorPortal_view: { type: Boolean, default: false },
         
         // Payroll Module
         payroll_view: { type: Boolean, default: false },
@@ -292,6 +404,15 @@ const RoleSchema: Schema<IRole> = new Schema({
         deductions_view: { type: Boolean, default: false },
         deductions_update: { type: Boolean, default: false },
         deductions_delete: { type: Boolean, default: false },
+        benefits_create: { type: Boolean, default: false },
+        benefits_view: { type: Boolean, default: false },
+        benefits_update: { type: Boolean, default: false },
+        benefits_delete: { type: Boolean, default: false },
+        employeePortal_view: { type: Boolean, default: false },
+        loans_create: { type: Boolean, default: false },
+        loans_view: { type: Boolean, default: false },
+        loans_update: { type: Boolean, default: false },
+        loans_delete: { type: Boolean, default: false },
         
         // Accounting Module
         accounting_view: { type: Boolean, default: false },
@@ -304,6 +425,9 @@ const RoleSchema: Schema<IRole> = new Schema({
         journalEntries_update: { type: Boolean, default: false },
         journalEntries_delete: { type: Boolean, default: false },
         generalLedger_view: { type: Boolean, default: false },
+        periodClose_create: { type: Boolean, default: false },
+        periodClose_view: { type: Boolean, default: false },
+        multiEntity_view: { type: Boolean, default: false },
         
         // Tax Management Module
         tax_view: { type: Boolean, default: false },
@@ -326,10 +450,31 @@ const RoleSchema: Schema<IRole> = new Schema({
         formW2_delete: { type: Boolean, default: false },
         
         // Products & Services Module
-        products_create: { type: Boolean, default: false },
         products_view: { type: Boolean, default: false },
+        products_create: { type: Boolean, default: false },
         products_update: { type: Boolean, default: false },
         products_delete: { type: Boolean, default: false },
+        productCategories_create: { type: Boolean, default: false },
+        productCategories_view: { type: Boolean, default: false },
+        productCategories_update: { type: Boolean, default: false },
+        productCategories_delete: { type: Boolean, default: false },
+        inventory_create: { type: Boolean, default: false },
+        inventory_view: { type: Boolean, default: false },
+        inventory_update: { type: Boolean, default: false },
+        inventory_delete: { type: Boolean, default: false },
+        stockAdjustments_create: { type: Boolean, default: false },
+        stockAdjustments_view: { type: Boolean, default: false },
+        stockAdjustments_update: { type: Boolean, default: false },
+        stockAdjustments_delete: { type: Boolean, default: false },
+        warehouses_create: { type: Boolean, default: false },
+        warehouses_view: { type: Boolean, default: false },
+        warehouses_update: { type: Boolean, default: false },
+        warehouses_delete: { type: Boolean, default: false },
+        stockTransfers_create: { type: Boolean, default: false },
+        stockTransfers_view: { type: Boolean, default: false },
+        stockTransfers_update: { type: Boolean, default: false },
+        reorderAlerts_view: { type: Boolean, default: false },
+        batchExpiry_view: { type: Boolean, default: false },
         
         // Reports Module
         reports_view: { type: Boolean, default: false },
@@ -362,7 +507,50 @@ const RoleSchema: Schema<IRole> = new Schema({
         integrations_view: { type: Boolean, default: false },
         integrations_update: { type: Boolean, default: false },
         integrations_delete: { type: Boolean, default: false },
-        auditLogs_view: { type: Boolean, default: false }
+        auditLogs_view: { type: Boolean, default: false },
+        
+        // Projects Module
+        projects_view: { type: Boolean, default: false },
+        projects_create: { type: Boolean, default: false },
+        projects_update: { type: Boolean, default: false },
+        projects_delete: { type: Boolean, default: false },
+        projectBudgets_view: { type: Boolean, default: false },
+        projectTime_view: { type: Boolean, default: false },
+        projectProfitability_view: { type: Boolean, default: false },
+        
+        // CRM Module
+        crm_view: { type: Boolean, default: false },
+        leads_create: { type: Boolean, default: false },
+        leads_view: { type: Boolean, default: false },
+        leads_update: { type: Boolean, default: false },
+        leads_delete: { type: Boolean, default: false },
+        opportunities_create: { type: Boolean, default: false },
+        opportunities_view: { type: Boolean, default: false },
+        opportunities_update: { type: Boolean, default: false },
+        opportunities_delete: { type: Boolean, default: false },
+        contacts_create: { type: Boolean, default: false },
+        contacts_view: { type: Boolean, default: false },
+        contacts_update: { type: Boolean, default: false },
+        contacts_delete: { type: Boolean, default: false },
+        
+        // Budgeting Module
+        budgeting_view: { type: Boolean, default: false },
+        budgets_create: { type: Boolean, default: false },
+        budgets_view: { type: Boolean, default: false },
+        budgets_update: { type: Boolean, default: false },
+        budgets_delete: { type: Boolean, default: false },
+        forecasting_view: { type: Boolean, default: false },
+        
+        // Fixed Assets Module
+        assets_view: { type: Boolean, default: false },
+        assets_create: { type: Boolean, default: false },
+        assets_update: { type: Boolean, default: false },
+        assets_delete: { type: Boolean, default: false },
+        depreciation_view: { type: Boolean, default: false },
+        assetCategories_view: { type: Boolean, default: false },
+        
+        // AI Module
+        ai_view: { type: Boolean, default: false }
     },
     createdBy: {
         type: Schema.Types.ObjectId,

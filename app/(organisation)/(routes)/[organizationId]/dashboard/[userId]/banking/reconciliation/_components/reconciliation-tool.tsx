@@ -1,257 +1,176 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Plus, CheckCircle2, Clock, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { CheckCircle2, XCircle, AlertCircle, Calendar } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-
-// Mock data
-const mockUnreconciledTransactions = [
-  { id: "1", date: "2024-01-15", description: "Client Payment - ABC Corp", amount: 15000, type: "credit", matched: false },
-  { id: "2", date: "2024-01-14", description: "Office Rent Payment", amount: 5000, type: "debit", matched: false },
-  { id: "3", date: "2024-01-13", description: "Payroll - January 2024", amount: 32000, type: "debit", matched: false },
-  { id: "4", date: "2024-01-12", description: "Consulting Services", amount: 8500, type: "credit", matched: false },
-];
-
-const mockBankStatementItems = [
-  { id: "b1", date: "2024-01-15", description: "CREDIT - ABC CORP", amount: 15000, matched: false },
-  { id: "b2", date: "2024-01-14", description: "DEBIT - RENT PAYMENT", amount: 5000, matched: false },
-  { id: "b3", date: "2024-01-13", description: "DEBIT - PAYROLL JAN", amount: 32000, matched: false },
-  { id: "b4", date: "2024-01-12", description: "CREDIT - CONSULTING", amount: 8500, matched: false },
-];
+import { StartReconciliationDialog } from "./start-reconciliation-dialog";
 
 interface ReconciliationToolProps {
   organizationId: string;
   userId: string;
+  reconciliations: any[];
+  accounts: any[];
 }
 
-export default function ReconciliationTool({ organizationId, userId }: ReconciliationToolProps) {
-  const [selectedAccount, setSelectedAccount] = useState("");
-  const [statementDate, setStatementDate] = useState("");
-  const [statementBalance, setStatementBalance] = useState("");
-  const [bookTransactions, setBookTransactions] = useState(mockUnreconciledTransactions);
-  const [bankTransactions, setBankTransactions] = useState(mockBankStatementItems);
-  const [selectedBookItems, setSelectedBookItems] = useState<string[]>([]);
-  const [selectedBankItems, setSelectedBankItems] = useState<string[]>([]);
+export default function ReconciliationTool({ 
+  organizationId, 
+  userId, 
+  reconciliations,
+  accounts 
+}: ReconciliationToolProps) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const bookBalance = bookTransactions.reduce((sum, t) => 
-    sum + (t.type === "credit" ? t.amount : -t.amount), 0
-  );
+  const completed = reconciliations.filter((r) => r.status === "completed");
+  const inProgress = reconciliations.filter((r) => r.status === "in-progress");
 
-  const difference = parseFloat(statementBalance || "0") - bookBalance;
-
-  const handleMatch = () => {
-    // Match selected items
-    setBookTransactions(prev => 
-      prev.map(t => selectedBookItems.includes(t.id) ? { ...t, matched: true } : t)
-    );
-    setBankTransactions(prev => 
-      prev.map(t => selectedBankItems.includes(t.id) ? { ...t, matched: true } : t)
-    );
-    setSelectedBookItems([]);
-    setSelectedBankItems([]);
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "completed":
+        return (
+          <Badge className="bg-emerald-100 text-emerald-700">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            Completed
+          </Badge>
+        );
+      case "in-progress":
+        return (
+          <Badge className="bg-blue-100 text-blue-700">
+            <Clock className="h-3 w-3 mr-1" />
+            In Progress
+          </Badge>
+        );
+      case "cancelled":
+        return (
+          <Badge variant="outline">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Cancelled
+          </Badge>
+        );
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Reconciliation Setup */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Start Reconciliation</CardTitle>
-          <CardDescription>Select account and enter statement details</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="account">Bank Account</Label>
-              <Select value={selectedAccount} onValueChange={setSelectedAccount}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select account" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="gcb">GCB Bank - 1234567890</SelectItem>
-                  <SelectItem value="ecobank">Ecobank - 0987654321</SelectItem>
-                  <SelectItem value="stanbic">Stanbic - 5555666677</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="statementDate">Statement Date</Label>
-              <Input
-                id="statementDate"
-                type="date"
-                value={statementDate}
-                onChange={(e) => setStatementDate(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="statementBalance">Statement Balance (GHS)</Label>
-              <Input
-                id="statementBalance"
-                type="number"
-                placeholder="0.00"
-                value={statementBalance}
-                onChange={(e) => setStatementBalance(e.target.value)}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Reconciliation Status */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Book Balance</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Reconciliations</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">GHS {bookBalance.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {bookTransactions.filter(t => !t.matched).length} unmatched items
-            </p>
+            <div className="text-2xl font-bold">{reconciliations.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">All time</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Statement Balance</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              GHS {parseFloat(statementBalance || "0").toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {bankTransactions.filter(t => !t.matched).length} unmatched items
-            </p>
+            <div className="text-2xl font-bold text-emerald-600">{completed.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">Successfully reconciled</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Difference</CardTitle>
-            {difference === 0 ? (
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            ) : (
-              <AlertCircle className="h-4 w-4 text-orange-600" />
-            )}
+            <CardTitle className="text-sm font-medium">In Progress</CardTitle>
+            <Clock className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${difference === 0 ? "text-emerald-600" : "text-orange-600"}`}>
-              GHS {Math.abs(difference).toLocaleString()}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {difference === 0 ? "Balanced" : "Needs reconciliation"}
-            </p>
+            <div className="text-2xl font-bold text-blue-600">{inProgress.length}</div>
+            <p className="text-xs text-muted-foreground mt-1">Pending completion</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Matching Interface */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Book Transactions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Records</CardTitle>
-            <CardDescription>Select transactions to match</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {bookTransactions.filter(t => !t.matched).map((transaction) => (
-                <div
-                  key={transaction.id}
-                  className={`flex items-center space-x-3 p-3 rounded-lg border ${
-                    selectedBookItems.includes(transaction.id) ? "border-emerald-600 bg-emerald-50" : ""
-                  }`}
-                >
-                  <Checkbox
-                    checked={selectedBookItems.includes(transaction.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedBookItems([...selectedBookItems, transaction.id]);
-                      } else {
-                        setSelectedBookItems(selectedBookItems.filter(id => id !== transaction.id));
-                      }
-                    }}
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{transaction.description}</p>
-                    <p className="text-xs text-muted-foreground">{transaction.date}</p>
-                  </div>
-                  <div className={`text-sm font-semibold ${
-                    transaction.type === "credit" ? "text-emerald-600" : "text-red-600"
-                  }`}>
-                    {transaction.type === "credit" ? "+" : "-"}GHS {transaction.amount.toLocaleString()}
-                  </div>
-                </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Reconciliation History</CardTitle>
+            <Button onClick={() => setIsDialogOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
+              <Plus className="h-4 w-4 mr-2" />
+              Start Reconciliation
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {reconciliations.length === 0 ? (
+            <div className="text-center py-12">
+              <CheckCircle2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">No reconciliations yet</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Start your first bank reconciliation to match your records with bank statements
+              </p>
+              <Button onClick={() => setIsDialogOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Start First Reconciliation
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {reconciliations.map((reconciliation) => (
+                <Card key={reconciliation._id} className="border-2">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-lg">{reconciliation.reconciliationNumber}</h3>
+                          {getStatusBadge(reconciliation.status)}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {reconciliation.bankAccountId?.bankName} - {reconciliation.bankAccountId?.accountName}
+                        </p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-2">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Statement Date</p>
+                            <p className="text-sm font-medium">
+                              {new Date(reconciliation.statementDate).toLocaleDateString("en-GB")}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Statement Balance</p>
+                            <p className="text-sm font-medium">GHS {reconciliation.statementBalance.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Book Balance</p>
+                            <p className="text-sm font-medium">GHS {reconciliation.bookBalance.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Difference</p>
+                            <p className={`text-sm font-medium ${
+                              reconciliation.difference === 0 ? "text-emerald-600" : "text-red-600"
+                            }`}>
+                              GHS {Math.abs(reconciliation.difference).toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      {reconciliation.status === "in-progress" && (
+                        <Button variant="outline" size="sm">
+                          Continue
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Bank Statement */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Bank Statement</CardTitle>
-            <CardDescription>Select matching items</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {bankTransactions.filter(t => !t.matched).map((transaction) => (
-                <div
-                  key={transaction.id}
-                  className={`flex items-center space-x-3 p-3 rounded-lg border ${
-                    selectedBankItems.includes(transaction.id) ? "border-emerald-600 bg-emerald-50" : ""
-                  }`}
-                >
-                  <Checkbox
-                    checked={selectedBankItems.includes(transaction.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setSelectedBankItems([...selectedBankItems, transaction.id]);
-                      } else {
-                        setSelectedBankItems(selectedBankItems.filter(id => id !== transaction.id));
-                      }
-                    }}
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{transaction.description}</p>
-                    <p className="text-xs text-muted-foreground">{transaction.date}</p>
-                  </div>
-                  <div className="text-sm font-semibold">
-                    GHS {transaction.amount.toLocaleString()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Actions */}
-      <div className="flex justify-end gap-2">
-        <Button variant="outline">Cancel</Button>
-        <Button
-          className="bg-emerald-600 hover:bg-emerald-700"
-          onClick={handleMatch}
-          disabled={selectedBookItems.length === 0 || selectedBankItems.length === 0}
-        >
-          Match Selected Items
-        </Button>
-      </div>
+      <StartReconciliationDialog 
+        open={isDialogOpen} 
+        onOpenChange={setIsDialogOpen}
+        accounts={accounts}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import EmailTemplate from "../models/email-template.model"
 import { connectToDB } from "../connection/mongoose"
 import mongoose from "mongoose"
 import { logAudit } from "../helpers/audit"
+import { checkWriteAccess } from "../helpers/check-write-access"
 
 async function _fetchEmailTemplates(user: User) {
   try {
@@ -41,6 +42,7 @@ async function _createEmailTemplate(
   }
 ) {
   try {
+    await checkWriteAccess(String(user.organizationId));
     if (!user) throw new Error("User not authenticated")
 
     const organizationId = user.organizationId as string
@@ -93,6 +95,7 @@ async function _updateEmailTemplate(
   }
 ) {
   try {
+    await checkWriteAccess(String(user.organizationId));
     if (!user) throw new Error("User not authenticated")
 
     const organizationId = user.organizationId as string
@@ -138,6 +141,7 @@ export const updateEmailTemplate = await withAuth(_updateEmailTemplate)
 
 async function _deleteEmailTemplate(user: User, templateId: string) {
   try {
+    await checkWriteAccess(String(user.organizationId));
     if (!user) throw new Error("User not authenticated")
 
     const organizationId = user.organizationId as string

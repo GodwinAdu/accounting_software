@@ -5,6 +5,8 @@ import { connectToDB } from "../connection/mongoose";
 import { User, withAuth } from "../helpers/auth";
 import Role from "../models/role.model";
 import { logAudit } from "../helpers/audit";
+import { clearAllUserCache } from "../helpers/session";
+import { checkWriteAccess } from "../helpers/check-write-access";
 
 interface RoleData {
     name: string;
@@ -15,6 +17,7 @@ interface RoleData {
 
 async function _createRole(user: User, roleData: RoleData, path: string) {
     try {
+        await checkWriteAccess(String(user.organizationId));
         if (!user) throw new Error("User not authorized");
 
         await connectToDB();
@@ -38,14 +41,12 @@ async function _createRole(user: User, roleData: RoleData, path: string) {
         });
         
         await logAudit({
-            userId: user._id as string,
-            organizationId: user.organizationId as string,
-            action: 'create_role',
-            resource: 'role',
-            resourceId: role._id.toString(),
-            details: {
-                after: { name: roleData.name, displayName: roleData.displayName }
-            }
+            organizationId: String(user.organizationId),
+            userId: String(user._id || user.id),
+            action: "create",
+            resource: "role",
+            resourceId: String(role._id),
+            details: { after: role }
         });
 
         revalidatePath(path);
@@ -76,6 +77,7 @@ async function _getAllRoles(user: User) {
 
 async function _updateRole(user: User, roleId: string, roleData: RoleData, path: string) {
     try {
+        await checkWriteAccess(String(user.organizationId));
         if (!user) throw new Error("User not authorized");
 
         await connectToDB();
@@ -113,18 +115,17 @@ async function _updateRole(user: User, roleId: string, roleData: RoleData, path:
         if (!role) throw new Error("Role not found");
         
         await logAudit({
-            userId: user._id as string,
-            organizationId: user.organizationId as string,
-            action: 'update_role',
-            resource: 'role',
-            resourceId: role._id.toString(),
-            details: {
-                before: { name: oldRole.name, displayName: oldRole.displayName },
-                after: { name: roleData.name, displayName: roleData.displayName }
-            }
+            organizationId: String(user.organizationId),
+            userId: String(user._id || user.id),
+            action: "update",
+            resource: "role",
+            resourceId: String(roleId),
+            details: { before: oldRole, after: role }
         });
 
+        await clearAllUserCache();
         revalidatePath(path);
+      
         return JSON.parse(JSON.stringify(role));
     } catch (error) {
         console.log("Error updating role:", error);
@@ -134,6 +135,7 @@ async function _updateRole(user: User, roleId: string, roleData: RoleData, path:
 
 async function _deleteRole(user: User, roleId: string, path: string) {
     try {
+        await checkWriteAccess(String(user.organizationId));
         if (!user) throw new Error("User not authorized");
 
         await connectToDB();
@@ -153,14 +155,12 @@ async function _deleteRole(user: User, roleId: string, path: string) {
         if (!role) throw new Error("Role not found");
         
         await logAudit({
-            userId: user._id as string,
-            organizationId: user.organizationId as string,
-            action: 'delete_role',
-            resource: 'role',
-            resourceId: role._id.toString(),
-            details: {
-                before: { name: role.name, displayName: role.displayName }
-            }
+            organizationId: String(user.organizationId),
+            userId: String(user._id || user.id),
+            action: "delete",
+            resource: "role",
+            resourceId: String(roleId),
+            details: { before: role }
         });
 
         revalidatePath(path);

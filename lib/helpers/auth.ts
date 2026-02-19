@@ -1,6 +1,5 @@
 import { currentUser } from "./session"
 
-
 export type User = Awaited<ReturnType<typeof currentUser>>
 
 export async function withAuth<T, Args extends unknown[]>(handler: (user: User, ...args: Args) => Promise<T>) {

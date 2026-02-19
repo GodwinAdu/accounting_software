@@ -8,6 +8,11 @@ import { connectToDB } from "../connection/mongoose";
 import { issueRefreshToken, signAccessToken } from "../helpers/jwt";
 import { smsConfig } from "@/services/sms-config";
 import User from "../models/user.model";
+import { withAuth, type User as UserType } from "../helpers/auth"
+import { logAudit } from "../helpers/audit"
+import { checkWriteAccess } from "../helpers/check-write-access"
+import Department from "../models/deparment.model"
+import mongoose from "mongoose"
 
 
 interface RegisterData {
@@ -747,10 +752,7 @@ export async function fetchUserById(id: string) {
 }
 
 
-import { withAuth, type User as UserType } from "../helpers/auth"
-import { logAudit } from "../helpers/audit"
-import Department from "../models/deparment.model"
-import mongoose from "mongoose"
+
 
 export type { User as UserType } from "../helpers/auth"
 
@@ -790,6 +792,7 @@ async function _createUser(
   }
 ) {
   try {
+    await checkWriteAccess(String(user.organizationId));
     if (!user) throw new Error("User not authenticated")
 
     const organizationId = user.organizationId as string
@@ -855,6 +858,7 @@ async function _updateUser(
   }
 ) {
   try {
+    await checkWriteAccess(String(user.organizationId));
     if (!user) throw new Error("User not authenticated")
 
     const organizationId = user.organizationId as string
@@ -904,6 +908,7 @@ export const updateUser = await withAuth(_updateUser)
 
 async function _deleteUser(user: UserType, staffId: string) {
   try {
+    await checkWriteAccess(String(user.organizationId));
     if (!user) throw new Error("User not authenticated")
 
     const organizationId = user.organizationId as string
@@ -993,6 +998,7 @@ export const fetchDepartments = await withAuth(_fetchDepartments)
 
 async function _toggleUserStatus(user: UserType, staffId: string) {
   try {
+    await checkWriteAccess(String(user.organizationId));
     if (!user) throw new Error("User not authenticated")
 
     const organizationId = user.organizationId as string
@@ -1134,6 +1140,7 @@ export const resetUserPassword = await withAuth(_resetUserPassword)
 
 async function _changeUserRole(user: UserType, staffId: string, newRole: string) {
   try {
+    await checkWriteAccess(String(user.organizationId));
     if (!user) throw new Error("User not authenticated")
 
     const organizationId = user.organizationId as string
@@ -1178,6 +1185,7 @@ export const changeUserRole = await withAuth(_changeUserRole)
 
 async function _toggle2FA(user: UserType, staffId: string) {
   try {
+    await checkWriteAccess(String(user.organizationId));
     if (!user) throw new Error("User not authenticated")
 
     const organizationId = user.organizationId as string
@@ -1222,6 +1230,7 @@ export const toggle2FA = await withAuth(_toggle2FA)
 
 async function _revokeUserSessions(user: UserType, staffId: string) {
   try {
+    await checkWriteAccess(String(user.organizationId));
     if (!user) throw new Error("User not authenticated")
 
     const organizationId = user.organizationId as string

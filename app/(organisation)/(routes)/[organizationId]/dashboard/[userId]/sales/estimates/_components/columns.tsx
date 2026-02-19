@@ -2,11 +2,13 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { MoreHorizontal } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Edit, Trash2 } from "lucide-react";
+import { useParams, usePathname } from "next/navigation";
+import { deleteEstimate } from "@/lib/actions/estimate.action";
+import { CellAction } from "@/components/table/cell-action";
 
 export type Estimate = {
+  _id: string;
   id: string;
   estimateNumber: string;
   customer: string;
@@ -17,7 +19,7 @@ export type Estimate = {
 };
 
 export const columns: ColumnDef<Estimate>[] = [
-  { accessorKey: "estimateNumber", header: "Estimate #" },
+  { accessorKey: "estimateNumber", header: "Estimate #", cell: ({ row }) => <div className="font-mono font-semibold">{row.getValue("estimateNumber")}</div> },
   { accessorKey: "customer", header: "Customer" },
   { accessorKey: "date", header: "Date" },
   { accessorKey: "expiryDate", header: "Expiry Date" },
@@ -43,18 +45,24 @@ export const columns: ColumnDef<Estimate>[] = [
   },
   {
     id: "actions",
-    cell: () => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem>View</DropdownMenuItem>
-          <DropdownMenuItem>Edit</DropdownMenuItem>
-          <DropdownMenuItem>Convert to Invoice</DropdownMenuItem>
-          <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
+    cell: ({ row }) => {
+      const estimate = row.original;
+      const params = useParams();
+      const pathname = usePathname();
+
+      return (
+        <CellAction
+          data={estimate}
+          actions={[
+            { label: "Edit", type: "edit", icon: <Edit className="h-4 w-4" />, permissionKey: "estimates_update" },
+            { label: "Delete", type: "delete", icon: <Trash2 className="h-4 w-4" />, permissionKey: "estimates_delete" },
+          ]}
+          onDelete={async (id) => {
+            const result = await deleteEstimate(id, pathname);
+            if (result.error) throw new Error(result.error);
+          }}
+        />
+      );
+    },
   },
 ];

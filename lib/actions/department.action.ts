@@ -4,11 +4,12 @@ import { revalidatePath } from "next/cache";
 import { connectToDB } from "../connection/mongoose";
 import { withAuth, type User } from "../helpers/auth";
 import Department from "../models/deparment.model";
-
-
+import { logAudit } from "../helpers/audit";
+import { checkWriteAccess } from "../helpers/check-write-access";
 
 async function _createDepartment(user: User, values: { name: string }) {
     try {
+        await checkWriteAccess(String(user.organizationId));
         const { name } = values
 
         if (!user) throw new Error('user not logged in');
@@ -17,36 +18,27 @@ async function _createDepartment(user: User, values: { name: string }) {
 
         await connectToDB();
 
-        const existingDepartment = await Department.findOne({ name });
+        const existingDepartment = await Department.findOne({ name, organizationId });
 
         if (existingDepartment) {
             throw new Error("Department already exists");
         }
 
-        const department = new Department({
+        const department = await Department.create({
             organizationId,
             name,
             createdBy: user?._id,
             action_type: "created",
         });
 
-        // const history = new History({
-        //     organizationId,
-        //     actionType: 'DEPARTMENT_CREATED', // Use a relevant action type
-        //     details: {
-        //         itemId: department._id,
-        //         deletedAt: new Date(),
-        //     },
-        //     message: `${user.fullName} created new department with (ID: ${department._id}) on ${new Date().toLocaleString()}.`,
-        //     performedBy: user._id, // User who performed the action,
-        //     entityId: department._id,  // The ID of the deleted unit
-        //     entityType: 'DEPARTMENT',  // The type of the entity
-        // });
-
-        await Promise.all([
-            department.save(),
-            // history.save()
-        ]);
+        await logAudit({
+            organizationId: String(organizationId),
+            userId: String(user._id || user.id),
+            action: "create",
+            resource: "department",
+            resourceId: String(department._id),
+            details: { after: department },
+        });
 
     } catch (error) {
         console.log("unable to create new department", error)
@@ -107,9 +99,15 @@ interface UpdateDepartmentProps {
 
 async function _updateDepartment(user: User, departmentId: string, values: UpdateDepartmentProps, path: string) {
     try {
+        await checkWriteAccess(String(user.organizationId));
         if (!user) throw new Error('user not logged in');
 
         await connectToDB();
+
+        const oldDepartment = await Department.findById(departmentId);
+        if (!oldDepartment) {
+            throw new Error("Department not found");
+        }
 
         const newValues = {
             ...values,
@@ -123,12 +121,14 @@ async function _updateDepartment(user: User, departmentId: string, values: Updat
             { new: true, runValidators: true }
         );
 
-        if (!updatedDepartment) {
-            console.log("department not found");
-            return null;
-        }
-
-        console.log("Update successful");
+        await logAudit({
+            organizationId: String(user.organizationId),
+            userId: String(user._id || user.id),
+            action: "update",
+            resource: "department",
+            resourceId: String(departmentId),
+            details: { before: oldDepartment, after: updatedDepartment },
+        });
 
         revalidatePath(path)
 
@@ -141,33 +141,35 @@ async function _updateDepartment(user: User, departmentId: string, values: Updat
 
 async function _deleteDepartment(user: User, id: string) {
     try {
+        await checkWriteAccess(String(user.organizationId));
         if (!user) throw new Error('user not logged in');
         const organizationId = user.organizationId as string;
         await connectToDB();
 
-        const department = await Department.findById(id);
+        const department = await Department.findByIdAndUpdate(
+            id,
+            { del_flag: true, deletedBy: user._id },
+            { new: true }
+        );
+        
         if (!department) {
-            return { success: false, message: "Class not found" };
+            return { success: false, message: "Department not found" };
         }
-        const departmentName = department?.name || "Unknown Class";
 
-
-        // await deleteDocument({
-        //     actionType: 'DEPARTMENT_DELETED',
-        //     documentId: id,
-        //     collectionName: 'Department',
-        //     userId: `${user?._id}`,
-        //     organizationId,
-        //     trashMessage: `"${departmentName}" (ID: ${id}) was moved to trash by ${user.fullName}.`,
-        //     historyMessage: `User ${user.fullName} deleted "${departmentName}" (ID: ${id}) on ${new Date().toLocaleString()}.`
-        // });
+        await logAudit({
+            organizationId: String(organizationId),
+            userId: String(user._id || user.id),
+            action: "delete",
+            resource: "department",
+            resourceId: String(id),
+            details: { before: department },
+        });
 
         return { success: true, message: "department deleted successfully" };
     } catch (error) {
         console.error("Error deleting department:", error);
-        throw error; // throw the error to handle it at a higher level if needed
+        throw error;
     }
-
 }
 
 

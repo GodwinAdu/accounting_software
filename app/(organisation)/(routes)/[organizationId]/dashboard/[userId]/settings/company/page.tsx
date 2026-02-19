@@ -1,5 +1,6 @@
 "use client"
 
+import { useSearchParams } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Building2, Settings, CreditCard, Shield, DollarSign, FileText, Receipt, Users, Bell, AlertTriangle } from "lucide-react"
 import CompanyInfoTab from "./_components/company-info-tab"
@@ -14,6 +15,9 @@ import NotificationsTab from "./_components/notifications-tab"
 import DangerZoneTab from "./_components/danger-zone-tab"
 
 export default function CompanySettingsPage() {
+  const searchParams = useSearchParams()
+  const defaultTab = searchParams.get("tab") || "company"
+
   return (
     <div className="space-y-6">
       <div>
@@ -21,7 +25,7 @@ export default function CompanySettingsPage() {
         <p className="text-muted-foreground">Manage your organization settings and preferences</p>
       </div>
 
-      <Tabs defaultValue="company" className="space-y-6">
+      <Tabs defaultValue={defaultTab} className="space-y-6">
         <div className="overflow-x-auto">
           <TabsList className="inline-flex w-auto">
             <TabsTrigger value="company" className="flex items-center gap-2">

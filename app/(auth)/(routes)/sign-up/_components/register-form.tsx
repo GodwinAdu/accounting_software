@@ -58,6 +58,11 @@ const planSchema = z.object({
         products: z.boolean().default(false),
         reports: z.boolean().default(true),
         settings: z.boolean().default(true),
+        projects: z.boolean().default(false),
+        crm: z.boolean().default(false),
+        budgeting: z.boolean().default(false),
+        assets: z.boolean().default(false),
+        ai: z.boolean().default(false),
     }),
     acceptTerms: z.literal(true),
 })
@@ -99,6 +104,11 @@ export default function RegistrationForm() {
             products: false,
             reports: true,
             settings: true,
+            projects: false,
+            crm: false,
+            budgeting: false,
+            assets: false,
+            ai: false,
         },
         acceptTerms: false,
     })
@@ -309,6 +319,11 @@ export default function RegistrationForm() {
                                             { key: "payroll", label: "Payroll", price: 50 },
                                             { key: "tax", label: "Tax Management", price: 35 },
                                             { key: "products", label: "Products & Services", price: 20 },
+                                            { key: "projects", label: "Projects", price: 25 },
+                                            { key: "crm", label: "CRM", price: 30 },
+                                            { key: "budgeting", label: "Budgeting", price: 40 },
+                                            { key: "assets", label: "Fixed Assets", price: 20 },
+                                            { key: "ai", label: "AI Assistant", price: 50 },
                                         ].map((module) => (
                                             <FormField key={module.key} control={planForm.control} name={`modules.${module.key}` as any} render={({ field }) => (
                                                 <FormItem className={`flex items-center space-x-3 space-y-0 border rounded-lg p-4 ${module.core ? 'bg-emerald-50/50 border-emerald-200' : 'hover:border-emerald-300'}`}>

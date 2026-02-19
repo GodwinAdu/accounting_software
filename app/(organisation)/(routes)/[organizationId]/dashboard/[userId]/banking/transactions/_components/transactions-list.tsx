@@ -5,150 +5,56 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowUpIcon, ArrowDownIcon, Plus } from "lucide-react";
 import { DataTable } from "@/components/table/data-table";
-import { columns, type Transaction } from "./columns";
-
-// Mock data
-const mockTransactions: Transaction[] = [
-  {
-    id: "1",
-    date: "2024-01-15",
-    description: "Client Payment - ABC Corp",
-    type: "credit",
-    amount: 15000,
-    balance: 156000,
-    category: "Income",
-    account: "GCB Bank - 1234567890",
-    status: "completed",
-    reference: "TXN001234",
-  },
-  {
-    id: "2",
-    date: "2024-01-14",
-    description: "Office Rent Payment",
-    type: "debit",
-    amount: 5000,
-    balance: 141000,
-    category: "Rent",
-    account: "GCB Bank - 1234567890",
-    status: "completed",
-    reference: "TXN001233",
-  },
-  {
-    id: "3",
-    date: "2024-01-13",
-    description: "Payroll - January 2024",
-    type: "debit",
-    amount: 32000,
-    balance: 146000,
-    category: "Payroll",
-    account: "GCB Bank - 1234567890",
-    status: "completed",
-    reference: "TXN001232",
-  },
-  {
-    id: "4",
-    date: "2024-01-12",
-    description: "Consulting Services - XYZ Ltd",
-    type: "credit",
-    amount: 8500,
-    balance: 178000,
-    category: "Income",
-    account: "Ecobank - 0987654321",
-    status: "completed",
-    reference: "TXN001231",
-  },
-  {
-    id: "5",
-    date: "2024-01-11",
-    description: "Software Subscription",
-    type: "debit",
-    amount: 450,
-    balance: 169500,
-    category: "Software",
-    account: "GCB Bank - 1234567890",
-    status: "pending",
-    reference: "TXN001230",
-  },
-  {
-    id: "6",
-    date: "2024-01-10",
-    description: "Product Sales - DEF Inc",
-    type: "credit",
-    amount: 22000,
-    balance: 170000,
-    category: "Income",
-    account: "GCB Bank - 1234567890",
-    status: "completed",
-    reference: "TXN001229",
-  },
-  {
-    id: "7",
-    date: "2024-01-09",
-    description: "Utilities Payment",
-    type: "debit",
-    amount: 1200,
-    balance: 148000,
-    category: "Utilities",
-    account: "Ecobank - 0987654321",
-    status: "completed",
-    reference: "TXN001228",
-  },
-  {
-    id: "8",
-    date: "2024-01-08",
-    description: "Marketing Campaign",
-    type: "debit",
-    amount: 8000,
-    balance: 149200,
-    category: "Marketing",
-    account: "GCB Bank - 1234567890",
-    status: "completed",
-    reference: "TXN001227",
-  },
-];
+import { columns } from "./columns";
+import { AddTransactionDialog } from "./add-transaction-dialog";
 
 interface TransactionsListProps {
   organizationId: string;
   userId: string;
+  transactions: any[];
+  accounts: any[];
 }
 
-export default function TransactionsList({ organizationId, userId }: TransactionsListProps) {
-  const [transactions] = useState(mockTransactions);
+export default function TransactionsList({ organizationId, userId, transactions, accounts }: TransactionsListProps) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const totalIncome = transactions
-    .filter(t => t.type === "credit")
-    .reduce((sum, t) => sum + t.amount, 0);
+  const deposits = transactions.filter((t) => t.transactionType === "deposit" || t.transactionType === "interest");
+  const withdrawals = transactions.filter((t) => 
+    t.transactionType === "withdrawal" || t.transactionType === "fee" || t.transactionType === "transfer"
+  );
 
-  const totalExpenses = transactions
-    .filter(t => t.type === "debit")
-    .reduce((sum, t) => sum + t.amount, 0);
+  const totalIncome = deposits.reduce((sum, t) => sum + t.amount, 0);
+  const totalExpenses = withdrawals.reduce((sum, t) => sum + t.amount, 0);
 
   const filterGroups = [
     {
-      id: "type",
+      id: "transactionType",
       label: "Type",
       options: [
-        { _id: "credit", label: "Income" },
-        { _id: "debit", label: "Expenses" },
+        { _id: "deposit", label: "Deposit" },
+        { _id: "withdrawal", label: "Withdrawal" },
+        { _id: "transfer", label: "Transfer" },
+        { _id: "fee", label: "Fee" },
+        { _id: "interest", label: "Interest" },
+        { _id: "other", label: "Other" },
       ],
     },
     {
-      id: "status",
+      id: "isReconciled",
       label: "Status",
       options: [
-        { _id: "completed", label: "Completed" },
-        { _id: "pending", label: "Pending" },
+        { _id: "true", label: "Reconciled" },
+        { _id: "false", label: "Unreconciled" },
       ],
     },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Income</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Deposits</CardTitle>
             <ArrowUpIcon className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
@@ -156,14 +62,14 @@ export default function TransactionsList({ organizationId, userId }: Transaction
               GHS {totalIncome.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {transactions.filter(t => t.type === "credit").length} transactions
+              {deposits.length} transactions
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Withdrawals</CardTitle>
             <ArrowDownIcon className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
@@ -171,7 +77,7 @@ export default function TransactionsList({ organizationId, userId }: Transaction
               GHS {totalExpenses.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {transactions.filter(t => t.type === "debit").length} transactions
+              {withdrawals.length} transactions
             </p>
           </CardContent>
         </Card>
@@ -190,12 +96,11 @@ export default function TransactionsList({ organizationId, userId }: Transaction
         </Card>
       </div>
 
-      {/* Transactions Table */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Transactions</CardTitle>
-            <Button className="bg-emerald-600 hover:bg-emerald-700">
+            <Button onClick={() => setIsDialogOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
               <Plus className="h-4 w-4 mr-2" />
               Add Transaction
             </Button>
@@ -210,6 +115,12 @@ export default function TransactionsList({ organizationId, userId }: Transaction
           />
         </CardContent>
       </Card>
+
+      <AddTransactionDialog 
+        open={isDialogOpen} 
+        onOpenChange={setIsDialogOpen}
+        accounts={accounts}
+      />
     </div>
   );
 }

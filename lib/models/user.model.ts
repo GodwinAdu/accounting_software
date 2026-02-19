@@ -9,44 +9,6 @@ interface IUser extends Document {
     imgUrl?: string
     role: string
     
-    // Employment Info
-    employment: {
-        employeeID: string
-        dateOfJoining: Date
-        jobTitle?: string
-        departmentId?: Schema.Types.ObjectId
-        workSchedule?: "Full-time" | "Part-time" | "Contract"
-        employmentType?: "W-2" | "1099"
-    }
-    
-    // Payroll Info
-    payroll: {
-        salaryAmount?: number
-        payFrequency?: "Weekly" | "Bi-weekly" | "Semi-monthly" | "Monthly"
-        bankDetails?: {
-            accountName?: string
-            accountNumber?: string
-            bankName?: string
-            routingNumber?: string
-        }
-    }
-    
-    // Tax Info
-    taxInfo: {
-        ssn?: string
-        taxId?: string
-        w4Info?: object
-    }
-    
-    // Address
-    address?: {
-        street?: string
-        city?: string
-        state?: string
-        zipCode?: string
-        country?: string
-    }
-    
     // Auth & Security
     emailVerified: boolean
     emailVerificationToken?: string
@@ -100,55 +62,6 @@ const UserSchema = new Schema<IUser>({
     role: {
         type: String,
         required: true,
-        default: "employee"
-    },
-    
-    employment: {
-        employeeID: { type: String, required: true, unique: true },
-        dateOfJoining: { type: Date, required: true },
-        jobTitle: String,
-        departmentId: {
-            type: Schema.Types.ObjectId,
-            ref: 'Department'
-        },
-        workSchedule: { 
-            type: String, 
-            enum: ["Full-time", "Part-time", "Contract"],
-            default: "Full-time"
-        },
-        employmentType: {
-            type: String,
-            enum: ["W-2", "1099"],
-            default: "W-2"
-        }
-    },
-    
-    payroll: {
-        salaryAmount: Number,
-        payFrequency: {
-            type: String,
-            enum: ["Weekly", "Bi-weekly", "Semi-monthly", "Monthly"]
-        },
-        bankDetails: {
-            accountName: String,
-            accountNumber: String,
-            bankName: String,
-            routingNumber: String
-        }
-    },
-    
-    taxInfo: {
-        ssn: String,
-        taxId: String,
-        w4Info: Schema.Types.Mixed
-    },
-    
-    address: {
-        street: String,
-        city: String,
-        state: String,
-        zipCode: String,
-        country: { type: String, default: "USA" }
     },
     
     emailVerified: { type: Boolean, default: false },
@@ -177,7 +90,6 @@ const UserSchema = new Schema<IUser>({
 })
 
 UserSchema.index({ organizationId: 1, email: 1 })
-UserSchema.index({ 'employment.employeeID': 1 })
 
 type UserModelType = Model<IUser>
 

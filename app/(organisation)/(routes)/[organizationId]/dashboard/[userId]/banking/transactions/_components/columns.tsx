@@ -2,37 +2,35 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowUpIcon, ArrowDownIcon } from "lucide-react";
+import { ArrowUpIcon, ArrowDownIcon, CheckCircle2, Clock } from "lucide-react";
 
-export type Transaction = {
-  id: string;
-  date: string;
-  description: string;
-  type: "credit" | "debit";
-  amount: number;
-  balance: number;
-  category: string;
-  account: string;
-  status: string;
-  reference: string;
-};
-
-export const columns: ColumnDef<Transaction>[] = [
+export const columns: ColumnDef<any>[] = [
   {
-    accessorKey: "date",
+    accessorKey: "transactionDate",
     header: "Date",
+    cell: ({ row }) => {
+      return new Date(row.getValue("transactionDate")).toLocaleDateString("en-GB");
+    },
+  },
+  {
+    accessorKey: "transactionNumber",
+    header: "Transaction #",
+    cell: ({ row }) => {
+      return <span className="font-mono text-sm">{row.getValue("transactionNumber")}</span>;
+    },
   },
   {
     accessorKey: "description",
     header: "Description",
     cell: ({ row }) => {
       const transaction = row.original;
+      const isIncome = transaction.transactionType === "deposit" || transaction.transactionType === "interest";
       return (
         <div className="flex items-center gap-2">
           <div className={`rounded-full p-1 ${
-            transaction.type === "credit" ? "bg-emerald-100" : "bg-red-100"
+            isIncome ? "bg-emerald-100" : "bg-red-100"
           }`}>
-            {transaction.type === "credit" ? (
+            {isIncome ? (
               <ArrowUpIcon className="h-3 w-3 text-emerald-600" />
             ) : (
               <ArrowDownIcon className="h-3 w-3 text-red-600" />
@@ -40,55 +38,65 @@ export const columns: ColumnDef<Transaction>[] = [
           </div>
           <div>
             <p className="font-medium">{transaction.description}</p>
-            <p className="text-xs text-muted-foreground">{transaction.reference}</p>
+            {transaction.payee && <p className="text-xs text-muted-foreground">{transaction.payee}</p>}
           </div>
         </div>
       );
     },
   },
   {
-    accessorKey: "category",
-    header: "Category",
+    accessorKey: "transactionType",
+    header: "Type",
     cell: ({ row }) => {
-      return <Badge variant="outline">{row.getValue("category")}</Badge>;
+      const type = row.getValue("transactionType") as string;
+      const labels: any = {
+        deposit: "Deposit",
+        withdrawal: "Withdrawal",
+        transfer: "Transfer",
+        fee: "Fee",
+        interest: "Interest",
+        other: "Other",
+      };
+      return <Badge variant="outline">{labels[type] || type}</Badge>;
     },
   },
   {
-    accessorKey: "account",
+    accessorKey: "bankAccountId",
     header: "Account",
+    cell: ({ row }) => {
+      const account = row.original.bankAccountId;
+      return account ? `${account.bankName} - ${account.accountName}` : "—";
+    },
   },
   {
     accessorKey: "amount",
     header: "Amount",
     cell: ({ row }) => {
       const transaction = row.original;
+      const isIncome = transaction.transactionType === "deposit" || transaction.transactionType === "interest";
       return (
         <div className={`font-semibold ${
-          transaction.type === "credit" ? "text-emerald-600" : "text-red-600"
+          isIncome ? "text-emerald-600" : "text-red-600"
         }`}>
-          {transaction.type === "credit" ? "+" : "-"}GHS {transaction.amount.toLocaleString()}
+          {isIncome ? "+" : "-"}GHS {transaction.amount.toLocaleString()}
         </div>
       );
     },
   },
   {
-    accessorKey: "balance",
-    header: "Balance",
-    cell: ({ row }) => {
-      return <div>GHS {row.getValue<number>("balance").toLocaleString()}</div>;
-    },
-  },
-  {
-    accessorKey: "status",
+    accessorKey: "isReconciled",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as string;
-      return (
-        <Badge
-          variant={status === "completed" ? "secondary" : "outline"}
-          className={status === "completed" ? "bg-emerald-100 text-emerald-700" : ""}
-        >
-          {status}
+      const isReconciled = row.getValue("isReconciled");
+      return isReconciled ? (
+        <Badge className="bg-emerald-100 text-emerald-700">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Reconciled
+        </Badge>
+      ) : (
+        <Badge variant="outline">
+          <Clock className="h-3 w-3 mr-1" />
+          Unreconciled
         </Badge>
       );
     },

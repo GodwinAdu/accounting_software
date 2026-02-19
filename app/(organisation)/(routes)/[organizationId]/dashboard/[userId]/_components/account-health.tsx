@@ -4,60 +4,72 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { TrendingUp, TrendingDown, Activity } from "lucide-react";
 
-const healthMetrics = [
-  {
-    label: "Cash Runway",
-    value: "8.5 months",
-    percentage: 85,
-    description: "Based on current burn rate",
-    icon: Activity,
-    color: "text-emerald-600",
-    bgColor: "bg-emerald-100",
-  },
-  {
-    label: "Burn Rate",
-    value: "GHS 18,000/mo",
-    percentage: 60,
-    description: "Average monthly expenses",
-    icon: TrendingDown,
-    color: "text-orange-600",
-    bgColor: "bg-orange-100",
-  },
-  {
-    label: "Profit Margin",
-    value: "34.2%",
-    percentage: 68,
-    description: "Net profit percentage",
-    icon: TrendingUp,
-    color: "text-blue-600",
-    bgColor: "bg-blue-100",
-  },
-];
+interface AccountHealthProps {
+  accountHealth: {
+    totalAssets: number;
+    totalLiabilities: number;
+    equity: number;
+  };
+}
 
-export default function AccountHealth() {
+export default function AccountHealth({ accountHealth }: AccountHealthProps) {
+  const profitMargin = accountHealth.totalAssets > 0 
+    ? ((accountHealth.equity / accountHealth.totalAssets) * 100).toFixed(1)
+    : "0.0";
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>Account Health</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {healthMetrics.map((metric) => (
-          <div key={metric.label} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`rounded-full p-2 ${metric.bgColor}`}>
-                  <metric.icon className={`h-4 w-4 ${metric.color}`} />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{metric.label}</p>
-                  <p className="text-xs text-muted-foreground">{metric.description}</p>
-                </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full p-2 bg-emerald-100">
+                <Activity className="h-4 w-4 text-emerald-600" />
               </div>
-              <p className="text-lg font-bold">{metric.value}</p>
+              <div>
+                <p className="text-sm font-medium">Total Assets</p>
+                <p className="text-xs text-muted-foreground">Current asset value</p>
+              </div>
             </div>
-            <Progress value={metric.percentage} className="h-2" />
+            <p className="text-lg font-bold">GHS {accountHealth.totalAssets.toLocaleString()}</p>
           </div>
-        ))}
+          <Progress value={85} className="h-2" />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full p-2 bg-orange-100">
+                <TrendingDown className="h-4 w-4 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Total Liabilities</p>
+                <p className="text-xs text-muted-foreground">Outstanding obligations</p>
+              </div>
+            </div>
+            <p className="text-lg font-bold">GHS {accountHealth.totalLiabilities.toLocaleString()}</p>
+          </div>
+          <Progress value={60} className="h-2" />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full p-2 bg-blue-100">
+                <TrendingUp className="h-4 w-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Equity</p>
+                <p className="text-xs text-muted-foreground">Net worth percentage</p>
+              </div>
+            </div>
+            <p className="text-lg font-bold">{profitMargin}%</p>
+          </div>
+          <Progress value={parseFloat(profitMargin)} className="h-2" />
+        </div>
       </CardContent>
     </Card>
   );

@@ -6,19 +6,11 @@ import { useParams, useRouter } from "next/navigation"
 import {
     Shield,
     Search,
-    Users,
     BookOpen,
     FileText,
     CreditCard,
     Settings,
-    School,
-    Calendar,
-    Clock,
     Briefcase,
-    BookOpenCheck,
-    Home,
-    Library,
-    Stethoscope,
     ChevronDown,
     ChevronUp,
     Eye,
@@ -27,17 +19,15 @@ import {
     CheckCircle2,
     XCircle,
     Info,
-    Bus,
-    Crown,
-    Lock,
-    Sparkles,
-    GraduationCap,
     HandCoins,
-    PiggyBank,
     Activity,
-    Utensils,
     BarChart3,
-    Plus,
+    Package,
+    FolderKanban,
+    UserCircle,
+    TrendingUp,
+    Landmark,
+    Bot,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -89,6 +79,13 @@ const permissionCategories = {
             "bankFeeds_view",
             "bankFeeds_update",
             "bankFeeds_delete",
+            "bankTransfers_create",
+            "bankTransfers_view",
+            "bankRules_create",
+            "bankRules_view",
+            "bankRules_update",
+            "bankRules_delete",
+            "cashForecast_view",
         ],
     },
     sales: {
@@ -122,6 +119,13 @@ const permissionCategories = {
             "salesReceipts_view",
             "salesReceipts_update",
             "salesReceipts_delete",
+            "creditNotes_create",
+            "creditNotes_view",
+            "creditNotes_update",
+            "creditNotes_delete",
+            "customerPortal_view",
+            "paymentReminders_create",
+            "paymentReminders_view",
         ],
     },
     expenses: {
@@ -154,6 +158,10 @@ const permissionCategories = {
             "expenseCategories_view",
             "expenseCategories_update",
             "expenseCategories_delete",
+            "expenseApprovals_create",
+            "expenseApprovals_view",
+            "expenseApprovals_update",
+            "vendorPortal_view",
         ],
     },
     payroll: {
@@ -184,6 +192,15 @@ const permissionCategories = {
             "deductions_view",
             "deductions_update",
             "deductions_delete",
+            "benefits_create",
+            "benefits_view",
+            "benefits_update",
+            "benefits_delete",
+            "employeePortal_view",
+            "loans_create",
+            "loans_view",
+            "loans_update",
+            "loans_delete",
         ],
     },
     accounting: {
@@ -202,6 +219,9 @@ const permissionCategories = {
             "journalEntries_update",
             "journalEntries_delete",
             "generalLedger_view",
+            "periodClose_create",
+            "periodClose_view",
+            "multiEntity_view",
         ],
     },
     tax: {
@@ -233,9 +253,106 @@ const permissionCategories = {
     products: {
         title: "Products & Services",
         icon: <BookOpen className="h-5 w-5" />,
-        description: "Product and service catalog",
+        description: "Product catalog and inventory",
         module: "products",
-        permissions: ["products_create", "products_view", "products_update", "products_delete"],
+        permissions: [
+            "products_view",
+            "products_create",
+            "products_update",
+            "products_delete",
+            "productCategories_create",
+            "productCategories_view",
+            "productCategories_update",
+            "productCategories_delete",
+            "inventory_create",
+            "inventory_view",
+            "inventory_update",
+            "inventory_delete",
+            "stockAdjustments_create",
+            "stockAdjustments_view",
+            "stockAdjustments_update",
+            "stockAdjustments_delete",
+            "warehouses_create",
+            "warehouses_view",
+            "warehouses_update",
+            "warehouses_delete",
+            "stockTransfers_create",
+            "stockTransfers_view",
+            "stockTransfers_update",
+            "reorderAlerts_view",
+            "batchExpiry_view",
+        ],
+    },
+    projects: {
+        title: "Projects",
+        icon: <FolderKanban className="h-5 w-5" />,
+        description: "Project management and tracking",
+        module: "projects",
+        permissions: [
+            "projects_view",
+            "projects_create",
+            "projects_update",
+            "projects_delete",
+            "projectBudgets_view",
+            "projectTime_view",
+            "projectProfitability_view",
+        ],
+    },
+    crm: {
+        title: "CRM",
+        icon: <UserCircle className="h-5 w-5" />,
+        description: "Customer relationship management",
+        module: "crm",
+        permissions: [
+            "crm_view",
+            "leads_create",
+            "leads_view",
+            "leads_update",
+            "leads_delete",
+            "opportunities_create",
+            "opportunities_view",
+            "opportunities_update",
+            "opportunities_delete",
+            "contacts_create",
+            "contacts_view",
+            "contacts_update",
+            "contacts_delete",
+        ],
+    },
+    budgeting: {
+        title: "Budgeting",
+        icon: <TrendingUp className="h-5 w-5" />,
+        description: "Budget planning and forecasting",
+        module: "budgeting",
+        permissions: [
+            "budgeting_view",
+            "budgets_create",
+            "budgets_view",
+            "budgets_update",
+            "budgets_delete",
+            "forecasting_view",
+        ],
+    },
+    assets: {
+        title: "Fixed Assets",
+        icon: <Landmark className="h-5 w-5" />,
+        description: "Fixed asset management and depreciation",
+        module: "assets",
+        permissions: [
+            "assets_view",
+            "assets_create",
+            "assets_update",
+            "assets_delete",
+            "depreciation_view",
+            "assetCategories_view",
+        ],
+    },
+    ai: {
+        title: "AI Assistant",
+        icon: <Bot className="h-5 w-5" />,
+        description: "AI-powered insights and automation",
+        module: "ai",
+        permissions: ["ai_view"],
     },
     reports: {
         title: "Reports",
@@ -478,6 +595,11 @@ const RolesDisplayPage = ({ roles, enabledModules }: { roles: IRole[]; enabledMo
                                             <SelectItem value="accounting_view">Accounting</SelectItem>
                                             <SelectItem value="tax_view">Tax</SelectItem>
                                             <SelectItem value="reports_view">Reports</SelectItem>
+                                            <SelectItem value="projects_view">Projects</SelectItem>
+                                            <SelectItem value="crm_view">CRM</SelectItem>
+                                            <SelectItem value="budgeting_view">Budgeting</SelectItem>
+                                            <SelectItem value="assets_view">Fixed Assets</SelectItem>
+                                            <SelectItem value="ai_view">AI Assistant</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -549,7 +671,7 @@ const RolesDisplayPage = ({ roles, enabledModules }: { roles: IRole[]; enabledMo
                                                                                     )
                                                                                 }}
                                                                                 className="cursor-pointer"
-                                                                                disabled={role.name === "admin"}
+                                                                                // disabled={role.name === "admin"}
                                                                             >
                                                                                 <Edit className="mr-2 h-4 w-4" />
                                                                                 Edit Role

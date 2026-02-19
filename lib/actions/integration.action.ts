@@ -4,6 +4,7 @@ import { withAuth, type User } from "../helpers/auth"
 import Integration from "../models/integration.model"
 import { connectToDB } from "../connection/mongoose"
 import { logAudit } from "../helpers/audit"
+import { checkWriteAccess } from "../helpers/check-write-access"
 
 async function _fetchIntegrations(user: User) {
   try {
@@ -45,6 +46,7 @@ async function _connectIntegration(
   }
 ) {
   try {
+    await checkWriteAccess(String(user.organizationId));
     if (!user) throw new Error("User not authenticated")
 
     const organizationId = user.organizationId as string
@@ -90,6 +92,7 @@ export const connectIntegration = await withAuth(_connectIntegration)
 
 async function _disconnectIntegration(user: User, provider: string) {
   try {
+    await checkWriteAccess(String(user.organizationId));
     if (!user) throw new Error("User not authenticated")
 
     const organizationId = user.organizationId as string

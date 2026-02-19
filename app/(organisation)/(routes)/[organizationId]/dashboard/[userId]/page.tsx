@@ -1,9 +1,11 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { currentUser } from "@/lib/helpers/session";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { redirect } from "next/navigation";
 import { ArrowUpIcon, CreditCard, DollarSign, TrendingUp, Users, FileText, Receipt, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { getDashboardStats } from "@/lib/actions/dashboard.action";
+import { checkPermission } from "@/lib/helpers/check-permission";
+import { SubscriptionWarningBanner } from "@/components/subscription-warning-banner";
 import DashboardCharts from "./_components/dashboard-charts";
 import DateRangeFilter from "./_components/date-range-filter";
 import QuickActions from "./_components/quick-actions";
@@ -15,16 +17,32 @@ import ActivityFeed from "./_components/activity-feed";
 type Props = Promise<{ organizationId: string; userId: string }>;
 
 const page = async ({ params }: { params: Props }) => {
-  const user = await currentUser();
-
-  if (!user) {
-    redirect("/");
-  }
-
   const { organizationId, userId } = await params;
+
+  const hasViewPermission = await checkPermission("dashboard_view");
+  if (!hasViewPermission) redirect(`/${organizationId}/dashboard/${userId}`);
+
+  const statsResult = await getDashboardStats();
+  const stats = statsResult.data || {
+    totalRevenue: 0,
+    totalExpenses: 0,
+    netProfit: 0,
+    activeEmployees: 0,
+    pendingInvoices: { count: 0, amount: 0 },
+    unpaidBills: { count: 0, amount: 0 },
+    bankBalance: { total: 0, accounts: 0 },
+    accountHealth: { totalAssets: 0, totalLiabilities: 0, equity: 0 },
+    recentTransactions: [],
+    topCustomers: [],
+    topVendors: [],
+    payrollRuns: [],
+  };
 
   return (
     <div className="space-y-6">
+      {/* Subscription Warning Banner */}
+      <SubscriptionWarningBanner organizationId={organizationId} userId={userId} />
+
       {/* Header with Date Filter */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -45,7 +63,7 @@ const page = async ({ params }: { params: Props }) => {
             <DollarSign className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">GHS 328,000</div>
+            <div className="text-2xl font-bold">GHS {stats.totalRevenue.toLocaleString()}</div>
             <div className="flex items-center text-xs text-emerald-600">
               <ArrowUpIcon className="mr-1 h-3 w-3" />
               <span>12.5% from last month</span>
@@ -60,7 +78,7 @@ const page = async ({ params }: { params: Props }) => {
             <CreditCard className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">GHS 216,000</div>
+            <div className="text-2xl font-bold">GHS {stats.totalExpenses.toLocaleString()}</div>
             <div className="flex items-center text-xs text-red-600">
               <ArrowUpIcon className="mr-1 h-3 w-3" />
               <span>8.2% from last month</span>
@@ -75,7 +93,7 @@ const page = async ({ params }: { params: Props }) => {
             <TrendingUp className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">GHS 112,000</div>
+            <div className="text-2xl font-bold">GHS {stats.netProfit.toLocaleString()}</div>
             <div className="flex items-center text-xs text-emerald-600">
               <ArrowUpIcon className="mr-1 h-3 w-3" />
               <span>18.7% from last month</span>
@@ -90,7 +108,7 @@ const page = async ({ params }: { params: Props }) => {
             <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">48</div>
+            <div className="text-2xl font-bold">{stats.activeEmployees}</div>
             <div className="flex items-center text-xs text-emerald-600">
               <ArrowUpIcon className="mr-1 h-3 w-3" />
               <span>3 new this month</span>
@@ -101,17 +119,23 @@ const page = async ({ params }: { params: Props }) => {
       </div>
 
       {/* Charts Section */}
-      <DashboardCharts />
+      <DashboardCharts 
+        recentTransactions={stats.recentTransactions}
+        payrollRuns={stats.payrollRuns}
+      />
 
       {/* Reminders and Health */}
       <div className="grid gap-4 md:grid-cols-2">
         <UpcomingReminders />
-        <AccountHealth />
+        <AccountHealth accountHealth={stats.accountHealth} />
       </div>
 
       {/* Top Performers and Activity */}
       <div className="grid gap-4 md:grid-cols-2">
-        <TopCustomersVendors />
+        <TopCustomersVendors 
+          topCustomers={stats.topCustomers}
+          topVendors={stats.topVendors}
+        />
         <ActivityFeed />
       </div>
 
@@ -123,8 +147,8 @@ const page = async ({ params }: { params: Props }) => {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">GHS 45,000 outstanding</p>
+            <div className="text-2xl font-bold">{stats.pendingInvoices.count}</div>
+            <p className="text-xs text-muted-foreground">GHS {stats.pendingInvoices.amount.toLocaleString()} outstanding</p>
             <Badge variant="outline" className="mt-2">Action Required</Badge>
           </CardContent>
         </Card>
@@ -135,8 +159,8 @@ const page = async ({ params }: { params: Props }) => {
             <Receipt className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8</div>
-            <p className="text-xs text-muted-foreground">GHS 23,500 due</p>
+            <div className="text-2xl font-bold">{stats.unpaidBills.count}</div>
+            <p className="text-xs text-muted-foreground">GHS {stats.unpaidBills.amount.toLocaleString()} due</p>
             <Badge variant="destructive" className="mt-2">Due Soon</Badge>
           </CardContent>
         </Card>
@@ -147,8 +171,8 @@ const page = async ({ params }: { params: Props }) => {
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">GHS 156,000</div>
-            <p className="text-xs text-muted-foreground">Across 3 accounts</p>
+            <div className="text-2xl font-bold">GHS {stats.bankBalance.total.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Across {stats.bankBalance.accounts} accounts</p>
             <Badge variant="secondary" className="mt-2 bg-emerald-100 text-emerald-700">Healthy</Badge>
           </CardContent>
         </Card>

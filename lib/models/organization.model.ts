@@ -34,9 +34,11 @@ interface IOrganization {
   
   subscriptionPlan: {
     plan: "starter" | "professional" | "enterprise"
-    status: "active" | "trial" | "expired" | "cancelled"
+    status: "active" | "trial" | "grace_period" | "suspended" | "expired" | "cancelled"
     startDate?: Date
     expiryDate?: Date
+    gracePeriodEnd?: Date
+    lastPaymentDate?: Date
     employeeLimit?: number
     currentEmployees: number
   }
@@ -120,6 +122,11 @@ interface IOrganization {
     products?: boolean
     reports?: boolean
     settings?: boolean
+    projects?: boolean
+    crm?: boolean
+    budgeting?: boolean
+    assets?: boolean
+    ai?: boolean
   }
   
   security: {
@@ -181,11 +188,13 @@ const OrganizationSchema: Schema<IOrganization> = new Schema({
     },
     status: {
       type: String,
-      enum: ["active", "trial", "expired", "cancelled"],
+      enum: ["active", "trial", "grace_period", "suspended", "expired", "cancelled"],
       default: "trial"
     },
     startDate: Date,
     expiryDate: Date,
+    gracePeriodEnd: Date,
+    lastPaymentDate: Date,
     employeeLimit: { type: Number, default: 10 },
     currentEmployees: { type: Number, default: 0 }
   },
@@ -271,7 +280,12 @@ const OrganizationSchema: Schema<IOrganization> = new Schema({
     tax: { type: Boolean, default: false },
     products: { type: Boolean, default: false },
     reports: { type: Boolean, default: true },
-    settings: { type: Boolean, default: true }
+    settings: { type: Boolean, default: true },
+    projects: { type: Boolean, default: false },
+    crm: { type: Boolean, default: false },
+    budgeting: { type: Boolean, default: false },
+    assets: { type: Boolean, default: false },
+    ai: { type: Boolean, default: false }
   },
   
   security: {

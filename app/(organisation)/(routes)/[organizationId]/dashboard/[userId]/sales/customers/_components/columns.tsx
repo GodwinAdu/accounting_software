@@ -2,18 +2,13 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Eye, Edit, Mail, Phone, Trash2 } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Edit, Trash2 } from "lucide-react";
+import { useParams, usePathname } from "next/navigation";
+import { deleteCustomer } from "@/lib/actions/customer.action";
+import { CellAction } from "@/components/table/cell-action";
 
 export type Customer = {
+  _id: string;
   id: string;
   name: string;
   email: string;
@@ -79,34 +74,32 @@ export const columns: ColumnDef<Customer>[] = [
   {
     id: "actions",
     cell: ({ row }) => {
+      const customer = row.original;
+      const params = useParams();
+      const pathname = usePathname();
+
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem>
-              <Eye className="mr-2 h-4 w-4" />
-              View Details
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Edit className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Mail className="mr-2 h-4 w-4" />
-              Send Email
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <CellAction
+          data={customer}
+          actions={[
+            {
+              label: "Edit",
+              type: "edit",
+              icon: <Edit className="h-4 w-4" />,
+              permissionKey: "customers_update",
+            },
+            {
+              label: "Delete",
+              type: "delete",
+              icon: <Trash2 className="h-4 w-4" />,
+              permissionKey: "customers_delete",
+            },
+          ]}
+          onDelete={async (id) => {
+            const result = await deleteCustomer(id, pathname);
+            if (result.error) throw new Error(result.error);
+          }}
+        />
       );
     },
   },
