@@ -1,4 +1,3 @@
-
 import { Separator } from "@/components/ui/separator";
 import { PaymentForm } from "./_components/payment-form";
 import Heading from "@/components/commons/Header";

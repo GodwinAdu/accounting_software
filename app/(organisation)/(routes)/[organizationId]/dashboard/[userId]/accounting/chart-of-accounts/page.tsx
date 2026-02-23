@@ -16,10 +16,10 @@ export default async function ChartOfAccountsPage({
 }) {
   const { organizationId, userId } = await params;
 
-  const hasViewPermission = await checkPermission("accounts_view");
+  const hasViewPermission = await checkPermission("chartOfAccounts_view");
   if (!hasViewPermission) redirect(`/${organizationId}/dashboard/${userId}`);
 
-  const hasCreatePermission = await checkPermission("accounts_create");
+  const hasCreatePermission = await checkPermission("chartOfAccounts_create");
 
   const [accountsResult, summaryResult] = await Promise.all([
     getAccounts(),
@@ -50,29 +50,18 @@ export default async function ChartOfAccountsPage({
           description="Manage your accounting structure and accounts"
         />
         <div className="flex gap-3">
-          {accounts.length === 0 && hasCreatePermission && (
-            <Button
-              onClick={async () => {
-                "use server";
-                await initializeDefaultAccounts();
-              }}
-              variant="outline"
-            >
-              Initialize Default Accounts
-            </Button>
-          )}
           <Button variant="outline">
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>
-          {hasCreatePermission && (
+          {/* {hasCreatePermission && ( */}
             <Link href={`/${organizationId}/dashboard/${userId}/accounting/chart-of-accounts/new`}>
               <Button className="bg-emerald-600 hover:bg-emerald-700">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Account
               </Button>
             </Link>
-          )}
+          {/* )} */}
         </div>
       </div>
       <Separator />
@@ -98,7 +87,7 @@ export default async function ChartOfAccountsPage({
         </div>
       </div>
 
-      <DataTable columns={columns} data={formattedAccounts} />
+      <DataTable columns={columns} data={formattedAccounts} searchKey="name" />
     </div>
   );
 }

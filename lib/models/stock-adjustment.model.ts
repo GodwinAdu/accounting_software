@@ -13,6 +13,10 @@ export interface IStockAdjustment {
   previousStock: number
   newStock: number
   
+  // Accounting
+  inventoryAccountId?: Schema.Types.ObjectId
+  adjustmentAccountId?: Schema.Types.ObjectId
+  
   // Audit fields
   createdBy: Schema.Types.ObjectId
   modifiedBy?: Schema.Types.ObjectId
@@ -58,6 +62,16 @@ const StockAdjustmentSchema: Schema<IStockAdjustment> = new Schema({
   newStock: {
     type: Number,
     required: true
+  },
+  
+  // Accounting
+  inventoryAccountId: {
+    type: Schema.Types.ObjectId,
+    ref: "Account"
+  },
+  adjustmentAccountId: {
+    type: Schema.Types.ObjectId,
+    ref: "Account"
   },
   
   // Audit fields

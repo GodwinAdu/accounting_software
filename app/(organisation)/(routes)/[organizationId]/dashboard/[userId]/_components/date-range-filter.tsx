@@ -23,11 +23,19 @@ import {
 
 export default function DateRangeFilter({
   className,
-}: React.HTMLAttributes<HTMLDivElement>) {
+  onDateChange,
+}: React.HTMLAttributes<HTMLDivElement> & {
+  onDateChange?: (date: DateRange | undefined) => void;
+}) {
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: addDays(new Date(), -30),
     to: new Date(),
   });
+
+  const handleDateChange = (newDate: DateRange | undefined) => {
+    setDate(newDate);
+    onDateChange?.(newDate);
+  };
 
   const presets = [
     {
@@ -144,7 +152,7 @@ export default function DateRangeFilter({
                       key={preset.label}
                       variant="ghost"
                       className="w-full justify-start font-normal"
-                      onClick={() => setDate(preset.getValue())}
+                      onClick={() => handleDateChange(preset.getValue())}
                     >
                       {preset.label}
                     </Button>
@@ -158,7 +166,7 @@ export default function DateRangeFilter({
                 mode="range"
                 defaultMonth={date?.from}
                 selected={date}
-                onSelect={setDate}
+                onSelect={handleDateChange}
                 numberOfMonths={2}
               />
             </div>

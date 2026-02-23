@@ -21,6 +21,7 @@ export default function InvoicesList({ invoices, summary, hasCreatePermission, o
     id: inv._id,
     invoiceNumber: inv.invoiceNumber,
     customer: inv.customerId?.name || "N/A",
+    customerEmail: inv.customerId?.email || "",
     date: new Date(inv.invoiceDate).toLocaleDateString(),
     dueDate: new Date(inv.dueDate).toLocaleDateString(),
     amount: inv.totalAmount,

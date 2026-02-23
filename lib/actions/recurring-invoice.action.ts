@@ -206,3 +206,162 @@ async function _deleteRecurringInvoice(user: User, invoiceId: string, path: stri
 }
 
 export const deleteRecurringInvoice = await withAuth(_deleteRecurringInvoice);
+
+async function _pauseRecurringInvoice(user: User, invoiceId: string, path: string) {
+  try {
+    await checkWriteAccess(String(user.organizationId));
+    
+    const hasPermission = await checkPermission("recurringInvoices_update");
+    if (!hasPermission) {
+      return { error: "You don't have permission to pause recurring invoices" };
+    }
+
+    await connectToDB();
+
+    const recurringInvoice = await RecurringInvoice.findOneAndUpdate(
+      { _id: invoiceId, organizationId: user.organizationId, del_flag: false },
+      { status: "paused", modifiedBy: user._id },
+      { new: true }
+    );
+
+    if (!recurringInvoice) {
+      return { error: "Recurring invoice not found" };
+    }
+
+    await logAudit({
+      organizationId: String(user.organizationId),
+      userId: String(user._id),
+      action: "update",
+      resource: "recurring_invoice",
+      resourceId: String(invoiceId),
+      details: { action: "paused" },
+    });
+
+    revalidatePath(path);
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || "Failed to pause recurring invoice" };
+  }
+}
+
+export const pauseRecurringInvoice = await withAuth(_pauseRecurringInvoice);
+
+async function _resumeRecurringInvoice(user: User, invoiceId: string, path: string) {
+  try {
+    await checkWriteAccess(String(user.organizationId));
+    
+    const hasPermission = await checkPermission("recurringInvoices_update");
+    if (!hasPermission) {
+      return { error: "You don't have permission to resume recurring invoices" };
+    }
+
+    await connectToDB();
+
+    const recurringInvoice = await RecurringInvoice.findOneAndUpdate(
+      { _id: invoiceId, organizationId: user.organizationId, del_flag: false },
+      { status: "active", modifiedBy: user._id },
+      { new: true }
+    );
+
+    if (!recurringInvoice) {
+      return { error: "Recurring invoice not found" };
+    }
+
+    await logAudit({
+      organizationId: String(user.organizationId),
+      userId: String(user._id),
+      action: "update",
+      resource: "recurring_invoice",
+      resourceId: String(invoiceId),
+      details: { action: "resumed" },
+    });
+
+    revalidatePath(path);
+    return { success: true };
+  } catch (error: any) {
+    return { error: error.message || "Failed to resume recurring invoice" };
+  }
+}
+
+export const resumeRecurringInvoice = await withAuth(_resumeRecurringInvoice);
+
+async function _generateInvoiceNow(user: User, recurringInvoiceId: string, path: string) {
+  try {
+    await checkWriteAccess(String(user.organizationId));
+    
+    const hasPermission = await checkPermission("invoices_create");
+    if (!hasPermission) {
+      return { error: "You don't have permission to generate invoices" };
+    }
+
+    await connectToDB();
+
+    const recurringInvoice = await RecurringInvoice.findOne({
+      _id: recurringInvoiceId,
+      organizationId: user.organizationId,
+      del_flag: false,
+    });
+
+    if (!recurringInvoice) {
+      return { error: "Recurring invoice not found" };
+    }
+
+    const Invoice = (await import("../models/invoice.model")).default;
+    const { postInvoiceToGL } = await import("../helpers/sales-accounting");
+
+    const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 30);
+
+    const invoice = await Invoice.create({
+      organizationId: user.organizationId,
+      invoiceNumber,
+      customerId: recurringInvoice.customerId,
+      invoiceDate: new Date(),
+      dueDate,
+      lineItems: recurringInvoice.lineItems,
+      subtotal: recurringInvoice.subtotal,
+      taxRate: recurringInvoice.taxRate,
+      taxAmount: recurringInvoice.taxAmount,
+      totalAmount: recurringInvoice.totalAmount,
+      paidAmount: 0,
+      status: "sent",
+      revenueAccountId: recurringInvoice.revenueAccountId,
+      receivableAccountId: recurringInvoice.receivableAccountId,
+      taxAccountId: recurringInvoice.taxAccountId,
+      notes: recurringInvoice.notes,
+      terms: recurringInvoice.terms,
+      createdBy: user._id,
+      del_flag: false,
+      mod_flag: false,
+    });
+
+    await postInvoiceToGL(String(invoice._id), String(user._id));
+
+    // Send email if autoSend is enabled
+    if (recurringInvoice.autoSend) {
+      const customer = await (await import("../models/customer.model")).default.findById(recurringInvoice.customerId);
+      if (customer?.email) {
+        // TODO: Implement email sending
+        // await sendInvoiceEmail(customer.email, invoice);
+        console.log(`Auto-send enabled: Would send invoice ${invoice.invoiceNumber} to ${customer.email}`);
+      }
+    }
+
+    await logAudit({
+      organizationId: String(user.organizationId),
+      userId: String(user._id),
+      action: "create",
+      resource: "invoice",
+      resourceId: String(invoice._id),
+      details: { generatedFrom: recurringInvoiceId },
+    });
+
+    revalidatePath(path);
+    return { success: true, invoiceId: invoice._id };
+  } catch (error: any) {
+    return { error: error.message || "Failed to generate invoice" };
+  }
+}
+
+export const generateInvoiceNow = await withAuth(_generateInvoiceNow);

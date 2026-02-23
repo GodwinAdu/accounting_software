@@ -25,6 +25,9 @@ export interface IPayrollRun extends Document {
   processedBy?: mongoose.Types.ObjectId;
   processedAt?: Date;
   notes?: string;
+  salaryExpenseAccountId?: mongoose.Types.ObjectId;
+  salaryPayableAccountId?: mongoose.Types.ObjectId;
+  taxPayableAccountId?: mongoose.Types.ObjectId;
   del_flag: boolean;
   createdBy: mongoose.Types.ObjectId;
   modifiedBy?: mongoose.Types.ObjectId;
@@ -62,6 +65,9 @@ const PayrollRunSchema: Schema = new Schema(
     processedBy: { type: Schema.Types.ObjectId, ref: "User" },
     processedAt: { type: Date },
     notes: { type: String },
+    salaryExpenseAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    salaryPayableAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    taxPayableAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     del_flag: { type: Boolean, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     modifiedBy: { type: Schema.Types.ObjectId, ref: "User" },

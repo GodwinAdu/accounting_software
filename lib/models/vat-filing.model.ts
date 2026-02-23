@@ -8,6 +8,7 @@ export interface IVATFiling extends Document {
   vatAmount: number;
   filedDate: Date;
   status: "filed" | "paid" | "overdue";
+  vatPayableAccountId?: mongoose.Types.ObjectId;
   graReferenceNumber?: string;
   journalEntryId?: mongoose.Types.ObjectId;
   notes?: string;
@@ -27,6 +28,7 @@ const VATFilingSchema = new Schema<IVATFiling>(
     vatAmount: { type: Number, required: true },
     filedDate: { type: Date, required: true },
     status: { type: String, enum: ["filed", "paid", "overdue"], default: "filed" },
+    vatPayableAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     graReferenceNumber: { type: String },
     journalEntryId: { type: Schema.Types.ObjectId, ref: "JournalEntry" },
     notes: { type: String },

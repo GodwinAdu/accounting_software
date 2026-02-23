@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { ArrowLeft, Save, CalendarIcon, DollarSign } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getCustomers } from "@/lib/actions/customer.action";
+import { getInvoices } from "@/lib/actions/invoice.action";
+import { createPayment, updatePayment } from "@/lib/actions/payment.action";
+import { usePathname } from "next/navigation";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,10 +42,12 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { AccountSelector } from "@/components/forms/account-selector";
+import { CustomerCombobox } from "./customer-combobox";
 
 const paymentSchema = z.object({
   customerId: z.string().min(1, "Customer is required"),
-  invoiceId: z.string().min(1, "Invoice is required"),
+  invoiceId: z.string().optional(),
   paymentNumber: z.string().min(1, "Payment number is required"),
   paymentDate: z.date(),
   amount: z.number().min(0.01, "Amount must be greater than 0"),
@@ -52,6 +59,8 @@ const paymentSchema = z.object({
   mobileProvider: z.string().optional(),
   mobileNumber: z.string().optional(),
   notes: z.string().optional(),
+  bankAccountId: z.string().optional(),
+  receivableAccountId: z.string().optional(),
 });
 
 type PaymentFormValues = z.infer<typeof paymentSchema>;
@@ -75,13 +84,72 @@ const ghanaBanks = [
 
 const mobileProviders = ["MTN Mobile Money", "Vodafone Cash", "AirtelTigo Money"];
 
-export function PaymentForm() {
+type Customer = {
+  _id: string;
+  name: string;
+  company?: string;
+};
+
+type Invoice = {
+  _id: string;
+  invoiceNumber: string;
+  totalAmount: number;
+  customerId: string | { _id: string };
+};
+
+type PaymentFormProps = {
+  initialData?: any;
+};
+
+export function PaymentForm({ initialData }: PaymentFormProps) {
   const router = useRouter();
+  const params = useParams();
+  const pathname = usePathname();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const isEditMode = !!initialData;
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [customersResult, invoicesResult] = await Promise.all([
+        getCustomers(),
+        getInvoices(),
+      ]);
+      
+      if (customersResult.success && customersResult.data) {
+        setCustomers(customersResult.data);
+      }
+      
+      if (invoicesResult.success && invoicesResult.data) {
+        const unpaidInvoices = invoicesResult.data.filter(
+          (inv: any) => inv.status !== "paid" && inv.status !== "cancelled"
+        );
+        setInvoices(unpaidInvoices);
+      }
+    };
+    fetchData();
+  }, []);
 
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
-    defaultValues: {
+    defaultValues: initialData ? {
+      customerId: initialData.customerId?._id || initialData.customerId || "",
+      invoiceId: initialData.invoiceId?._id || initialData.invoiceId || "",
+      paymentNumber: initialData.paymentNumber || `PAY-${Date.now().toString().slice(-6)}`,
+      paymentDate: initialData.paymentDate ? new Date(initialData.paymentDate) : new Date(),
+      amount: initialData.amount || 0,
+      paymentMethod: initialData.paymentMethod || "bank_transfer",
+      reference: initialData.reference || "",
+      bankName: initialData.bankName || "",
+      accountNumber: initialData.accountNumber || "",
+      chequeNumber: initialData.chequeNumber || "",
+      mobileProvider: initialData.mobileProvider || "",
+      mobileNumber: initialData.mobileNumber || "",
+      notes: initialData.notes || "",
+      bankAccountId: initialData.bankAccountId || "",
+      receivableAccountId: initialData.receivableAccountId || "",
+    } : {
       customerId: "",
       invoiceId: "",
       paymentNumber: `PAY-${Date.now().toString().slice(-6)}`,
@@ -95,6 +163,8 @@ export function PaymentForm() {
       mobileProvider: "",
       mobileNumber: "",
       notes: "",
+      bankAccountId: "",
+      receivableAccountId: "",
     },
   });
 
@@ -102,20 +172,47 @@ export function PaymentForm() {
   const paymentMethod = form.watch("paymentMethod");
   const selectedInvoiceId = form.watch("invoiceId");
 
-  const filteredInvoices = mockInvoices.filter(
-    (inv) => inv.customerId === selectedCustomerId
+  const filteredInvoices = invoices.filter(
+    (inv) => {
+      const custId = typeof inv.customerId === "string" ? inv.customerId : inv.customerId?._id;
+      return custId === selectedCustomerId;
+    }
   );
 
-  const selectedInvoice = mockInvoices.find((inv) => inv.id === selectedInvoiceId);
+  const selectedInvoice = invoices.find((inv) => inv._id === selectedInvoiceId);
 
   const onSubmit = async (data: PaymentFormValues) => {
     setIsSubmitting(true);
     try {
-      console.log("Payment data:", data);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      router.push("../");
+      const paymentData: any = {
+        customerId: data.customerId,
+        invoiceId: data.invoiceId || undefined,
+        paymentNumber: data.paymentNumber,
+        paymentDate: data.paymentDate,
+        amount: data.amount,
+        paymentMethod: data.paymentMethod,
+        reference: data.reference || undefined,
+        bankName: data.bankName || undefined,
+        chequeNumber: data.chequeNumber || undefined,
+        mobileProvider: data.mobileProvider || undefined,
+        notes: data.notes || undefined,
+        bankAccountId: data.bankAccountId || undefined,
+        receivableAccountId: data.receivableAccountId || undefined,
+      };
+
+      const result = isEditMode
+        ? await updatePayment(initialData._id, paymentData, pathname)
+        : await createPayment(paymentData, pathname);
+
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(`Payment ${isEditMode ? "updated" : "recorded"} successfully`);
+        router.push(`/${params.organizationId}/dashboard/${params.userId}/sales/payments`);
+      }
     } catch (error) {
-      console.error("Error recording payment:", error);
+      console.error(`Error ${isEditMode ? "updating" : "recording"} payment:`, error);
+      toast.error(`Failed to ${isEditMode ? "update" : "record"} payment`);
     } finally {
       setIsSubmitting(false);
     }
@@ -145,20 +242,16 @@ export function PaymentForm() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Customer *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select customer" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {mockCustomers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name} - {customer.company}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <CustomerCombobox
+                            value={field.value}
+                            onChange={field.onChange}
+                            customers={customers}
+                            onCustomerAdded={(newCustomer) => {
+                              setCustomers([...customers, newCustomer]);
+                            }}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -169,13 +262,13 @@ export function PaymentForm() {
                     name="invoiceId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Invoice *</FormLabel>
+                        <FormLabel>Invoice (Optional)</FormLabel>
                         <Select 
                           onValueChange={(value) => {
                             field.onChange(value);
-                            const invoice = mockInvoices.find(inv => inv.id === value);
+                            const invoice = invoices.find(inv => inv._id === value);
                             if (invoice) {
-                              form.setValue("amount", invoice.balance);
+                              form.setValue("amount", invoice.totalAmount);
                             }
                           }} 
                           defaultValue={field.value}
@@ -183,17 +276,26 @@ export function PaymentForm() {
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select invoice" />
+                              <SelectValue placeholder="Select invoice or leave blank" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {filteredInvoices.map((invoice) => (
-                              <SelectItem key={invoice.id} value={invoice.id}>
-                                {invoice.number} - GHS {invoice.balance.toLocaleString()}
+                            {filteredInvoices.length > 0 ? (
+                              filteredInvoices.map((invoice) => (
+                                <SelectItem key={invoice._id} value={invoice._id}>
+                                  {invoice.invoiceNumber} - GHS {invoice.totalAmount.toLocaleString()}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <SelectItem value="none" disabled>
+                                No unpaid invoices
                               </SelectItem>
-                            ))}
+                            )}
                           </SelectContent>
                         </Select>
+                        <FormDescription>
+                          Leave blank for general payments not linked to an invoice
+                        </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -539,6 +641,56 @@ export function PaymentForm() {
                 />
               </CardContent>
             </Card>
+
+            {/* Accounting */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Accounting (Optional)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Leave blank to use default accounts
+                </p>
+                
+                <FormField
+                  control={form.control}
+                  name="bankAccountId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bank Account</FormLabel>
+                      <FormControl>
+                        <AccountSelector
+                          label=""
+                          accountType="asset"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Default: Cash/Bank"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="receivableAccountId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Accounts Receivable</FormLabel>
+                      <FormControl>
+                        <AccountSelector
+                          label=""
+                          accountType="asset"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Default: Accounts Receivable"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
           </div>
 
           {/* Summary Sidebar */}
@@ -553,16 +705,16 @@ export function PaymentForm() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Invoice</span>
-                        <span className="font-mono font-semibold">{selectedInvoice.number}</span>
+                        <span className="font-mono font-semibold">{selectedInvoice.invoiceNumber}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Invoice Amount</span>
-                        <span className="font-medium">GHS {selectedInvoice.amount.toLocaleString()}</span>
+                        <span className="font-medium">GHS {selectedInvoice.totalAmount.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Outstanding Balance</span>
                         <span className="font-medium text-orange-600">
-                          GHS {selectedInvoice.balance.toLocaleString()}
+                          GHS {selectedInvoice.totalAmount.toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -586,7 +738,7 @@ export function PaymentForm() {
                     disabled={isSubmitting}
                   >
                     <Save className="h-4 w-4 mr-2" />
-                    {isSubmitting ? "Recording..." : "Record Payment"}
+                    {isSubmitting ? "Recording..." : isEditMode ? "Update Payment" : "Record Payment"}
                   </Button>
 
                   <Button

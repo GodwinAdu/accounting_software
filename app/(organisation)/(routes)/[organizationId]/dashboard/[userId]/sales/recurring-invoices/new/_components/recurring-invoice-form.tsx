@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -8,6 +8,10 @@ import * as z from "zod";
 import { ArrowLeft, Save, CalendarIcon, Plus, Trash2, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getCustomers } from "@/lib/actions/customer.action";
+import { createRecurringInvoice } from "@/lib/actions/recurring-invoice.action";
+import { toast } from "sonner";
+import { CustomerCombobox } from "./customer-combobox";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +41,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { AccountSelector } from "@/components/forms/account-selector";
 
 const lineItemSchema = z.object({
   description: z.string().min(1, "Description required"),
@@ -57,15 +62,12 @@ const recurringInvoiceSchema = z.object({
   notes: z.string().optional(),
   terms: z.string().optional(),
   autoSend: z.boolean().default(true),
+  revenueAccountId: z.string().optional(),
+  receivableAccountId: z.string().optional(),
+  taxAccountId: z.string().optional(),
 });
 
 type RecurringInvoiceFormValues = z.infer<typeof recurringInvoiceSchema>;
-
-const mockCustomers = [
-  { id: "1", name: "Kwame Mensah", company: "Tech Solutions Ltd" },
-  { id: "2", name: "Ama Asante", company: "Retail Plus Ghana" },
-  { id: "3", name: "Kofi Boateng", company: "Construction Co." },
-];
 
 const paymentTermsOptions = [
   { value: "net-15", label: "Net 15" },
@@ -78,6 +80,22 @@ const paymentTermsOptions = [
 export function RecurringInvoiceForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customers, setCustomers] = useState<Array<{ id: string; _id: string; name: string; company: string }>>([]);
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      const result = await getCustomers();
+      if (result.success && result.data) {
+        setCustomers(result.data.map((c: any) => ({
+          _id: c._id,
+          id: c._id,
+          name: c.name,
+          company: c.company || "",
+        })));
+      }
+    };
+    fetchCustomers();
+  }, []);
 
   const form = useForm<RecurringInvoiceFormValues>({
     resolver: zodResolver(recurringInvoiceSchema),
@@ -93,6 +111,9 @@ export function RecurringInvoiceForm() {
       notes: "",
       terms: "",
       autoSend: true,
+      revenueAccountId: "",
+      receivableAccountId: "",
+      taxAccountId: "",
     },
   });
 
@@ -124,11 +145,41 @@ export function RecurringInvoiceForm() {
   const onSubmit = async (data: RecurringInvoiceFormValues) => {
     setIsSubmitting(true);
     try {
-      console.log("Recurring invoice data:", data);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      router.push("../");
+      const subtotal = calculateTotal();
+      const taxAmount = 0; // Add tax calculation if needed
+      const totalAmount = subtotal + taxAmount;
+
+      const result = await createRecurringInvoice({
+        profileName: data.profileName,
+        customerId: data.customerId,
+        frequency: data.frequency,
+        startDate: data.startDate,
+        endDate: data.neverExpires ? undefined : data.endDate,
+        nextDate: data.startDate,
+        lineItems: data.lineItems,
+        subtotal,
+        taxRate: 0,
+        taxAmount,
+        totalAmount,
+        status: "active",
+        autoSend: data.autoSend,
+        paymentTerms: data.paymentTerms,
+        revenueAccountId: data.revenueAccountId || undefined,
+        receivableAccountId: data.receivableAccountId || undefined,
+        taxAccountId: data.taxAccountId || undefined,
+        notes: data.notes,
+        terms: data.terms,
+      }, window.location.pathname);
+
+      if (result.success) {
+        toast.success("Recurring invoice profile created successfully");
+        router.push("../");
+      } else {
+        toast.error(result.error || "Failed to create recurring invoice");
+      }
     } catch (error) {
       console.error("Error creating recurring invoice:", error);
+      toast.error("Failed to create recurring invoice");
     } finally {
       setIsSubmitting(false);
     }
@@ -174,20 +225,16 @@ export function RecurringInvoiceForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Customer *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select customer" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {mockCustomers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name} - {customer.company}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <CustomerCombobox
+                          value={field.value}
+                          onChange={field.onChange}
+                          customers={customers}
+                          onCustomerAdded={(newCustomer) => {
+                            setCustomers([...customers, newCustomer]);
+                          }}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -514,6 +561,77 @@ export function RecurringInvoiceForm() {
                     </FormItem>
                   )}
                 />
+              </CardContent>
+            </Card>
+
+            {/* Accounting Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Accounting (Optional)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Leave blank to use default accounts. Select specific accounts to override defaults.
+                </p>
+                
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="revenueAccountId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Revenue Account</FormLabel>
+                        <FormControl>
+                          <AccountSelector
+                            label=""
+                            accountType="revenue"
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Default: Sales Revenue"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="receivableAccountId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Accounts Receivable</FormLabel>
+                        <FormControl>
+                          <AccountSelector
+                            label=""
+                            accountType="asset"
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Default: Accounts Receivable"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="taxAccountId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax Account</FormLabel>
+                        <FormControl>
+                          <AccountSelector
+                            label=""
+                            accountType="liability"
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Default: VAT Payable"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </CardContent>
             </Card>
           </div>

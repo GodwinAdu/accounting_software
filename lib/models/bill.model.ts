@@ -20,6 +20,9 @@ export interface IBill extends Document {
   amountPaid: number;
   balance: number;
   status: "draft" | "open" | "paid" | "overdue" | "cancelled";
+  expenseAccountId?: mongoose.Types.ObjectId;
+  payableAccountId?: mongoose.Types.ObjectId;
+  taxAccountId?: mongoose.Types.ObjectId;
   notes?: string;
   
   // Audit
@@ -51,6 +54,9 @@ const BillSchema = new Schema<IBill>(
     amountPaid: { type: Number, default: 0 },
     balance: { type: Number, required: true },
     status: { type: String, enum: ["draft", "open", "paid", "overdue", "cancelled"], default: "draft" },
+    expenseAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    payableAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    taxAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     notes: { type: String },
     
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },

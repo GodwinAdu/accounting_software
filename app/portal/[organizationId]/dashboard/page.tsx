@@ -4,11 +4,12 @@ import { connectToDB } from "@/lib/connection/mongoose";
 import Organization from "@/lib/models/organization.model";
 import Customer from "@/lib/models/customer.model";
 import Invoice from "@/lib/models/invoice.model";
-import Receipt from "@/lib/models/receipt.model";
+import Payment from "@/lib/models/payment.model";
 import PortalSettings from "@/lib/models/portal-settings.model";
 import PortalHeader from "../_components/portal-header";
 import PortalInvoicesList from "../_components/portal-invoices-list";
 import PortalPaymentHistory from "../_components/portal-payment-history";
+import PortalStatement from "../_components/portal-statement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Props = Promise<{ organizationId: string }>;
@@ -32,13 +33,13 @@ export default async function PortalDashboardPage({ params, searchParams }: { pa
     .sort({ createdAt: -1 })
     .lean();
 
-  const receipts = await Receipt.find({ organizationId, customerId: customer._id, del_flag: false })
+  const payments = await Payment.find({ organizationId, customerId: customer._id, del_flag: false })
     .populate("invoiceId", "invoiceNumber")
-    .sort({ createdAt: -1 })
+    .sort({ paymentDate: -1 })
     .lean();
 
-  const totalInvoiced = invoices.reduce((sum, inv) => sum + inv.total, 0);
-  const totalPaid = invoices.reduce((sum, inv) => sum + inv.amountPaid, 0);
+  const totalInvoiced = invoices.reduce((sum, inv) => sum + (inv.total || inv.totalAmount || 0), 0);
+  const totalPaid = invoices.reduce((sum, inv) => sum + (inv.amountPaid || inv.paidAmount || 0), 0);
   const balance = totalInvoiced - totalPaid;
   const overdueInvoices = invoices.filter(inv => inv.status === "overdue").length;
 
@@ -66,7 +67,7 @@ export default async function PortalDashboardPage({ params, searchParams }: { pa
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-emerald-600">GHS {totalPaid.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground mt-1">{receipts.length} payments</p>
+              <p className="text-xs text-muted-foreground mt-1">{payments.length} payments</p>
             </CardContent>
           </Card>
 
@@ -106,21 +107,17 @@ export default async function PortalDashboardPage({ params, searchParams }: { pa
 
           {settings.features?.viewPaymentHistory && (
             <TabsContent value="payments">
-              <PortalPaymentHistory receipts={JSON.parse(JSON.stringify(receipts))} />
+              <PortalPaymentHistory payments={JSON.parse(JSON.stringify(payments))} />
             </TabsContent>
           )}
 
           <TabsContent value="statements">
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Statements</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <p className="text-muted-foreground">Statements coming soon</p>
-                </div>
-              </CardContent>
-            </Card>
+            <PortalStatement 
+              invoices={JSON.parse(JSON.stringify(invoices))} 
+              payments={JSON.parse(JSON.stringify(payments))}
+              customer={JSON.parse(JSON.stringify(customer))}
+              organization={JSON.parse(JSON.stringify(organization))}
+            />
           </TabsContent>
         </Tabs>
       </div>

@@ -31,6 +31,11 @@ export interface IProduct {
   // Status
   status: "active" | "inactive" | "discontinued"
   
+  // Accounting
+  inventoryAccountId?: Schema.Types.ObjectId
+  cogsAccountId?: Schema.Types.ObjectId
+  revenueAccountId?: Schema.Types.ObjectId
+  
   // Audit fields
   createdBy: Schema.Types.ObjectId
   modifiedBy?: Schema.Types.ObjectId
@@ -128,6 +133,20 @@ const ProductSchema: Schema<IProduct> = new Schema({
     type: String,
     enum: ["active", "inactive", "discontinued"],
     default: "active"
+  },
+  
+  // Accounting
+  inventoryAccountId: {
+    type: Schema.Types.ObjectId,
+    ref: "Account"
+  },
+  cogsAccountId: {
+    type: Schema.Types.ObjectId,
+    ref: "Account"
+  },
+  revenueAccountId: {
+    type: Schema.Types.ObjectId,
+    ref: "Account"
   },
   
   // Audit fields

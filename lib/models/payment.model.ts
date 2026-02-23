@@ -7,10 +7,12 @@ export interface IPayment extends Document {
   invoiceId?: mongoose.Types.ObjectId;
   paymentDate: Date;
   amount: number;
-  paymentMethod: "cash" | "card" | "bank_transfer" | "mobile_money" | "cheque";
+  paymentMethod: "cash" | "card" | "bank_transfer" | "mobile_money" | "cheque" | "manual";
   reference?: string;
   notes?: string;
   status: "completed" | "pending" | "failed" | "refunded";
+  bankAccountId?: mongoose.Types.ObjectId;
+  receivableAccountId?: mongoose.Types.ObjectId;
   del_flag: boolean;
   createdBy: mongoose.Types.ObjectId;
   modifiedBy?: mongoose.Types.ObjectId;
@@ -26,10 +28,12 @@ const PaymentSchema = new Schema<IPayment>(
     invoiceId: { type: Schema.Types.ObjectId, ref: "Invoice" },
     paymentDate: { type: Date, required: true },
     amount: { type: Number, required: true },
-    paymentMethod: { type: String, enum: ["cash", "card", "bank_transfer", "mobile_money", "cheque"], required: true },
+    paymentMethod: { type: String, enum: ["cash", "card", "bank_transfer", "mobile_money", "cheque", "manual"], required: true },
     reference: { type: String },
     notes: { type: String },
     status: { type: String, enum: ["completed", "pending", "failed", "refunded"], default: "completed" },
+    bankAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    receivableAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     del_flag: { type: Boolean, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     modifiedBy: { type: Schema.Types.ObjectId, ref: "User" },

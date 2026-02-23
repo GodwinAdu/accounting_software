@@ -56,16 +56,16 @@ export default function PortalInvoicesList({ invoices, settings, organizationId 
                         <p>Issue Date: {new Date(invoice.date).toLocaleDateString()}</p>
                         <p>Due Date: {new Date(invoice.dueDate).toLocaleDateString()}</p>
                         <p className="font-semibold text-foreground">
-                          Amount: GHS {invoice.total.toLocaleString()}
+                          Amount: GHS {(invoice.total || invoice.totalAmount || 0).toLocaleString()}
                         </p>
-                        {invoice.amountPaid > 0 && (
+                        {(invoice.amountPaid || invoice.paidAmount || 0) > 0 && (
                           <p className="text-emerald-600">
-                            Paid: GHS {invoice.amountPaid.toLocaleString()}
+                            Paid: GHS {(invoice.amountPaid || invoice.paidAmount || 0).toLocaleString()}
                           </p>
                         )}
-                        {invoice.total - invoice.amountPaid > 0 && (
+                        {((invoice.total || invoice.totalAmount || 0) - (invoice.amountPaid || invoice.paidAmount || 0)) > 0 && (
                           <p className="text-orange-600 font-semibold">
-                            Balance: GHS {(invoice.total - invoice.amountPaid).toLocaleString()}
+                            Balance: GHS {((invoice.total || invoice.totalAmount || 0) - (invoice.amountPaid || invoice.paidAmount || 0)).toLocaleString()}
                           </p>
                         )}
                       </div>

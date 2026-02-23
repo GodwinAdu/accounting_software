@@ -20,6 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Separator } from "@/components/ui/separator";
 import { VendorCombobox } from "../../../all/new/_components/vendor-combobox";
 import { CategoryCombobox } from "../../../all/new/_components/category-combobox";
+import { AccountSelector } from "@/components/forms/account-selector";
 
 const recurringExpenseSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -32,6 +33,8 @@ const recurringExpenseSchema = z.object({
   paymentMethod: z.enum(["cash", "card", "bank_transfer", "cheque"]),
   description: z.string().min(1, "Description is required"),
   notes: z.string().optional(),
+  expenseAccountId: z.string().optional(),
+  paymentAccountId: z.string().optional(),
 });
 
 type RecurringExpenseFormValues = z.infer<typeof recurringExpenseSchema>;
@@ -64,6 +67,8 @@ export function RecurringExpenseForm() {
       paymentMethod: "bank_transfer",
       description: "",
       notes: "",
+      expenseAccountId: "",
+      paymentAccountId: "",
     },
   });
 
@@ -317,6 +322,55 @@ export function RecurringExpenseForm() {
                         <Textarea {...field} placeholder="Add any notes..." rows={3} />
                       </FormControl>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Accounting (Optional)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Leave blank to use default accounts
+                </p>
+                
+                <FormField
+                  control={form.control}
+                  name="expenseAccountId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Expense Account</FormLabel>
+                      <FormControl>
+                        <AccountSelector
+                          label=""
+                          accountType="expense"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Default: General Expense"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="paymentAccountId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Account</FormLabel>
+                      <FormControl>
+                        <AccountSelector
+                          label=""
+                          accountType="asset"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Default: Cash"
+                        />
+                      </FormControl>
                     </FormItem>
                   )}
                 />

@@ -9,14 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { createCreditNote, updateCreditNote } from "@/lib/actions/credit-note.action";
 import { usePathname } from "next/navigation";
+import { AccountSelector } from "@/components/forms/account-selector";
 
 export default function CreditNoteDialog({ open, onOpenChange, creditNote, onSuccess }: any) {
-  const [formData, setFormData] = useState({ customerId: "", invoiceId: "", date: new Date().toISOString().split('T')[0], reason: "", total: 0, status: "draft", notes: "" });
+  const [formData, setFormData] = useState({ customerId: "", invoiceId: "", date: new Date().toISOString().split('T')[0], reason: "", total: 0, status: "draft", notes: "", revenueAccountId: "", receivableAccountId: "" });
   const pathname = usePathname();
 
   useEffect(() => {
     if (creditNote) setFormData(creditNote);
-    else setFormData({ customerId: "", invoiceId: "", date: new Date().toISOString().split('T')[0], reason: "", total: 0, status: "draft", notes: "" });
+    else setFormData({ customerId: "", invoiceId: "", date: new Date().toISOString().split('T')[0], reason: "", total: 0, status: "draft", notes: "", revenueAccountId: "", receivableAccountId: "" });
   }, [creditNote]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,6 +76,16 @@ export default function CreditNoteDialog({ open, onOpenChange, creditNote, onSuc
           <div>
             <Label>Notes</Label>
             <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
+          </div>
+
+          <div>
+            <Label>Revenue Account (Optional)</Label>
+            <AccountSelector label="" accountType="revenue" value={formData.revenueAccountId} onChange={(value) => setFormData({ ...formData, revenueAccountId: value })} placeholder="Default: Sales Revenue" />
+          </div>
+
+          <div>
+            <Label>Accounts Receivable (Optional)</Label>
+            <AccountSelector label="" accountType="asset" value={formData.receivableAccountId} onChange={(value) => setFormData({ ...formData, receivableAccountId: value })} placeholder="Default: Accounts Receivable" />
           </div>
 
           <div className="flex justify-end space-x-2">

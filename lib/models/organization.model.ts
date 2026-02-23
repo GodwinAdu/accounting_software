@@ -126,6 +126,8 @@ interface IOrganization {
     crm?: boolean
     budgeting?: boolean
     assets?: boolean
+    loans?: boolean
+    equity?: boolean
     ai?: boolean
   }
   
@@ -285,6 +287,8 @@ const OrganizationSchema: Schema<IOrganization> = new Schema({
     crm: { type: Boolean, default: false },
     budgeting: { type: Boolean, default: false },
     assets: { type: Boolean, default: false },
+    loans: { type: Boolean, default: false },
+    equity: { type: Boolean, default: false },
     ai: { type: Boolean, default: false }
   },
   

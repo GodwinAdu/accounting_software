@@ -20,14 +20,14 @@ export function PurchaseOrdersList({ purchaseOrders, hasCreatePermission, organi
     id: po._id,
     poNumber: po.poNumber,
     vendor: po.vendorId?.companyName || "N/A",
-    date: new Date(po.orderDate).toLocaleDateString(),
-    expectedDate: new Date(po.expectedDeliveryDate).toLocaleDateString(),
-    amount: po.totalAmount,
+    date: po.orderDate ? new Date(po.orderDate).toLocaleDateString() : "N/A",
+    expectedDate: po.deliveryDate ? new Date(po.deliveryDate).toLocaleDateString() : "N/A",
+    amount: po.total || 0,
     status: po.status,
   }));
 
   const totalOrders = formattedPOs.length;
-  const totalAmount = formattedPOs.reduce((sum, po) => sum + po.amount, 0);
+  const totalAmount = formattedPOs.reduce((sum, po) => sum + (po.amount || 0), 0);
   const pending = formattedPOs.filter((po) => po.status === "sent" || po.status === "approved").length;
   const received = formattedPOs.filter((po) => po.status === "received").length;
 

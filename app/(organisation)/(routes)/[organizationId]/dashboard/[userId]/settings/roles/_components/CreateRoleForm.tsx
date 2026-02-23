@@ -297,6 +297,11 @@ const RoleSchema = z.object({
     assets_delete: z.boolean().optional(),
     depreciation_view: z.boolean().optional(),
     assetCategories_view: z.boolean().optional(),
+    // Equity Module
+    equity_view: z.boolean().optional(),
+    equity_create: z.boolean().optional(),
+    equity_edit: z.boolean().optional(),
+    equity_delete: z.boolean().optional(),
     // AI Module
     ai_view: z.boolean().optional(),
   }),
@@ -922,6 +927,18 @@ const permissionCategories = {
       "assets_delete",
       "depreciation_view",
       "assetCategories_view",
+    ],
+  },
+  equity: {
+    title: "Equity",
+    icon: <Landmark className="h-5 w-5" />,
+    description: "Owner investments and drawings",
+    module: "equity",
+    permissions: [
+      "equity_view",
+      "equity_create",
+      "equity_edit",
+      "equity_delete",
     ],
   },
   ai: {

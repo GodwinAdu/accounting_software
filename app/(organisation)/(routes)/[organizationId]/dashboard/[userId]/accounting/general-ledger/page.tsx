@@ -2,25 +2,36 @@ import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/table/data-table";
 import { columns } from "./_components/columns";
+import { LedgerFilters } from "./_components/ledger-filters";
 import Heading from "@/components/commons/Header";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getGeneralLedger } from "@/lib/actions/general-ledger.action";
+import { getAccounts } from "@/lib/actions/account.action";
 import { checkPermission } from "@/lib/helpers/check-permission";
 import { redirect } from "next/navigation";
 
 export default async function GeneralLedgerPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ organizationId: string; userId: string }>;
+  searchParams: Promise<{ accountId?: string; startDate?: string; endDate?: string }>;
 }) {
   const { organizationId, userId } = await params;
+  const filters = await searchParams;
 
   const hasViewPermission = await checkPermission("generalLedger_view");
   if (!hasViewPermission) redirect(`/${organizationId}/dashboard/${userId}`);
 
-  const ledgerResult = await getGeneralLedger({});
+  const ledgerResult = await getGeneralLedger({
+    accountId: filters.accountId === "all" ? undefined : filters.accountId,
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+  });
   const transactions = ledgerResult.data || [];
+
+  const accountsResult = await getAccounts();
+  const accounts = accountsResult.data || [];
 
   const totalDebit = transactions.reduce((sum: number, t: any) => sum + t.debit, 0);
   const totalCredit = transactions.reduce((sum: number, t: any) => sum + t.credit, 0);
@@ -52,6 +63,8 @@ export default async function GeneralLedgerPage({
       </div>
       <Separator />
 
+      <LedgerFilters accounts={accounts} />
+
       <div className="grid gap-4 md:grid-cols-3">
         <div className="rounded-lg border bg-card p-6">
           <div className="flex flex-col space-y-1.5">
@@ -73,7 +86,7 @@ export default async function GeneralLedgerPage({
         </div>
       </div>
 
-      <DataTable columns={columns} data={formattedTransactions} />
+      <DataTable columns={columns} data={formattedTransactions} searchKey="description" />
     </div>
   );
 }

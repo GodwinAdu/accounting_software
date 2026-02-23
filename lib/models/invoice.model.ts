@@ -19,6 +19,9 @@ export interface IInvoice extends Document {
   totalAmount: number;
   paidAmount: number;
   status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
+  revenueAccountId?: mongoose.Types.ObjectId;
+  receivableAccountId?: mongoose.Types.ObjectId;
+  taxAccountId?: mongoose.Types.ObjectId;
   notes?: string;
   terms?: string;
   del_flag: boolean;
@@ -48,6 +51,9 @@ const InvoiceSchema = new Schema<IInvoice>(
     totalAmount: { type: Number, required: true },
     paidAmount: { type: Number, default: 0 },
     status: { type: String, enum: ["draft", "sent", "paid", "overdue", "cancelled"], default: "draft" },
+    revenueAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    receivableAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    taxAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     notes: { type: String },
     terms: { type: String },
     del_flag: { type: Boolean, default: false },

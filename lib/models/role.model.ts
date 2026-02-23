@@ -267,6 +267,12 @@ interface IRole extends Document {
         depreciation_view?: boolean
         assetCategories_view?: boolean
         
+        // Equity Module
+        equity_view?: boolean
+        equity_create?: boolean
+        equity_edit?: boolean
+        equity_delete?: boolean
+        
         // AI Module
         ai_view?: boolean
     }
@@ -548,6 +554,12 @@ const RoleSchema: Schema<IRole> = new Schema({
         assets_delete: { type: Boolean, default: false },
         depreciation_view: { type: Boolean, default: false },
         assetCategories_view: { type: Boolean, default: false },
+        
+        // Equity Module
+        equity_view: { type: Boolean, default: false },
+        equity_create: { type: Boolean, default: false },
+        equity_edit: { type: Boolean, default: false },
+        equity_delete: { type: Boolean, default: false },
         
         // AI Module
         ai_view: { type: Boolean, default: false }

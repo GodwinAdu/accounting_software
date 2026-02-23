@@ -12,6 +12,13 @@ export interface IExpense extends Document {
   description?: string;
   receiptUrl?: string;
   status: "pending" | "approved" | "paid" | "rejected";
+  expenseAccountId?: mongoose.Types.ObjectId;
+  paymentAccountId?: mongoose.Types.ObjectId;
+  approvedBy?: mongoose.Types.ObjectId;
+  approvedAt?: Date;
+  rejectedBy?: mongoose.Types.ObjectId;
+  rejectedAt?: Date;
+  rejectionReason?: string;
   
   // Audit
   createdBy: mongoose.Types.ObjectId;
@@ -36,6 +43,13 @@ const ExpenseSchema = new Schema<IExpense>(
     description: { type: String },
     receiptUrl: { type: String },
     status: { type: String, enum: ["pending", "approved", "paid", "rejected"], default: "pending" },
+    expenseAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    paymentAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    approvedAt: { type: Date },
+    rejectedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    rejectedAt: { type: Date },
+    rejectionReason: { type: String },
     
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     modifiedBy: { type: Schema.Types.ObjectId, ref: "User" },

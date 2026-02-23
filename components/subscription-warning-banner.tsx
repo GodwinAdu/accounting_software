@@ -13,7 +13,8 @@ export function SubscriptionWarningBanner({ organizationId, userId }: { organiza
 
   useEffect(() => {
     loadWarning()
-  }, [organizationId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const loadWarning = async () => {
     const data = await getSubscriptionWarning(organizationId)

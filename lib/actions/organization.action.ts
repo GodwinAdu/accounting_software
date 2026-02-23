@@ -40,6 +40,8 @@ interface RegisterOrganizationData {
         crm: boolean
         budgeting: boolean
         assets: boolean
+        loans: boolean
+        equity: boolean
         ai: boolean
     }
 }
@@ -344,6 +346,11 @@ export async function registerOrganization(data: RegisterOrganizationData) {
                 assets_delete: true,
                 depreciation_view: true,
                 assetCategories_view: true,
+                // Equity Module
+                equity_view: true,
+                equity_create: true,
+                equity_edit: true,
+                equity_delete: true,
                 // AI Module
                 ai_view: true,
             },

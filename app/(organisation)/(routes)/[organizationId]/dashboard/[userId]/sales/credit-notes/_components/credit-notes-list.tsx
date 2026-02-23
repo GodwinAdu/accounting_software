@@ -1,13 +1,11 @@
 "use client";
 
-import { Plus, FileOutput } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
-import CreditNoteDialog from "./credit-note-dialog";
-import { deleteCreditNote } from "@/lib/actions/credit-note.action";
-import { usePathname } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { DataTable } from "@/components/table/data-table";
+import { columns } from "./columns";
 
 interface CreditNotesListProps {
   creditNotes: any[];
@@ -15,29 +13,22 @@ interface CreditNotesListProps {
 }
 
 export default function CreditNotesList({ creditNotes, hasCreatePermission }: CreditNotesListProps) {
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedNote, setSelectedNote] = useState<any>(null);
-  const pathname = usePathname();
+  const router = useRouter();
+  const params = useParams();
 
   const totalAmount = creditNotes.reduce((sum, cn) => sum + cn.total, 0);
   const issuedNotes = creditNotes.filter(cn => cn.status === "issued").length;
   const appliedNotes = creditNotes.filter(cn => cn.status === "applied").length;
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Delete this credit note?")) {
-      await deleteCreditNote(id, pathname);
-      window.location.reload();
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    const colors: Record<string, string> = {
-      draft: "bg-gray-100 text-gray-700",
-      issued: "bg-blue-100 text-blue-700",
-      applied: "bg-green-100 text-green-700",
-    };
-    return colors[status] || "bg-gray-100 text-gray-700";
-  };
+  const formattedData = creditNotes.map(cn => ({
+    _id: cn._id,
+    creditNoteNumber: cn.creditNoteNumber,
+    date: new Date(cn.date).toLocaleDateString(),
+    customer: cn.customerId?.name || "N/A",
+    reason: cn.reason,
+    total: cn.total,
+    status: cn.status,
+  }));
 
   return (
     <div className="space-y-6">
@@ -57,7 +48,7 @@ export default function CreditNotesList({ creditNotes, hasCreatePermission }: Cr
             <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">GHS {totalAmount.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-red-600">-GHS {totalAmount.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground mt-1">Credit issued</p>
           </CardContent>
         </Card>
@@ -78,7 +69,10 @@ export default function CreditNotesList({ creditNotes, hasCreatePermission }: Cr
           <div className="flex items-center justify-between">
             <CardTitle>Credit Notes</CardTitle>
             {hasCreatePermission && (
-              <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => { setSelectedNote(null); setDialogOpen(true); }}>
+              <Button 
+                className="bg-emerald-600 hover:bg-emerald-700" 
+                onClick={() => router.push(`/${params.organizationId}/dashboard/${params.userId}/sales/credit-notes/new`)}
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Credit Note
               </Button>
@@ -86,45 +80,9 @@ export default function CreditNotesList({ creditNotes, hasCreatePermission }: Cr
           </div>
         </CardHeader>
         <CardContent>
-          {creditNotes.length === 0 ? (
-            <div className="text-center py-12">
-              <FileOutput className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">No credit notes yet</p>
-              {hasCreatePermission && (
-                <Button onClick={() => setDialogOpen(true)}>Create Your First Credit Note</Button>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {creditNotes.map((note) => (
-                <div key={note._id} className="border p-4 rounded-lg hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-semibold">{note.creditNoteNumber}</h3>
-                        <Badge className={getStatusColor(note.status)}>{note.status}</Badge>
-                      </div>
-                      <div className="space-y-1 text-sm text-muted-foreground">
-                        <p>Customer: {note.customerId?.name || "N/A"}</p>
-                        {note.invoiceId && <p>Invoice: {note.invoiceId.invoiceNumber}</p>}
-                        <p>Date: {new Date(note.date).toLocaleDateString()}</p>
-                        {note.reason && <p>Reason: {note.reason}</p>}
-                        <p className="font-semibold text-red-600">Amount: GHS {note.total.toLocaleString()}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => { setSelectedNote(note); setDialogOpen(true); }}>Edit</Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(note._id)}>Delete</Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <DataTable columns={columns} data={formattedData} searchKey="creditNoteNumber" />
         </CardContent>
       </Card>
-
-      <CreditNoteDialog open={dialogOpen} onOpenChange={setDialogOpen} creditNote={selectedNote} onSuccess={() => window.location.reload()} />
     </div>
   );
 }

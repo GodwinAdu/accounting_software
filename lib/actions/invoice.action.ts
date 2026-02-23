@@ -7,6 +7,7 @@ import { checkWriteAccess } from "@/lib/helpers/check-write-access";
 import { connectToDB } from "../connection/mongoose";
 import { withAuth, type User } from "../helpers/auth";
 import { logAudit } from "../helpers/audit";
+import { postInvoiceToGL } from "../helpers/sales-accounting";
 
 // Create Invoice
 async function _createInvoice(
@@ -28,8 +29,16 @@ async function _createInvoice(
 
     const invoiceNumber = `INV-${Date.now().toString().slice(-6)}`;
 
-    const invoice = await Invoice.create({
+    // Clean up empty string ObjectIds
+    const cleanData = {
       ...data,
+      revenueAccountId: data.revenueAccountId || undefined,
+      receivableAccountId: data.receivableAccountId || undefined,
+      taxAccountId: data.taxAccountId || undefined,
+    };
+
+    const invoice = await Invoice.create({
+      ...cleanData,
       invoiceNumber,
       organizationId: user.organizationId,
       createdBy: user._id,
@@ -45,6 +54,11 @@ async function _createInvoice(
       resourceId: String(invoice._id),
       details: { after: invoice },
     });
+
+    // Auto-post to GL if status is 'sent' or 'paid'
+    if (data.status === "sent" || data.status === "paid") {
+      await postInvoiceToGL(String(invoice._id), String(user._id));
+    }
 
     revalidatePath(path);
     return { success: true, data: JSON.parse(JSON.stringify(invoice)) };
@@ -196,6 +210,11 @@ async function _updateInvoice(
       resourceId: String(invoiceId),
       details: { before: oldInvoice, after: invoice },
     });
+
+    // Post to GL if status changed to 'sent' or 'paid'
+    if ((data.status === "sent" || data.status === "paid") && oldInvoice.status === "draft") {
+      await postInvoiceToGL(String(invoiceId), String(user._id));
+    }
 
     revalidatePath(path);
     return { success: true, data: JSON.parse(JSON.stringify(invoice)) };

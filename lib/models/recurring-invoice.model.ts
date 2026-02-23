@@ -20,6 +20,11 @@ export interface IRecurringInvoice extends Document {
   taxAmount: number;
   totalAmount: number;
   status: "active" | "paused" | "completed" | "cancelled";
+  revenueAccountId?: mongoose.Types.ObjectId;
+  receivableAccountId?: mongoose.Types.ObjectId;
+  taxAccountId?: mongoose.Types.ObjectId;
+  autoSend: boolean;
+  paymentTerms: string;
   notes?: string;
   terms?: string;
   del_flag: boolean;
@@ -50,6 +55,11 @@ const RecurringInvoiceSchema = new Schema<IRecurringInvoice>(
     taxAmount: { type: Number, default: 0 },
     totalAmount: { type: Number, required: true },
     status: { type: String, enum: ["active", "paused", "completed", "cancelled"], default: "active" },
+    revenueAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    receivableAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    taxAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    autoSend: { type: Boolean, default: true },
+    paymentTerms: { type: String, default: "net-30" },
     notes: { type: String },
     terms: { type: String },
     del_flag: { type: Boolean, default: false },

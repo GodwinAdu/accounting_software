@@ -20,6 +20,7 @@ import {
 import { AddCustomerModal } from "./add-customer-modal";
 
 type Customer = {
+  _id: string;
   id: string;
   name: string;
   company: string;
@@ -41,7 +42,7 @@ export function CustomerCombobox({
   const [open, setOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const selectedCustomer = customers.find((customer) => customer.id === value);
+  const selectedCustomer = customers.find((customer) => customer._id === value || customer.id === value);
 
   return (
     <>
@@ -71,17 +72,17 @@ export function CustomerCombobox({
               <CommandGroup>
                 {customers.map((customer) => (
                   <CommandItem
-                    key={customer.id}
+                    key={customer._id}
                     value={`${customer.name} ${customer.company}`}
                     onSelect={() => {
-                      onChange(customer.id);
+                      onChange(customer._id);
                       setOpen(false);
                     }}
                   >
                     <Check
                       className={cn(
                         "mr-2 h-4 w-4",
-                        value === customer.id ? "opacity-100" : "opacity-0"
+                        value === customer._id ? "opacity-100" : "opacity-0"
                       )}
                     />
                     <div className="flex flex-col">
@@ -116,7 +117,7 @@ export function CustomerCombobox({
         onOpenChange={setShowAddModal}
         onCustomerAdded={(customer) => {
           onCustomerAdded(customer);
-          onChange(customer.id);
+          onChange(customer._id);
         }}
       />
     </>

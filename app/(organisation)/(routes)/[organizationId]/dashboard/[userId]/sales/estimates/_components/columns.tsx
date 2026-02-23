@@ -49,12 +49,15 @@ export const columns: ColumnDef<Estimate>[] = [
       const estimate = row.original;
       const params = useParams();
       const pathname = usePathname();
+      const segments = pathname.split('/');
+      const orgId = segments[1];
+      const userId = segments[3];
 
       return (
         <CellAction
           data={estimate}
           actions={[
-            { label: "Edit", type: "edit", icon: <Edit className="h-4 w-4" />, permissionKey: "estimates_update" },
+            { label: "Edit", type: "edit", icon: <Edit className="h-4 w-4" />, permissionKey: "estimates_update", href: `/${orgId}/dashboard/${userId}/sales/estimates/${estimate._id}/edit` },
             { label: "Delete", type: "delete", icon: <Trash2 className="h-4 w-4" />, permissionKey: "estimates_delete" },
           ]}
           onDelete={async (id) => {

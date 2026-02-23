@@ -51,6 +51,9 @@ import {
   Percent,
   Warehouse,
   BarChart2,
+  Building,
+  Landmark,
+  PiggyBank,
 } from "lucide-react";
 import {
   Collapsible,
@@ -666,14 +669,14 @@ export function NavMain({ role, organization }: NavMainProps) {
     organization?.modules?.assets && {
       title: "Fixed Assets",
       url: "#",
-      icon: Boxes,
+      icon: Building,
       description: "Asset register & depreciation",
       roleField: "assets_view",
       items: [
         {
-          title: "Asset Register",
-          url: `/${organizationId}/dashboard/${userId}/assets/register`,
-          icon: BookOpen,
+          title: "All Assets",
+          url: `/${organizationId}/dashboard/${userId}/assets/all`,
+          icon: Building,
           roleField: "assets_view",
         },
         {
@@ -682,13 +685,21 @@ export function NavMain({ role, organization }: NavMainProps) {
           icon: TrendingUp,
           roleField: "depreciation_view",
         },
-        {
-          title: "Asset Categories",
-          url: `/${organizationId}/dashboard/${userId}/assets/categories`,
-          icon: CheckSquare,
-          roleField: "assetCategories_view",
-        },
       ],
+    },
+    organization?.modules?.loans && {
+      title: "Loans",
+      url: `/${organizationId}/dashboard/${userId}/loans/all`,
+      icon: Landmark,
+      description: "Loan management & tracking",
+      roleField: "loans_view",
+    },
+    organization?.modules?.equity && {
+      title: "Equity",
+      url: `/${organizationId}/dashboard/${userId}/equity/all`,
+      icon: PiggyBank,
+      description: "Owner investments & drawings",
+      roleField: "equity_view",
     },
     organization?.modules?.ai && {
       title: "AI Assistant",

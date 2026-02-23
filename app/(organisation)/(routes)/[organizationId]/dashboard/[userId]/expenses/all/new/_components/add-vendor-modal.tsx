@@ -5,6 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { createVendor } from "@/lib/actions/vendor.action";
 
 import {
   Dialog,
@@ -56,21 +58,36 @@ export function AddVendorModal({
     },
   });
 
-  const onSubmit = async (data: VendorFormValues) => {
+  const onSubmit = async (data: VendorFormValues, e?: React.BaseSyntheticEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
     setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const result = await createVendor({
+        companyName: data.company,
+        contactName: data.name,
+        email: data.email,
+        phone: data.phone,
+      }, window.location.pathname);
+
+      if (result.error) {
+        toast.error("Failed to create vendor", { description: result.error });
+        return;
+      }
       
       const newVendor = {
-        id: Date.now().toString(),
-        name: data.company,
+        id: result.data._id,
+        name: result.data.companyName,
       };
 
+      toast.success("Vendor created successfully");
       onVendorAdded(newVendor);
       form.reset();
       onOpenChange(false);
     } catch (error) {
       console.error("Error creating vendor:", error);
+      toast.error("Failed to create vendor");
     } finally {
       setIsSubmitting(false);
     }
@@ -87,7 +104,11 @@ export function AddVendorModal({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            form.handleSubmit(onSubmit)(e);
+          }} className="space-y-4">
             <FormField
               control={form.control}
               name="company"

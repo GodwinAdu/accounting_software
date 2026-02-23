@@ -7,6 +7,7 @@ import { checkWriteAccess } from "@/lib/helpers/check-write-access"
 import { connectToDB } from "../connection/mongoose"
 import { withAuth, type User } from "../helpers/auth"
 import { logAudit } from "../helpers/audit"
+import { postPurchaseOrderToGL } from "../helpers/purchases-accounting"
 
 // Create Purchase Order
 async function _createPurchaseOrder(
@@ -166,6 +167,11 @@ async function _updatePurchaseOrder(
       resourceId: String(poId),
       details: { before: oldPurchaseOrder, after: purchaseOrder },
     })
+
+    // Post to GL when goods are received
+    if (data.status === "received" && oldPurchaseOrder.status !== "received") {
+      await postPurchaseOrderToGL(String(poId), String(user._id || user.id))
+    }
 
     revalidatePath(path)
     return { success: true, data: JSON.parse(JSON.stringify(purchaseOrder)) }

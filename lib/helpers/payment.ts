@@ -56,6 +56,17 @@ export async function processPayment(data: {
   provider?: string
 }) {
   const { provider, ...paymentData } = data
+  
+  // Handle manual payment
+  if (provider === "manual") {
+    return {
+      status: "success",
+      reference: `manual_${Date.now()}`,
+      amount: data.amount,
+      metadata: data.metadata,
+    }
+  }
+  
   let gateway
 
   if (provider) {

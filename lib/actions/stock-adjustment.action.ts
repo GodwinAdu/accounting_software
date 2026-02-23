@@ -8,6 +8,7 @@ import { checkPermission } from "@/lib/helpers/check-permission"
 import { checkWriteAccess } from "@/lib/helpers/check-write-access"
 import { connectToDB } from "../connection/mongoose"
 import { logAudit } from "../helpers/audit"
+import { postStockAdjustmentToGL } from "../helpers/inventory-accounting"
 
 // Create Stock Adjustment
 export async function createStockAdjustment(
@@ -83,6 +84,8 @@ export async function createStockAdjustment(
       resourceId: String(adjustment._id),
       details: { after: adjustment },
     })
+
+    await postStockAdjustmentToGL(String(adjustment._id), String(user.id));
 
     revalidatePath(path)
     return { success: true, data: JSON.parse(JSON.stringify(adjustment)) }

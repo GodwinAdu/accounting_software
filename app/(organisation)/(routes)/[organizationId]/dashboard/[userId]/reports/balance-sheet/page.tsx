@@ -23,14 +23,18 @@ export default async function BalanceSheetPage({
   const {
     currentAssets = [],
     fixedAssets = [],
+    otherAssets = [],
     currentLiabilities = [],
     longTermLiabilities = [],
+    otherLiabilities = [],
     equity = [],
     totalCurrentAssets = 0,
     totalFixedAssets = 0,
+    totalOtherAssets = 0,
     totalAssets = 0,
     totalCurrentLiabilities = 0,
     totalLongTermLiabilities = 0,
+    totalOtherLiabilities = 0,
     totalLiabilities = 0,
     totalEquity = 0,
   } = data;
@@ -94,6 +98,24 @@ export default async function BalanceSheetPage({
                 </div>
               </div>
 
+              {otherAssets.length > 0 && (
+                <div>
+                  <h4 className="font-semibold mb-2">Other Assets</h4>
+                  <div className="space-y-2 ml-4">
+                    {otherAssets.map((asset: any, i: number) => (
+                      <div key={i} className="flex justify-between py-1">
+                        <span>{asset.name}</span>
+                        <span className="font-medium">GHS {asset.amount.toLocaleString()}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between py-1 font-semibold border-t pt-2">
+                      <span>Total Other Assets</span>
+                      <span>GHS {totalOtherAssets.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <Separator />
               <div className="flex justify-between py-2 font-bold text-lg">
                 <span>Total Assets</span>
@@ -140,6 +162,24 @@ export default async function BalanceSheetPage({
                   </div>
                 </div>
               </div>
+
+              {otherLiabilities.length > 0 && (
+                <div>
+                  <h4 className="font-semibold mb-2">Other Liabilities</h4>
+                  <div className="space-y-2 ml-4">
+                    {otherLiabilities.map((liability: any, i: number) => (
+                      <div key={i} className="flex justify-between py-1">
+                        <span>{liability.name}</span>
+                        <span className="font-medium">GHS {liability.amount.toLocaleString()}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between py-1 font-semibold border-t pt-2">
+                      <span>Total Other Liabilities</span>
+                      <span>GHS {totalOtherLiabilities.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <Separator />
               <div className="flex justify-between py-2 font-bold text-lg">

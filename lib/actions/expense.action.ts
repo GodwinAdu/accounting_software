@@ -7,6 +7,7 @@ import { checkWriteAccess } from "@/lib/helpers/check-write-access"
 import { connectToDB } from "../connection/mongoose"
 import { withAuth, type User } from "../helpers/auth"
 import { logAudit } from "../helpers/audit"
+import { postExpenseToGL } from "../helpers/expense-accounting"
 
 // Create Expense
 async function _createExpense(
@@ -31,10 +32,15 @@ async function _createExpense(
       ...data,
       expenseNumber,
       organizationId: user.organizationId,
-      createdBy: user.id,
+      createdBy: user._id || user.id,
       mod_flag: false,
       del_flag: false
     })
+
+    // Only post to GL if status is paid
+    if (data.status === "paid") {
+      await postExpenseToGL(String(expense._id), String(user._id || user.id))
+    }
 
     await logAudit({
       organizationId: String(user.organizationId),
@@ -267,3 +273,172 @@ async function _getExpenseSummary(user: User) {
 }
 
 export const getExpenseSummary = await withAuth(_getExpenseSummary)
+
+// Approve Expense
+async function _approveExpense(
+  user: User,
+  expenseId: string,
+  path: string
+) {
+  try {
+    await checkWriteAccess(String(user.organizationId));
+    
+    const hasPermission = await checkPermission("expenses_approve")
+    if (!hasPermission) {
+      return { error: "You don't have permission to approve expenses" }
+    }
+
+    await connectToDB()
+
+    const expense = await Expense.findOneAndUpdate(
+      {
+        _id: expenseId,
+        organizationId: user.organizationId,
+        del_flag: false
+      },
+      {
+        status: "approved",
+        approvedBy: user._id || user.id,
+        approvedAt: new Date(),
+        modifiedBy: user._id || user.id,
+        mod_flag: true
+      },
+      { new: true }
+    )
+
+    if (!expense) {
+      return { error: "Expense not found" }
+    }
+
+    await logAudit({
+      organizationId: String(user.organizationId),
+      userId: String(user._id || user.id),
+      action: "approve",
+      resource: "expense",
+      resourceId: String(expenseId),
+      details: { status: "approved" },
+    })
+
+    revalidatePath(path)
+    return { success: true, data: JSON.parse(JSON.stringify(expense)) }
+  } catch (error: any) {
+    console.error("Approve expense error:", error)
+    return { error: error.message || "Failed to approve expense" }
+  }
+}
+
+export const approveExpense = await withAuth(_approveExpense)
+
+// Reject Expense
+async function _rejectExpense(
+  user: User,
+  expenseId: string,
+  reason: string,
+  path: string
+) {
+  try {
+    await checkWriteAccess(String(user.organizationId));
+    
+    const hasPermission = await checkPermission("expenses_approve")
+    if (!hasPermission) {
+      return { error: "You don't have permission to reject expenses" }
+    }
+
+    await connectToDB()
+
+    const expense = await Expense.findOneAndUpdate(
+      {
+        _id: expenseId,
+        organizationId: user.organizationId,
+        del_flag: false
+      },
+      {
+        status: "rejected",
+        rejectedBy: user._id || user.id,
+        rejectedAt: new Date(),
+        rejectionReason: reason,
+        modifiedBy: user._id || user.id,
+        mod_flag: true
+      },
+      { new: true }
+    )
+
+    if (!expense) {
+      return { error: "Expense not found" }
+    }
+
+    await logAudit({
+      organizationId: String(user.organizationId),
+      userId: String(user._id || user.id),
+      action: "reject",
+      resource: "expense",
+      resourceId: String(expenseId),
+      details: { status: "rejected", reason },
+    })
+
+    revalidatePath(path)
+    return { success: true, data: JSON.parse(JSON.stringify(expense)) }
+  } catch (error: any) {
+    console.error("Reject expense error:", error)
+    return { error: error.message || "Failed to reject expense" }
+  }
+}
+
+export const rejectExpense = await withAuth(_rejectExpense)
+
+// Mark Expense as Paid
+async function _markExpenseAsPaid(
+  user: User,
+  expenseId: string,
+  path: string
+) {
+  try {
+    await checkWriteAccess(String(user.organizationId));
+    
+    const hasPermission = await checkPermission("expenses_update")
+    if (!hasPermission) {
+      return { error: "You don't have permission to mark expenses as paid" }
+    }
+
+    await connectToDB()
+
+    const expense = await Expense.findOne({
+      _id: expenseId,
+      organizationId: user.organizationId,
+      del_flag: false
+    })
+
+    if (!expense) {
+      return { error: "Expense not found" }
+    }
+
+    if (expense.status === "rejected") {
+      return { error: "Cannot mark rejected expense as paid" }
+    }
+
+    expense.status = "paid"
+    expense.modifiedBy = user._id || user.id
+    expense.mod_flag = true
+    await expense.save()
+
+    // Post to general ledger when marked as paid
+    await postExpenseToGL(String(expense._id), String(user._id || user.id))
+
+    await logAudit({
+      organizationId: String(user.organizationId),
+      userId: String(user._id || user.id),
+      action: "mark_paid",
+      resource: "expense",
+      resourceId: String(expenseId),
+      details: { status: "paid" },
+    })
+
+    revalidatePath(path)
+    return { success: true, data: JSON.parse(JSON.stringify(expense)) }
+  } catch (error: any) {
+    console.error("Mark expense as paid error:", error)
+    return { error: error.message || "Failed to mark expense as paid" }
+  }
+}
+
+export const markExpenseAsPaid = await withAuth(_markExpenseAsPaid)

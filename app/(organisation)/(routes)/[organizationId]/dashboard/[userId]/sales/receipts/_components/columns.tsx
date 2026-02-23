@@ -62,8 +62,8 @@ export const columns: ColumnDef<Receipt>[] = [
         <CellAction
           data={receipt}
           actions={[
-            { label: "Edit", type: "edit", icon: <Edit className="h-4 w-4" />, permissionKey: "receipts_update" },
-            { label: "Delete", type: "delete", icon: <Trash2 className="h-4 w-4" />, permissionKey: "receipts_delete" },
+            { label: "Edit", type: "edit", icon: <Edit className="h-4 w-4" />, permissionKey: "salesReceipts_update", href: `/${params.organizationId}/dashboard/${params.userId}/sales/receipts/${receipt._id}/edit` },
+            { label: "Delete", type: "delete", icon: <Trash2 className="h-4 w-4" />, permissionKey: "salesReceipts_delete" },
           ]}
           onDelete={async (id) => {
             const result = await deleteReceipt(id, pathname);

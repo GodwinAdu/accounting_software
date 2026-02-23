@@ -63,13 +63,16 @@ export const columns: ColumnDef<Payment>[] = [
       const payment = row.original;
       const params = useParams();
       const pathname = usePathname();
+      const segments = pathname.split('/');
+      const orgId = segments[1];
+      const userId = segments[3];
 
       return (
         <CellAction
           data={payment}
           actions={[
-            { label: "Edit", type: "edit", icon: <Edit className="h-4 w-4" />, permissionKey: "payments_update" },
-            { label: "Delete", type: "delete", icon: <Trash2 className="h-4 w-4" />, permissionKey: "payments_delete" },
+            { label: "Edit", type: "edit", icon: <Edit className="h-4 w-4" />, permissionKey: "paymentsReceived_update", href: `/${orgId}/dashboard/${userId}/sales/payments/${payment._id}/edit` },
+            { label: "Delete", type: "delete", icon: <Trash2 className="h-4 w-4" />, permissionKey: "paymentsReceived_delete" },
           ]}
           onDelete={async (id) => {
             const result = await deletePayment(id, pathname);

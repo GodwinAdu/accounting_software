@@ -56,8 +56,8 @@ export default async function ProfitLossPage({
           <CardContent>
             <div className="space-y-2">
               {revenue.map((item: any, i: number) => (
-                <div key={i} className="flex justify-between py-2">
-                  <span>{item.name}</span>
+                <div key={i} className="flex justify-between py-2" style={{ paddingLeft: `${item.level * 20}px` }}>
+                  <span className={item.level > 0 ? "text-muted-foreground" : "font-medium"}>{item.name}</span>
                   <span className="font-medium">GHS {item.amount.toLocaleString()}</span>
                 </div>
               ))}
@@ -77,8 +77,8 @@ export default async function ProfitLossPage({
           <CardContent>
             <div className="space-y-2">
               {expenses.map((item: any, i: number) => (
-                <div key={i} className="flex justify-between py-2">
-                  <span>{item.name}</span>
+                <div key={i} className="flex justify-between py-2" style={{ paddingLeft: `${item.level * 20}px` }}>
+                  <span className={item.level > 0 ? "text-muted-foreground" : "font-medium"}>{item.name}</span>
                   <span className="font-medium">GHS {item.amount.toLocaleString()}</span>
                 </div>
               ))}

@@ -5,6 +5,7 @@ import VATFiling from "../models/vat-filing.model";
 import { withAuth } from "../helpers/auth";
 import { logAudit } from "../helpers/audit";
 import { checkWriteAccess } from "../helpers/check-write-access";
+import { postVATFilingToGL } from "../helpers/tax-accounting";
 
 async function _createVATFiling(
   user: any,
@@ -50,6 +51,10 @@ async function _createVATFiling(
       resourceId: String(filing._id),
       details: { after: filing },
     });
+
+    if (data.status === "paid") {
+      await postVATFilingToGL(String(filing._id), String(user._id));
+    }
 
     return { success: true, data: JSON.parse(JSON.stringify(filing)) };
   } catch (error: any) {
@@ -134,6 +139,10 @@ async function _updateVATFiling(
       resourceId: String(id),
       details: { before: oldFiling, after: filing },
     });
+
+    if (data.status === "paid" && oldFiling.status !== "paid") {
+      await postVATFilingToGL(String(id), String(user._id));
+    }
 
     return { success: true, data: JSON.parse(JSON.stringify(filing)) };
   } catch (error: any) {

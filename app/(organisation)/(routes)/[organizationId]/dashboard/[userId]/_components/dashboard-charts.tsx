@@ -7,9 +7,11 @@ import { Area, AreaChart, Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Cart
 interface DashboardChartsProps {
   recentTransactions: any[];
   payrollRuns: any[];
+  monthlyRevenueExpenses: any[];
+  cashFlowData: any[];
 }
 
-export default function DashboardCharts({ recentTransactions, payrollRuns }: DashboardChartsProps) {
+export default function DashboardCharts({ recentTransactions, payrollRuns, monthlyRevenueExpenses, cashFlowData }: DashboardChartsProps) {
   const payrollData = payrollRuns.map((run) => ({
     month: new Date(run.payPeriodStart).toLocaleDateString("en-US", { month: "short" }),
     amount: run.totalNetPay,
@@ -24,7 +26,36 @@ export default function DashboardCharts({ recentTransactions, payrollRuns }: Das
             <CardDescription>Monthly comparison for the last 6 months</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <p className="text-sm text-muted-foreground">Chart data coming soon</p>
+            {monthlyRevenueExpenses.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No data yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={monthlyRevenueExpenses}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Area 
+                    type="monotone" 
+                    dataKey="revenue" 
+                    stackId="1" 
+                    stroke="#10b981" 
+                    fill="#10b981" 
+                    fillOpacity={0.6}
+                    name="Revenue"
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="expenses" 
+                    stackId="2" 
+                    stroke="#ef4444" 
+                    fill="#ef4444" 
+                    fillOpacity={0.6}
+                    name="Expenses"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -76,7 +107,20 @@ export default function DashboardCharts({ recentTransactions, payrollRuns }: Das
             <CardDescription>Inflow vs Outflow trends</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">Chart data coming soon</p>
+            {cashFlowData.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No cash flow data yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={cashFlowData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="inflow" fill="#10b981" radius={[8, 8, 0, 0]} name="Inflow" />
+                  <Bar dataKey="outflow" fill="#ef4444" radius={[8, 8, 0, 0]} name="Outflow" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 

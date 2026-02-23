@@ -3,6 +3,10 @@
 import { checkSubscriptionStatus } from "./subscription-checker"
 
 export async function checkWriteAccess(organizationId: string) {
+  if (!organizationId || organizationId === "undefined") {
+    throw new Error("Invalid organization ID")
+  }
+  
   const status = await checkSubscriptionStatus(organizationId)
   
   if (!status) {

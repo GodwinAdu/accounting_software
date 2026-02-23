@@ -1,13 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useParams, usePathname } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { ArrowLeft, Save, CalendarIcon, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { getCustomers } from "@/lib/actions/customer.action";
+import { createReceipt, updateReceipt } from "@/lib/actions/receipt.action";
+import { getAccounts } from "@/lib/actions/account.action";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,6 +39,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { CustomerCombobox } from "./customer-combobox";
 
 const lineItemSchema = z.object({
   description: z.string().min(1, "Description required"),
@@ -48,6 +53,8 @@ const receiptSchema = z.object({
   receiptNumber: z.string().min(1, "Receipt number is required"),
   receiptDate: z.date(),
   paymentMethod: z.enum(["cash", "card", "mobile_money", "bank_transfer"]),
+  bankAccountId: z.string().optional(),
+  revenueAccountId: z.string().optional(),
   lineItems: z.array(lineItemSchema).min(1, "At least one line item required"),
   notes: z.string().optional(),
 });
@@ -60,17 +67,77 @@ const mockCustomers = [
   { id: "3", name: "Kofi Boateng", company: "Construction Co." },
 ];
 
-export function ReceiptForm() {
+type Customer = {
+  _id: string;
+  name: string;
+  company?: string;
+};
+
+type Account = {
+  _id: string;
+  accountName: string;
+  accountCode: string;
+  accountType: string;
+};
+
+type ReceiptFormProps = {
+  initialData?: any;
+};
+
+export function ReceiptForm({ initialData }: ReceiptFormProps) {
   const router = useRouter();
+  const params = useParams();
+  const pathname = usePathname();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const isEditMode = !!initialData;
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [customersResult, accountsResult] = await Promise.all([
+        getCustomers(),
+        getAccounts()
+      ]);
+      
+      if (customersResult.success && customersResult.data) {
+        setCustomers(customersResult.data.map((c: any) => ({
+          _id: c._id,
+          name: c.name,
+          company: c.company || "",
+        })));
+      }
+      
+      if (accountsResult.success && accountsResult.data) {
+        setAccounts(accountsResult.data.map((a: any) => ({
+          _id: a._id,
+          accountName: a.accountName,
+          accountCode: a.accountCode,
+          accountType: a.accountType,
+        })));
+      }
+    };
+    fetchData();
+  }, []);
 
   const form = useForm<ReceiptFormValues>({
     resolver: zodResolver(receiptSchema),
-    defaultValues: {
+    defaultValues: initialData ? {
+      customerId: initialData.customerId?._id || initialData.customerId || "",
+      receiptNumber: initialData.receiptNumber || `REC-${Date.now().toString().slice(-6)}`,
+      receiptDate: initialData.receiptDate ? new Date(initialData.receiptDate) : new Date(),
+      paymentMethod: initialData.paymentMethod || "cash",
+      bankAccountId: initialData.bankAccountId || "",
+      revenueAccountId: initialData.revenueAccountId || "",
+      lineItems: initialData.lineItems || [{ description: "", quantity: 1, rate: 0, amount: 0 }],
+      notes: initialData.notes || "",
+    } : {
       customerId: "",
       receiptNumber: `REC-${Date.now().toString().slice(-6)}`,
       receiptDate: new Date(),
       paymentMethod: "cash",
+      bankAccountId: "",
+      revenueAccountId: "",
       lineItems: [{ description: "", quantity: 1, rate: 0, amount: 0 }],
       notes: "",
     },
@@ -103,11 +170,30 @@ export function ReceiptForm() {
   const onSubmit = async (data: ReceiptFormValues) => {
     setIsSubmitting(true);
     try {
-      console.log("Receipt data:", data);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      router.push("../");
+      const receiptData: any = {
+        customerId: data.customerId,
+        receiptDate: data.receiptDate,
+        paymentMethod: data.paymentMethod,
+        bankAccountId: data.bankAccountId || undefined,
+        revenueAccountId: data.revenueAccountId || undefined,
+        lineItems: data.lineItems,
+        totalAmount: calculateTotal(),
+        notes: data.notes,
+      };
+
+      const result = isEditMode
+        ? await updateReceipt(initialData._id, receiptData, pathname)
+        : await createReceipt(receiptData, pathname);
+
+      if (result.error) {
+        toast.error(result.error);
+      } else {
+        toast.success(`Receipt ${isEditMode ? "updated" : "created"} successfully`);
+        router.push(`/${params.organizationId}/dashboard/${params.userId}/sales/receipts`);
+      }
     } catch (error) {
-      console.error("Error creating receipt:", error);
+      console.error(`Error ${isEditMode ? "updating" : "creating"} receipt:`, error);
+      toast.error(`Failed to ${isEditMode ? "update" : "create"} receipt`);
     } finally {
       setIsSubmitting(false);
     }
@@ -135,20 +221,16 @@ export function ReceiptForm() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Customer *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select customer" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {mockCustomers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name} - {customer.company}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <FormControl>
+                          <CustomerCombobox
+                            value={field.value}
+                            onChange={field.onChange}
+                            customers={customers}
+                            onCustomerAdded={(newCustomer) => {
+                              setCustomers([...customers, newCustomer]);
+                            }}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -224,6 +306,64 @@ export function ReceiptForm() {
                             <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                           </SelectContent>
                         </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="bankAccountId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Bank/Cash Account</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Default: Cash" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {accounts
+                              .filter(a => a.accountType === 'asset')
+                              .map(account => (
+                                <SelectItem key={account._id} value={account._id}>
+                                  {account.accountCode} - {account.accountName}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">Select the account where payment was received</p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="revenueAccountId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Revenue Account</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Default: Sales Revenue" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {accounts
+                              .filter(a => a.accountType === 'revenue')
+                              .map(account => (
+                                <SelectItem key={account._id} value={account._id}>
+                                  {account.accountCode} - {account.accountName}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground mt-1">Select the income category for this transaction</p>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -384,7 +524,7 @@ export function ReceiptForm() {
                     disabled={isSubmitting}
                   >
                     <Save className="h-4 w-4 mr-2" />
-                    {isSubmitting ? "Saving..." : "Save Receipt"}
+                    {isSubmitting ? "Saving..." : isEditMode ? "Update Receipt" : "Save Receipt"}
                   </Button>
 
                   <Button

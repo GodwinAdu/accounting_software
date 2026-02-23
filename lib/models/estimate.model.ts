@@ -18,6 +18,7 @@ export interface IEstimate extends Document {
   taxAmount: number;
   totalAmount: number;
   status: "draft" | "sent" | "accepted" | "declined" | "expired";
+  revenueAccountId?: mongoose.Types.ObjectId;
   notes?: string;
   terms?: string;
   del_flag: boolean;
@@ -46,6 +47,7 @@ const EstimateSchema = new Schema<IEstimate>(
     taxAmount: { type: Number, default: 0 },
     totalAmount: { type: Number, required: true },
     status: { type: String, enum: ["draft", "sent", "accepted", "declined", "expired"], default: "draft" },
+    revenueAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     notes: { type: String },
     terms: { type: String },
     del_flag: { type: Boolean, default: false },

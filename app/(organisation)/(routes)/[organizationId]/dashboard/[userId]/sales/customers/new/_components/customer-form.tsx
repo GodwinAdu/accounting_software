@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { createCustomer, updateCustomer } from "@/lib/actions/customer.action";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -34,8 +35,7 @@ import { Separator } from "@/components/ui/separator";
 const customerSchema = z.object({
   // Basic Information
   customerType: z.enum(["individual", "business"]),
-  firstName: z.string().min(2, "First name is required"),
-  lastName: z.string().min(2, "Last name is required"),
+  name: z.string().min(2, "Name is required"),
   companyName: z.string().optional(),
   displayName: z.string().min(2, "Display name is required"),
   email: z.string().email("Invalid email address"),
@@ -81,16 +81,52 @@ const ghanaRegions = [
   "Bono East", "Ahafo", "Savannah", "North East", "Oti", "Western North"
 ];
 
-export function CustomerForm() {
+type CustomerFormProps = {
+  initialData?: any;
+};
+
+export function CustomerForm({ initialData }: CustomerFormProps) {
   const router = useRouter();
+  const params = useParams();
+  const pathname = usePathname();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isEditMode = !!initialData;
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
-    defaultValues: {
+    defaultValues: initialData ? {
+      customerType: initialData.customerType || "business",
+      name: initialData.name || "",
+      companyName: initialData.company || "",
+      displayName: initialData.name || "",
+      email: initialData.email || "",
+      phone: initialData.phone || "",
+      mobile: initialData.mobile || "",
+      website: initialData.website || "",
+      billingAttention: initialData.address?.attention || "",
+      billingStreet: initialData.address?.street || "",
+      billingCity: initialData.address?.city || "",
+      billingState: initialData.address?.state || "",
+      billingZipCode: initialData.address?.postalCode || "",
+      billingCountry: initialData.address?.country || "Ghana",
+      sameAsBilling: true,
+      shippingAttention: "",
+      shippingStreet: "",
+      shippingCity: "",
+      shippingState: "",
+      shippingZipCode: "",
+      shippingCountry: "Ghana",
+      taxId: initialData.taxId || "",
+      currency: initialData.currency || "GHS",
+      paymentTerms: initialData.paymentTerms || "net-30",
+      creditLimit: initialData.creditLimit || 0,
+      openingBalance: initialData.openingBalance || 0,
+      notes: initialData.notes || "",
+      tags: initialData.tags || "",
+      status: initialData.status || "active",
+    } : {
       customerType: "business",
-      firstName: "",
-      lastName: "",
+      name: "",
       companyName: "",
       displayName: "",
       email: "",
@@ -127,12 +163,50 @@ export function CustomerForm() {
   const onSubmit = async (data: CustomerFormValues) => {
     setIsSubmitting(true);
     try {
-      console.log("Customer data:", data);
-      // TODO: Implement API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      router.push("../");
+      const customerData: any = {
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        company: data.companyName,
+        mobile: data.mobile,
+        website: data.website,
+        address: {
+          attention: data.billingAttention,
+          street: data.billingStreet,
+          city: data.billingCity,
+          state: data.billingState,
+          country: data.billingCountry,
+          postalCode: data.billingZipCode,
+        },
+        shippingAddress: data.sameAsBilling ? undefined : {
+          attention: data.shippingAttention,
+          street: data.shippingStreet,
+          city: data.shippingCity,
+          state: data.shippingState,
+          country: data.shippingCountry,
+          postalCode: data.shippingZipCode,
+        },
+        taxId: data.taxId,
+        currency: data.currency,
+        paymentTerms: data.paymentTerms,
+        creditLimit: data.creditLimit,
+        openingBalance: data.openingBalance,
+        notes: data.notes,
+        tags: data.tags,
+        status: data.status,
+      };
+
+      const result = isEditMode
+        ? await updateCustomer(initialData._id, customerData, pathname)
+        : await createCustomer(customerData, pathname);
+
+      if (result.error) {
+        console.error(result.error);
+      } else {
+        router.push(`/${params.organizationId}/dashboard/${params.userId}/sales/customers`);
+      }
     } catch (error) {
-      console.error("Error creating customer:", error);
+      console.error(`Error ${isEditMode ? "updating" : "creating"} customer:`, error);
     } finally {
       setIsSubmitting(false);
     }
@@ -218,29 +292,15 @@ export function CustomerForm() {
                   />
                 )}
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <FormField
                     control={form.control}
-                    name="firstName"
+                    name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>First Name *</FormLabel>
+                        <FormLabel>Name *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Kwame" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="lastName"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Last Name *</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Mensah" {...field} />
+                          <Input placeholder="Kwame Mensah" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -822,7 +882,7 @@ export function CustomerForm() {
             disabled={isSubmitting}
           >
             <Save className="h-4 w-4 mr-2" />
-            {isSubmitting ? "Saving..." : "Save Customer"}
+            {isSubmitting ? "Saving..." : isEditMode ? "Update Customer" : "Save Customer"}
           </Button>
         </div>
       </form>

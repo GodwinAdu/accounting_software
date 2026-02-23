@@ -75,13 +75,13 @@ export function PaymentsList({ payments, hasCreatePermission, organizationId, us
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div><CardTitle>Payment Records</CardTitle></div>
-          {hasCreatePermission && (
+          {/* {hasCreatePermission && ( */}
             <Link href={`/${organizationId}/dashboard/${userId}/sales/payments/new`}>
               <Button className="bg-emerald-600 hover:bg-emerald-700">
                 <Plus className="h-4 w-4 mr-2" />Record Payment
               </Button>
             </Link>
-          )}
+          {/* )} */}
         </CardHeader>
         <CardContent>
           <DataTable columns={columns} data={formattedPayments} searchKey="customer" />

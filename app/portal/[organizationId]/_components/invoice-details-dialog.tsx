@@ -60,10 +60,10 @@ export default function InvoiceDetailsDialog({ invoice, open, onOpenChange, orga
                   <div className="flex-1">
                     <p className="font-medium">{item.description}</p>
                     <p className="text-muted-foreground text-xs">
-                      {item.quantity} × GHS {item.unitPrice.toLocaleString()}
+                      {item.quantity} × GHS {(item.unitPrice || item.rate || 0).toLocaleString()}
                     </p>
                   </div>
-                  <p className="font-semibold">GHS {item.amount.toLocaleString()}</p>
+                  <p className="font-semibold">GHS {(item.amount || 0).toLocaleString()}</p>
                 </div>
               ))}
             </div>
@@ -74,28 +74,28 @@ export default function InvoiceDetailsDialog({ invoice, open, onOpenChange, orga
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-semibold">GHS {invoice.subtotal.toLocaleString()}</span>
+              <span className="font-semibold">GHS {(invoice.subtotal || 0).toLocaleString()}</span>
             </div>
-            {invoice.tax > 0 && (
+            {(invoice.tax || invoice.taxAmount || 0) > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Tax</span>
-                <span className="font-semibold">GHS {invoice.tax.toLocaleString()}</span>
+                <span className="font-semibold">GHS {(invoice.tax || invoice.taxAmount || 0).toLocaleString()}</span>
               </div>
             )}
             <Separator />
             <div className="flex justify-between">
               <span className="font-semibold">Total</span>
-              <span className="text-xl font-bold">GHS {invoice.total.toLocaleString()}</span>
+              <span className="text-xl font-bold">GHS {(invoice.total || invoice.totalAmount || 0).toLocaleString()}</span>
             </div>
-            {invoice.amountPaid > 0 && (
+            {(invoice.amountPaid || invoice.paidAmount || 0) > 0 && (
               <>
                 <div className="flex justify-between text-sm text-emerald-600">
                   <span>Amount Paid</span>
-                  <span className="font-semibold">GHS {invoice.amountPaid.toLocaleString()}</span>
+                  <span className="font-semibold">GHS {(invoice.amountPaid || invoice.paidAmount || 0).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-orange-600">
                   <span className="font-semibold">Balance Due</span>
-                  <span className="text-xl font-bold">GHS {(invoice.total - invoice.amountPaid).toLocaleString()}</span>
+                  <span className="text-xl font-bold">GHS {((invoice.total || invoice.totalAmount || 0) - (invoice.amountPaid || invoice.paidAmount || 0)).toLocaleString()}</span>
                 </div>
               </>
             )}

@@ -21,6 +21,9 @@ export default async function CashFlowPage({
   const data = result.data || {};
 
   const {
+    operatingActivities = [],
+    investingActivities = [],
+    financingActivities = [],
     operatingCash = 0,
     investingCash = 0,
     financingCash = 0,
@@ -53,11 +56,25 @@ export default async function CashFlowPage({
             <CardTitle>Operating Activities</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-between py-2 font-bold text-lg border-t pt-2">
-              <span>Net Cash from Operating Activities</span>
-              <span className={operatingCash >= 0 ? "text-emerald-600" : "text-red-600"}>
-                GHS {operatingCash >= 0 ? operatingCash.toLocaleString() : `(${Math.abs(operatingCash).toLocaleString()})`}
-              </span>
+            <div className="space-y-2">
+              {operatingActivities.length > 0 ? (
+                operatingActivities.map((activity: any, i: number) => (
+                  <div key={i} className="flex justify-between py-2">
+                    <span>{activity.description}</span>
+                    <span className={`font-medium ${activity.amount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      GHS {activity.amount >= 0 ? activity.amount.toLocaleString() : `(${Math.abs(activity.amount).toLocaleString()})`}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground py-4">No operating activities</p>
+              )}
+              <div className="flex justify-between py-2 font-bold text-lg border-t pt-2">
+                <span>Net Cash from Operating Activities</span>
+                <span className={operatingCash >= 0 ? "text-emerald-600" : "text-red-600"}>
+                  GHS {operatingCash >= 0 ? operatingCash.toLocaleString() : `(${Math.abs(operatingCash).toLocaleString()})`}
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -67,11 +84,25 @@ export default async function CashFlowPage({
             <CardTitle>Investing Activities</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-between py-2 font-bold text-lg border-t pt-2">
-              <span>Net Cash from Investing Activities</span>
-              <span className={investingCash >= 0 ? "text-emerald-600" : "text-red-600"}>
-                GHS {investingCash >= 0 ? investingCash.toLocaleString() : `(${Math.abs(investingCash).toLocaleString()})`}
-              </span>
+            <div className="space-y-2">
+              {investingActivities.length > 0 ? (
+                investingActivities.map((activity: any, i: number) => (
+                  <div key={i} className="flex justify-between py-2">
+                    <span>{activity.description}</span>
+                    <span className={`font-medium ${activity.amount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      GHS {activity.amount >= 0 ? activity.amount.toLocaleString() : `(${Math.abs(activity.amount).toLocaleString()})`}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground py-4">No investing activities</p>
+              )}
+              <div className="flex justify-between py-2 font-bold text-lg border-t pt-2">
+                <span>Net Cash from Investing Activities</span>
+                <span className={investingCash >= 0 ? "text-emerald-600" : "text-red-600"}>
+                  GHS {investingCash >= 0 ? investingCash.toLocaleString() : `(${Math.abs(investingCash).toLocaleString()})`}
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -81,11 +112,25 @@ export default async function CashFlowPage({
             <CardTitle>Financing Activities</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex justify-between py-2 font-bold text-lg border-t pt-2">
-              <span>Net Cash from Financing Activities</span>
-              <span className={financingCash >= 0 ? "text-emerald-600" : "text-red-600"}>
-                GHS {financingCash >= 0 ? financingCash.toLocaleString() : `(${Math.abs(financingCash).toLocaleString()})`}
-              </span>
+            <div className="space-y-2">
+              {financingActivities.length > 0 ? (
+                financingActivities.map((activity: any, i: number) => (
+                  <div key={i} className="flex justify-between py-2">
+                    <span>{activity.description}</span>
+                    <span className={`font-medium ${activity.amount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      GHS {activity.amount >= 0 ? activity.amount.toLocaleString() : `(${Math.abs(activity.amount).toLocaleString()})`}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground py-4">No financing activities</p>
+              )}
+              <div className="flex justify-between py-2 font-bold text-lg border-t pt-2">
+                <span>Net Cash from Financing Activities</span>
+                <span className={financingCash >= 0 ? "text-emerald-600" : "text-red-600"}>
+                  GHS {financingCash >= 0 ? financingCash.toLocaleString() : `(${Math.abs(financingCash).toLocaleString()})`}
+                </span>
+              </div>
             </div>
           </CardContent>
         </Card>

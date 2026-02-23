@@ -104,6 +104,9 @@ export const columns: ColumnDef<Account>[] = [
     cell: ({ row }) => {
       const account = row.original;
       const pathname = usePathname();
+      const segments = pathname.split('/');
+      const orgId = segments[1];
+      const userId = segments[3];
 
       return (
         <CellAction
@@ -114,19 +117,21 @@ export const columns: ColumnDef<Account>[] = [
               type: "view",
               icon: <Eye className="h-4 w-4" />,
               permissionKey: "generalLedger_view",
+              href: `/${orgId}/dashboard/${userId}/accounting/general-ledger?accountId=${account._id}`,
             },
             {
               label: "Edit",
               type: "edit",
               icon: <Edit className="h-4 w-4" />,
-              permissionKey: "accounts_update",
+              permissionKey: "chartOfAccounts_update",
               disabled: account.isSystemAccount,
+              href: `/${orgId}/dashboard/${userId}/accounting/chart-of-accounts/${account._id}/edit`,
             },
             {
               label: "Delete",
               type: "delete",
               icon: <Trash2 className="h-4 w-4" />,
-              permissionKey: "accounts_delete",
+              permissionKey: "chartOfAccounts_delete",
               disabled: account.isSystemAccount,
             },
           ]}

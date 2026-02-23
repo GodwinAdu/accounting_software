@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -8,6 +8,7 @@ import * as z from "zod";
 import { ArrowLeft, Save, CalendarIcon, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Separator } from "@/components/ui/separator";
 import { VendorCombobox } from "../../../all/new/_components/vendor-combobox";
 import { CategoryCombobox } from "../../../all/new/_components/category-combobox";
+import { AccountSelector } from "@/components/forms/account-selector";
+import { getVendors } from "@/lib/actions/vendor.action";
+import { getExpenseCategories } from "@/lib/actions/expense-category.action";
+import { createBill } from "@/lib/actions/bill.action";
 
 const billSchema = z.object({
   billNumber: z.string().min(1, "Bill number is required"),
@@ -28,31 +33,25 @@ const billSchema = z.object({
   reference: z.string().optional(),
   items: z.array(z.object({
     description: z.string().min(1, "Description is required"),
-    categoryId: z.string().min(1, "Category is required"),
+    categoryId: z.string().optional(),
     quantity: z.number().min(1),
-    rate: z.number().min(0),
+    unitPrice: z.number().min(0),
     amount: z.number(),
   })).min(1, "At least one item is required"),
   notes: z.string().optional(),
+  expenseAccountId: z.string().optional(),
+  payableAccountId: z.string().optional(),
+  taxAccountId: z.string().optional(),
 });
 
 type BillFormValues = z.infer<typeof billSchema>;
 
-const mockVendors = [
-  { id: "1", name: "Office Supplies Ltd" },
-  { id: "2", name: "Internet Provider" },
-];
-
-const mockCategories = [
-  { id: "1", name: "Office Supplies" },
-  { id: "2", name: "Utilities" },
-];
-
 export function BillForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [vendors, setVendors] = useState(mockVendors);
-  const [categories, setCategories] = useState(mockCategories);
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const form = useForm<BillFormValues>({
     resolver: zodResolver(billSchema),
@@ -62,8 +61,11 @@ export function BillForm() {
       billDate: new Date(),
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       reference: "",
-      items: [{ description: "", categoryId: "", quantity: 1, rate: 0, amount: 0 }],
+      items: [{ description: "", categoryId: "", quantity: 1, unitPrice: 0, amount: 0 }],
       notes: "",
+      expenseAccountId: "",
+      payableAccountId: "",
+      taxAccountId: "",
     },
   });
 
@@ -75,20 +77,78 @@ export function BillForm() {
   const items = form.watch("items");
   const subtotal = items.reduce((sum, item) => sum + (item.amount || 0), 0);
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const [vendorsRes, categoriesRes] = await Promise.all([
+        getVendors(),
+        getExpenseCategories(),
+      ]);
+
+      if (vendorsRes.success && vendorsRes.data) {
+        setVendors(vendorsRes.data.map((v: any) => ({ id: v._id, name: v.companyName })));
+      }
+
+      if (categoriesRes.success && categoriesRes.data) {
+        setCategories(categoriesRes.data.map((c: any) => ({ id: c._id, name: c.name })));
+      }
+    } catch (error) {
+      toast.error("Failed to load data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const calculateAmount = (index: number) => {
     const item = items[index];
-    const amount = item.quantity * item.rate;
+    const amount = item.quantity * item.unitPrice;
     form.setValue(`items.${index}.amount`, amount);
   };
 
   const onSubmit = async (data: BillFormValues) => {
     setIsSubmitting(true);
     try {
-      console.log("Bill data:", data);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const billData: any = {
+        vendorId: data.vendorId,
+        billNumber: data.billNumber,
+        billDate: data.billDate,
+        dueDate: data.dueDate,
+        reference: data.reference,
+        items: data.items.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          amount: item.amount
+        })),
+        notes: data.notes,
+        subtotal: subtotal,
+        taxAmount: 0,
+        total: subtotal,
+        amountPaid: 0,
+        balance: subtotal,
+        status: "draft" as const,
+      };
+
+      // Only add account IDs if they are not empty
+      if (data.expenseAccountId) billData.expenseAccountId = data.expenseAccountId;
+      if (data.payableAccountId) billData.payableAccountId = data.payableAccountId;
+      if (data.taxAccountId) billData.taxAccountId = data.taxAccountId;
+
+      const result = await createBill(billData, window.location.pathname);
+      
+      if (result.error) {
+        toast.error("Failed to create bill", { description: result.error });
+        return;
+      }
+
+      toast.success("Bill created successfully");
       router.push("../");
     } catch (error) {
       console.error("Error creating bill:", error);
+      toast.error("Failed to create bill");
     } finally {
       setIsSubmitting(false);
     }
@@ -284,10 +344,10 @@ export function BillForm() {
 
                       <FormField
                         control={form.control}
-                        name={`items.${index}.rate`}
+                        name={`items.${index}.unitPrice`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Rate (GHS) *</FormLabel>
+                            <FormLabel>Unit Price (GHS) *</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -324,7 +384,7 @@ export function BillForm() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => append({ description: "", categoryId: "", quantity: 1, rate: 0, amount: 0 })}
+                  onClick={() => append({ description: "", categoryId: "", quantity: 1, unitPrice: 0, amount: 0 })}
                   className="w-full"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -350,6 +410,76 @@ export function BillForm() {
                     </FormItem>
                   )}
                 />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Accounting (Optional)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Leave blank to use default accounts
+                </p>
+                
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="expenseAccountId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Expense Account</FormLabel>
+                        <FormControl>
+                          <AccountSelector
+                            label=""
+                            accountType="expense"
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Default: Cost of Goods Sold"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="payableAccountId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Accounts Payable</FormLabel>
+                        <FormControl>
+                          <AccountSelector
+                            label=""
+                            accountType="liability"
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Default: Accounts Payable"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="taxAccountId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax Account</FormLabel>
+                        <FormControl>
+                          <AccountSelector
+                            label=""
+                            accountType="liability"
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Default: VAT Payable"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </CardContent>
             </Card>
           </div>

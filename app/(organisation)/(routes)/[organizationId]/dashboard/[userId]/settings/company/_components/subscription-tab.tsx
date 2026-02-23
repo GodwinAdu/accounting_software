@@ -29,6 +29,8 @@ const MODULES = [
   { key: "crm", name: "CRM", price: 30, description: "Customer relationship management" },
   { key: "budgeting", name: "Budgeting", price: 40, description: "Budget planning and forecasting" },
   { key: "assets", name: "Fixed Assets", price: 20, description: "Asset management and depreciation" },
+  { key: "loans", name: "Loans", price: 25, description: "Loan management and tracking" },
+  { key: "equity", name: "Equity", price: 20, description: "Equity transactions and owner investments" },
   { key: "ai", name: "AI Assistant", price: 50, description: "AI-powered insights and automation" },
 ]
 

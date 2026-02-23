@@ -22,8 +22,8 @@ export function BillsList({ bills, hasCreatePermission, organizationId, userId }
     vendor: bill.vendorId?.companyName || "N/A",
     date: new Date(bill.billDate).toLocaleDateString(),
     dueDate: new Date(bill.dueDate).toLocaleDateString(),
-    amount: bill.totalAmount,
-    balance: bill.totalAmount - (bill.paidAmount || 0),
+    amount: bill.total || 0,
+    balance: bill.balance || 0,
     status: bill.status,
   }));
 

@@ -108,12 +108,11 @@ JournalEntrySchema.index({ referenceType: 1, referenceId: 1 });
 JournalEntrySchema.index({ "lineItems.accountId": 1 });
 
 // Pre-save validation for double-entry
-JournalEntrySchema.pre("save", function (next) {
+JournalEntrySchema.pre<IJournalEntry>("save", function () {
   this.isBalanced = Math.abs(this.totalDebit - this.totalCredit) < 0.01;
   if (!this.isBalanced && this.status === "posted") {
-    return next(new Error("Journal entry must be balanced before posting"));
+    throw new Error("Journal entry must be balanced before posting");
   }
-  next();
 });
 
 const JournalEntry: Model<IJournalEntry> = mongoose.models.JournalEntry || mongoose.model<IJournalEntry>("JournalEntry", JournalEntrySchema);

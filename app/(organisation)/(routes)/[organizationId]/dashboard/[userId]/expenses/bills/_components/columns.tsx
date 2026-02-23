@@ -2,10 +2,12 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, CheckCircle, DollarSign } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
-import { deleteBill } from "@/lib/actions/bill.action";
+import { deleteBill, approveBill } from "@/lib/actions/bill.action";
 import { CellAction } from "@/components/table/cell-action";
+import { useState } from "react";
+import { RecordPaymentModal } from "./record-payment-modal";
 
 export type Bill = {
   _id: string;
@@ -43,14 +45,15 @@ export const columns: ColumnDef<Bill>[] = [
     accessorKey: "amount",
     header: "Amount",
     cell: ({ row }) => {
-      return <div className="font-semibold">GHS {row.getValue<number>("amount").toLocaleString()}</div>;
+      const amount = row.getValue<number>("amount") || 0;
+      return <div className="font-semibold">GHS {amount.toLocaleString()}</div>;
     },
   },
   {
     accessorKey: "balance",
     header: "Balance",
     cell: ({ row }) => {
-      const balance = row.getValue<number>("balance");
+      const balance = row.getValue<number>("balance") || 0;
       return (
         <div className={balance > 0 ? "font-semibold text-orange-600" : "text-muted-foreground"}>
           GHS {balance.toLocaleString()}
@@ -80,29 +83,63 @@ export const columns: ColumnDef<Bill>[] = [
       const bill = row.original;
       const params = useParams();
       const pathname = usePathname();
+      const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+
+      const actions = [
+        {
+          label: "Edit",
+          type: "edit",
+          icon: <Edit className="h-4 w-4" />,
+          permissionKey: "bills_update",
+        },
+      ];
+
+      if (bill.status === "draft") {
+        actions.push({
+          label: "Approve",
+          type: "custom",
+          icon: <CheckCircle className="h-4 w-4" />,
+          permissionKey: "bills_update",
+          onClick: async () => {
+            const result = await approveBill(bill._id, pathname);
+            if (result.error) throw new Error(result.error);
+          },
+        } as any);
+      }
+
+      if (bill.status === "open" || bill.status === "overdue") {
+        actions.push({
+          label: "Pay",
+          type: "custom",
+          icon: <DollarSign className="h-4 w-4" />,
+          permissionKey: "bills_update",
+          onClick: () => setPaymentModalOpen(true),
+        } as any);
+      }
+
+      actions.push({
+        label: "Delete",
+        type: "delete",
+        icon: <Trash2 className="h-4 w-4" />,
+        permissionKey: "bills_delete",
+      });
 
       return (
-        <CellAction
-          data={bill}
-          actions={[
-            {
-              label: "Edit",
-              type: "edit",
-              icon: <Edit className="h-4 w-4" />,
-              permissionKey: "bills_update",
-            },
-            {
-              label: "Delete",
-              type: "delete",
-              icon: <Trash2 className="h-4 w-4" />,
-              permissionKey: "bills_delete",
-            },
-          ]}
-          onDelete={async (id) => {
-            const result = await deleteBill(id, pathname);
-            if (result.error) throw new Error(result.error);
-          }}
-        />
+        <>
+          <CellAction
+            data={bill}
+            actions={actions}
+            onDelete={async (id) => {
+              const result = await deleteBill(id, pathname);
+              if (result.error) throw new Error(result.error);
+            }}
+          />
+          <RecordPaymentModal
+            bill={bill}
+            open={paymentModalOpen}
+            onClose={() => setPaymentModalOpen(false)}
+          />
+        </>
       );
     },
   },

@@ -53,6 +53,13 @@ async function _getPeriodCloseData(user: any) {
       new Date(r.reconciliationDate) >= firstDayOfMonth
     ).length;
 
+    const adjustingEntries = await JournalEntry.find({ 
+      organizationId: user.organizationId, 
+      del_flag: false,
+      entryType: "adjusting",
+      entryDate: { $gte: firstDayOfMonth, $lt: currentDate }
+    }).lean();
+
     const tasks = [
       {
         title: "Reconcile all bank accounts",
@@ -70,14 +77,14 @@ async function _getPeriodCloseData(user: any) {
         completed: draftJournalEntries.length === 0
       },
       {
-        title: "Run financial reports",
-        description: "Generate P&L and Balance Sheet",
-        completed: false
+        title: "Verify posted entries",
+        description: `${postedJournalEntries.length} entries posted this period`,
+        completed: postedJournalEntries.length > 0
       },
       {
         title: "Review adjusting entries",
-        description: "Check all period-end adjustments",
-        completed: false
+        description: `${adjustingEntries.length} adjusting entries recorded`,
+        completed: true
       }
     ];
 

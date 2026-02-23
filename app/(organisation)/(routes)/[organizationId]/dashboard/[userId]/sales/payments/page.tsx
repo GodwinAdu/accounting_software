@@ -9,17 +9,15 @@ import Heading from "@/components/commons/Header";
 type Props = Promise<{ organizationId: string; userId: string }>;
 
 export default async function PaymentsPage({ params }: { params: Props }) {
-  const user = await currentUser();
-  if (!user) redirect("/login");
-
+ 
   const { organizationId, userId } = await params;
 
-  const hasViewPermission = await checkPermission("payments_view");
+  const hasViewPermission = await checkPermission("paymentsReceived_view");
   if (!hasViewPermission) {
     redirect(`/${organizationId}/dashboard/${userId}`);
   }
 
-  const hasCreatePermission = await checkPermission("payments_create");
+  const hasCreatePermission = await checkPermission("paymentsReceived_create");
 
   const result = await getPayments();
   const payments = result.success ? result.data : [];

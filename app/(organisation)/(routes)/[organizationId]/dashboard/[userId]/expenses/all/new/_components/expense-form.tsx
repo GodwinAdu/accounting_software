@@ -45,6 +45,7 @@ import { Switch } from "@/components/ui/switch";
 import { VendorCombobox } from "./vendor-combobox";
 import { CategoryCombobox } from "./category-combobox";
 import { CustomerCombobox } from "./customer-combobox";
+import { AccountSelector } from "@/components/forms/account-selector";
 
 const expenseSchema = z.object({
   expenseNumber: z.string().min(1, "Expense number is required"),
@@ -60,6 +61,8 @@ const expenseSchema = z.object({
   customerId: z.string().optional(),
   taxAmount: z.number().min(0).default(0),
   hasReceipt: z.boolean().default(false),
+  expenseAccountId: z.string().optional(),
+  paymentAccountId: z.string().optional(),
 });
 
 type ExpenseFormValues = z.infer<typeof expenseSchema>;
@@ -114,6 +117,8 @@ export function ExpenseForm() {
       customerId: "",
       taxAmount: 0,
       hasReceipt: false,
+      expenseAccountId: "",
+      paymentAccountId: "",
     },
   });
 
@@ -147,6 +152,8 @@ export function ExpenseForm() {
         description: data.description,
         notes: data.notes,
         status: "pending" as const,
+        expenseAccountId: data.expenseAccountId || undefined,
+        paymentAccountId: data.paymentAccountId || undefined,
       };
 
       const result = await createExpense(expenseData, pathname);
@@ -490,6 +497,56 @@ export function ExpenseForm() {
                         />
                       </FormControl>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Accounting */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Accounting (Optional)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Leave blank to use default accounts
+                </p>
+                
+                <FormField
+                  control={form.control}
+                  name="expenseAccountId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Expense Account</FormLabel>
+                      <FormControl>
+                        <AccountSelector
+                          label=""
+                          accountType="expense"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Default: General Expense"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="paymentAccountId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Account</FormLabel>
+                      <FormControl>
+                        <AccountSelector
+                          label=""
+                          accountType="asset"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Default: Cash"
+                        />
+                      </FormControl>
                     </FormItem>
                   )}
                 />

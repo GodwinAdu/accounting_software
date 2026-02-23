@@ -1,12 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, Wallet } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
 import { deleteInvoice } from "@/lib/actions/invoice.action";
 import { CellAction } from "@/components/table/cell-action";
-import PayInvoiceButton from "@/components/payment/pay-invoice-button";
+import { RecordPaymentModal } from "@/components/payment/record-payment-modal";
 
 export type Invoice = {
   _id: string;
@@ -82,40 +83,62 @@ export const columns: ColumnDef<Invoice>[] = [
       const invoice = row.original;
       const params = useParams();
       const pathname = usePathname();
+      const segments = pathname.split('/');
+      const orgId = segments[1];
+      const userId = segments[3];
+      const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+      const actions = [];
+
+      // Add Pay action for sent/overdue invoices
       if (invoice.status === "sent" || invoice.status === "overdue") {
-        return (
-          <PayInvoiceButton
+        actions.push({
+          label: "Record Payment",
+          type: "custom" as const,
+          icon: <Wallet className="h-4 w-4" />,
+          permissionKey: "invoices_view",
+          onClick: () => setShowPaymentModal(true),
+        });
+      }
+
+      // Add Edit action for draft invoices
+      if (invoice.status === "draft") {
+        actions.push({
+          label: "Edit",
+          type: "edit" as const,
+          icon: <Edit className="h-4 w-4" />,
+          permissionKey: "invoices_update",
+          href: `/${orgId}/dashboard/${userId}/sales/invoices/${invoice._id}/edit`,
+        });
+      }
+
+      // Add Delete action
+      actions.push({
+        label: "Delete",
+        type: "delete" as const,
+        icon: <Trash2 className="h-4 w-4" />,
+        permissionKey: "invoices_delete",
+      });
+
+      return (
+        <>
+          <CellAction
+            data={invoice}
+            actions={actions}
+            onDelete={async (id) => {
+              const result = await deleteInvoice(id, pathname);
+              if (result.error) throw new Error(result.error);
+            }}
+          />
+          <RecordPaymentModal
+            open={showPaymentModal}
+            onClose={() => setShowPaymentModal(false)}
             invoiceId={invoice._id}
             amount={invoice.balance}
             currency="GHS"
             customerEmail={invoice.customerEmail || ""}
           />
-        );
-      }
-
-      return (
-        <CellAction
-          data={invoice}
-          actions={[
-            {
-              label: "Edit",
-              type: "edit",
-              icon: <Edit className="h-4 w-4" />,
-              permissionKey: "invoices_update",
-            },
-            {
-              label: "Delete",
-              type: "delete",
-              icon: <Trash2 className="h-4 w-4" />,
-              permissionKey: "invoices_delete",
-            },
-          ]}
-          onDelete={async (id) => {
-            const result = await deleteInvoice(id, pathname);
-            if (result.error) throw new Error(result.error);
-          }}
-        />
+        </>
       );
     },
   },

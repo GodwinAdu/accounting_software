@@ -347,6 +347,18 @@ const permissionCategories = {
             "assetCategories_view",
         ],
     },
+    equity: {
+        title: "Equity",
+        icon: <Landmark className="h-5 w-5" />,
+        description: "Owner investments and drawings",
+        module: "equity",
+        permissions: [
+            "equity_view",
+            "equity_create",
+            "equity_edit",
+            "equity_delete",
+        ],
+    },
     ai: {
         title: "AI Assistant",
         icon: <Bot className="h-5 w-5" />,
@@ -599,6 +611,7 @@ const RolesDisplayPage = ({ roles, enabledModules }: { roles: IRole[]; enabledMo
                                             <SelectItem value="crm_view">CRM</SelectItem>
                                             <SelectItem value="budgeting_view">Budgeting</SelectItem>
                                             <SelectItem value="assets_view">Fixed Assets</SelectItem>
+                                            <SelectItem value="equity_view">Equity</SelectItem>
                                             <SelectItem value="ai_view">AI Assistant</SelectItem>
                                         </SelectContent>
                                     </Select>

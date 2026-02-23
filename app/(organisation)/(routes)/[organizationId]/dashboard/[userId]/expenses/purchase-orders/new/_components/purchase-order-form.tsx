@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -8,6 +8,7 @@ import * as z from "zod";
 import { ArrowLeft, Save, CalendarIcon, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +19,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { VendorCombobox } from "../../../all/new/_components/vendor-combobox";
+import { AccountSelector } from "@/components/forms/account-selector";
+import { getVendors } from "@/lib/actions/vendor.action";
+import { createPurchaseOrder } from "@/lib/actions/purchase-order.action";
 
 const purchaseOrderSchema = z.object({
   poNumber: z.string().min(1, "PO number is required"),
@@ -31,19 +35,17 @@ const purchaseOrderSchema = z.object({
     amount: z.number(),
   })).min(1, "At least one item is required"),
   notes: z.string().optional(),
+  inventoryAccountId: z.string().optional(),
+  payableAccountId: z.string().optional(),
 });
 
 type PurchaseOrderFormValues = z.infer<typeof purchaseOrderSchema>;
 
-const mockVendors = [
-  { id: "1", name: "Office Supplies Ltd" },
-  { id: "2", name: "Equipment Provider" },
-];
-
 export function PurchaseOrderForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [vendors, setVendors] = useState(mockVendors);
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const form = useForm<PurchaseOrderFormValues>({
     resolver: zodResolver(purchaseOrderSchema),
@@ -54,6 +56,8 @@ export function PurchaseOrderForm() {
       deliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       items: [{ description: "", quantity: 1, unitPrice: 0, amount: 0 }],
       notes: "",
+      inventoryAccountId: "",
+      payableAccountId: "",
     },
   });
 
@@ -65,6 +69,23 @@ export function PurchaseOrderForm() {
   const items = form.watch("items");
   const subtotal = items.reduce((sum, item) => sum + (item.amount || 0), 0);
 
+  useEffect(() => {
+    loadVendors();
+  }, []);
+
+  const loadVendors = async () => {
+    try {
+      const result = await getVendors();
+      if (result.success && result.data) {
+        setVendors(result.data.map((v: any) => ({ id: v._id, name: v.companyName })));
+      }
+    } catch (error) {
+      toast.error("Failed to load vendors");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const calculateAmount = (index: number) => {
     const item = items[index];
     const amount = item.quantity * item.unitPrice;
@@ -74,11 +95,33 @@ export function PurchaseOrderForm() {
   const onSubmit = async (data: PurchaseOrderFormValues) => {
     setIsSubmitting(true);
     try {
-      console.log("Purchase order data:", data);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const poData: any = {
+        poNumber: data.poNumber,
+        vendorId: data.vendorId,
+        orderDate: data.orderDate,
+        deliveryDate: data.deliveryDate,
+        items: data.items,
+        notes: data.notes,
+        subtotal: subtotal,
+        total: subtotal,
+        status: "draft",
+      };
+
+      if (data.inventoryAccountId) poData.inventoryAccountId = data.inventoryAccountId;
+      if (data.payableAccountId) poData.payableAccountId = data.payableAccountId;
+
+      const result = await createPurchaseOrder(poData, window.location.pathname);
+      
+      if (result.error) {
+        toast.error("Failed to create purchase order", { description: result.error });
+        return;
+      }
+
+      toast.success("Purchase order created successfully");
       router.push("../");
     } catch (error) {
       console.error("Error creating purchase order:", error);
+      toast.error("Failed to create purchase order");
     } finally {
       setIsSubmitting(false);
     }
@@ -304,6 +347,55 @@ export function PurchaseOrderForm() {
                         <Textarea {...field} placeholder="Add any notes..." rows={3} />
                       </FormControl>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Accounting (Optional)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Leave blank to use default accounts
+                </p>
+                
+                <FormField
+                  control={form.control}
+                  name="inventoryAccountId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Inventory Account</FormLabel>
+                      <FormControl>
+                        <AccountSelector
+                          label=""
+                          accountType="asset"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Default: Inventory"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="payableAccountId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Accounts Payable</FormLabel>
+                      <FormControl>
+                        <AccountSelector
+                          label=""
+                          accountType="liability"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Default: Accounts Payable"
+                        />
+                      </FormControl>
                     </FormItem>
                   )}
                 />

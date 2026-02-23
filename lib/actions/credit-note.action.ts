@@ -7,6 +7,7 @@ import { checkWriteAccess } from "@/lib/helpers/check-write-access";
 import { connectToDB } from "../connection/mongoose";
 import { withAuth, type User } from "../helpers/auth";
 import { logAudit } from "../helpers/audit";
+import { postCreditNoteToGL } from "../helpers/sales-accounting";
 
 async function _createCreditNote(user: User, data: any, path: string) {
   try {
@@ -33,6 +34,10 @@ async function _createCreditNote(user: User, data: any, path: string) {
       details: { after: creditNote },
     });
 
+    if (data.status === "issued" || data.status === "applied") {
+      await postCreditNoteToGL(String(creditNote._id), String(user._id));
+    }
+
     revalidatePath(path);
     return { success: true, data: JSON.parse(JSON.stringify(creditNote)) };
   } catch (error: any) {
@@ -52,6 +57,25 @@ async function _getCreditNotes(user: User) {
       .sort({ createdAt: -1 });
 
     return { success: true, data: JSON.parse(JSON.stringify(creditNotes)) };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
+async function _getCreditNoteById(user: User, creditNoteId: string) {
+  try {
+    const hasPermission = await checkPermission("creditNotes_view");
+    if (!hasPermission) return { error: "No permission" };
+
+    await connectToDB();
+    const creditNote = await CreditNote.findOne({ _id: creditNoteId, organizationId: user.organizationId, del_flag: false })
+      .populate("customerId", "name email company")
+      .populate("invoiceId", "invoiceNumber")
+      .lean();
+
+    if (!creditNote) return { error: "Credit note not found" };
+
+    return { success: true, data: JSON.parse(JSON.stringify(creditNote)) };
   } catch (error: any) {
     return { error: error.message };
   }
@@ -80,6 +104,10 @@ async function _updateCreditNote(user: User, id: string, data: any, path: string
       resourceId: id,
       details: { after: creditNote },
     });
+
+    if ((data.status === "issued" || data.status === "applied") && creditNote.status !== "draft") {
+      await postCreditNoteToGL(id, String(user._id));
+    }
 
     revalidatePath(path);
     return { success: true, data: JSON.parse(JSON.stringify(creditNote)) };
@@ -121,5 +149,6 @@ async function _deleteCreditNote(user: User, id: string, path: string) {
 
 export const createCreditNote = await withAuth(_createCreditNote);
 export const getCreditNotes = await withAuth(_getCreditNotes);
+export const getCreditNoteById = await withAuth(_getCreditNoteById);
 export const updateCreditNote = await withAuth(_updateCreditNote);
 export const deleteCreditNote = await withAuth(_deleteCreditNote);

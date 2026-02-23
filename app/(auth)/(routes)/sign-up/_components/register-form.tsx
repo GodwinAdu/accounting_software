@@ -62,6 +62,8 @@ const planSchema = z.object({
         crm: z.boolean().default(false),
         budgeting: z.boolean().default(false),
         assets: z.boolean().default(false),
+        loans: z.boolean().default(false),
+        equity: z.boolean().default(false),
         ai: z.boolean().default(false),
     }),
     acceptTerms: z.literal(true),
@@ -108,6 +110,8 @@ export default function RegistrationForm() {
             crm: false,
             budgeting: false,
             assets: false,
+            loans: false,
+            equity: false,
             ai: false,
         },
         acceptTerms: false,
@@ -323,6 +327,8 @@ export default function RegistrationForm() {
                                             { key: "crm", label: "CRM", price: 30 },
                                             { key: "budgeting", label: "Budgeting", price: 40 },
                                             { key: "assets", label: "Fixed Assets", price: 20 },
+                                            { key: "loans", label: "Loans", price: 25 },
+                                            { key: "equity", label: "Equity", price: 20 },
                                             { key: "ai", label: "AI Assistant", price: 50 },
                                         ].map((module) => (
                                             <FormField key={module.key} control={planForm.control} name={`modules.${module.key}` as any} render={({ field }) => (

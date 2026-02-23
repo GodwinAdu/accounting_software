@@ -5,6 +5,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Loader2 } from "lucide-react";
+import { createCustomer } from "@/lib/actions/customer.action";
+import { usePathname } from "next/navigation";
+import { toast } from "sonner";
 
 import {
   Dialog,
@@ -33,13 +36,12 @@ import {
 
 const customerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  company: z.string().min(2, "Company name is required"),
+  company: z.string().optional(),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(10, "Phone number must be at least 10 digits"),
   address: z.string().optional(),
   city: z.string().optional(),
   country: z.string().default("Ghana"),
-  taxId: z.string().optional(),
 });
 
 type CustomerFormValues = z.infer<typeof customerSchema>;
@@ -47,7 +49,7 @@ type CustomerFormValues = z.infer<typeof customerSchema>;
 interface AddCustomerModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCustomerAdded: (customer: { id: string; name: string; company: string }) => void;
+  onCustomerAdded: (customer: { _id: string; name: string; company?: string }) => void;
 }
 
 export function AddCustomerModal({
@@ -56,6 +58,7 @@ export function AddCustomerModal({
   onCustomerAdded,
 }: AddCustomerModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const pathname = usePathname();
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
@@ -67,27 +70,37 @@ export function AddCustomerModal({
       address: "",
       city: "",
       country: "Ghana",
-      taxId: "",
     },
   });
 
   const onSubmit = async (data: CustomerFormValues) => {
     setIsSubmitting(true);
     try {
-      // TODO: Implement API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      
-      const newCustomer = {
-        id: Date.now().toString(),
+      const result = await createCustomer({
         name: data.name,
+        email: data.email,
+        phone: data.phone,
         company: data.company,
-      };
+        address: {
+          street: data.address,
+          city: data.city,
+          country: data.country,
+        },
+        status: "active",
+      }, pathname);
 
-      onCustomerAdded(newCustomer);
+      if (result.error) {
+        toast.error(result.error);
+        return;
+      }
+
+      toast.success("Customer created successfully");
+      onCustomerAdded(result.data);
       form.reset();
       onOpenChange(false);
     } catch (error) {
       console.error("Error creating customer:", error);
+      toast.error("Failed to create customer");
     } finally {
       setIsSubmitting(false);
     }
@@ -125,7 +138,7 @@ export function AddCustomerModal({
                 name="company"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Company Name *</FormLabel>
+                    <FormLabel>Company Name</FormLabel>
                     <FormControl>
                       <Input placeholder="Acme Corp" {...field} />
                     </FormControl>
@@ -219,20 +232,6 @@ export function AddCustomerModal({
                 )}
               />
             </div>
-
-            <FormField
-              control={form.control}
-              name="taxId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tax ID / TIN</FormLabel>
-                  <FormControl>
-                    <Input placeholder="C0000000000" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
 
             <div className="flex justify-end gap-3 pt-4">
               <Button

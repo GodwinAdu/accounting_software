@@ -13,6 +13,8 @@ export interface IRecurringExpense extends Document {
   nextDate: Date;
   paymentMethod: "cash" | "card" | "bank_transfer" | "mobile_money" | "cheque";
   status: "active" | "paused" | "completed" | "cancelled";
+  expenseAccountId?: mongoose.Types.ObjectId;
+  paymentAccountId?: mongoose.Types.ObjectId;
   notes?: string;
   del_flag: boolean;
   createdBy: mongoose.Types.ObjectId;
@@ -35,6 +37,8 @@ const RecurringExpenseSchema = new Schema<IRecurringExpense>(
     nextDate: { type: Date, required: true },
     paymentMethod: { type: String, enum: ["cash", "card", "bank_transfer", "mobile_money", "cheque"], required: true },
     status: { type: String, enum: ["active", "paused", "completed", "cancelled"], default: "active" },
+    expenseAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    paymentAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     notes: { type: String },
     del_flag: { type: Boolean, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },

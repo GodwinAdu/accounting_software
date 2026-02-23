@@ -16,6 +16,9 @@ export interface IAsset extends Document {
   location?: string;
   serialNumber?: string;
   status: "active" | "disposed" | "under_maintenance" | "retired";
+  assetAccountId?: mongoose.Types.ObjectId;
+  depreciationAccountId?: mongoose.Types.ObjectId;
+  accumulatedDepAccountId?: mongoose.Types.ObjectId;
   disposalDate?: Date;
   disposalValue?: number;
   del_flag: boolean;
@@ -42,6 +45,9 @@ const AssetSchema = new Schema<IAsset>(
     location: { type: String },
     serialNumber: { type: String },
     status: { type: String, enum: ["active", "disposed", "under_maintenance", "retired"], default: "active" },
+    assetAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    depreciationAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    accumulatedDepAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     disposalDate: { type: Date },
     disposalValue: { type: Number },
     del_flag: { type: Boolean, default: false },

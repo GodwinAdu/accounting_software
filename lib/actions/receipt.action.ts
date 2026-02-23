@@ -7,6 +7,7 @@ import { checkWriteAccess } from "@/lib/helpers/check-write-access";
 import { connectToDB } from "../connection/mongoose";
 import { withAuth, type User } from "../helpers/auth";
 import { logAudit } from "../helpers/audit";
+import { postReceiptToGL } from "../helpers/sales-accounting";
 
 async function _createReceipt(user: User, data: Partial<IReceipt>, path: string) {
   try {
@@ -37,6 +38,9 @@ async function _createReceipt(user: User, data: Partial<IReceipt>, path: string)
       resourceId: String(receipt._id),
       details: { after: receipt },
     });
+
+    // Post to GL
+    await postReceiptToGL(String(receipt._id), String(user._id));
 
     revalidatePath(path);
     return { success: true, data: JSON.parse(JSON.stringify(receipt)) };

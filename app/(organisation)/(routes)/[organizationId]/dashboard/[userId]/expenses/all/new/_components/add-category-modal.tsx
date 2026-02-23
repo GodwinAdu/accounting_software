@@ -5,6 +5,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { createExpenseCategory } from "@/lib/actions/expense-category.action";
 
 import {
   Dialog,
@@ -53,21 +55,34 @@ export function AddCategoryModal({
     },
   });
 
-  const onSubmit = async (data: CategoryFormValues) => {
+  const onSubmit = async (data: CategoryFormValues, e?: React.BaseSyntheticEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
     setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const result = await createExpenseCategory({
+        name: data.name,
+        description: data.description,
+      }, window.location.pathname);
+
+      if (result.error) {
+        toast.error("Failed to create category", { description: result.error });
+        return;
+      }
       
       const newCategory = {
-        id: Date.now().toString(),
-        name: data.name,
+        id: result.data._id,
+        name: result.data.name,
       };
 
+      toast.success("Category created successfully");
       onCategoryAdded(newCategory);
       form.reset();
       onOpenChange(false);
     } catch (error) {
       console.error("Error creating category:", error);
+      toast.error("Failed to create category");
     } finally {
       setIsSubmitting(false);
     }
@@ -84,7 +99,11 @@ export function AddCategoryModal({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            form.handleSubmit(onSubmit)(e);
+          }} className="space-y-4">
             <FormField
               control={form.control}
               name="name"

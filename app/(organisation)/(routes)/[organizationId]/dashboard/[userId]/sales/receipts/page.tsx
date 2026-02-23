@@ -14,12 +14,12 @@ export default async function ReceiptsPage({ params }: { params: Props }) {
 
   const { organizationId, userId } = await params;
 
-  const hasViewPermission = await checkPermission("receipts_view");
+  const hasViewPermission = await checkPermission("salesReceipts_view");
   if (!hasViewPermission) {
     redirect(`/${organizationId}/dashboard/${userId}`);
   }
 
-  const hasCreatePermission = await checkPermission("receipts_create");
+  const hasCreatePermission = await checkPermission("salesReceipts_create");
 
   const result = await getReceipts();
   const receipts = result.success ? result.data : [];

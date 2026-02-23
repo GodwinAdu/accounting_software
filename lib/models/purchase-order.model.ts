@@ -19,6 +19,8 @@ export interface IPurchaseOrder extends Document {
   taxAmount: number;
   total: number;
   status: "draft" | "sent" | "confirmed" | "received" | "cancelled";
+  inventoryAccountId?: mongoose.Types.ObjectId;
+  payableAccountId?: mongoose.Types.ObjectId;
   notes?: string;
   
   // Audit
@@ -49,6 +51,8 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
     taxAmount: { type: Number, default: 0 },
     total: { type: Number, required: true },
     status: { type: String, enum: ["draft", "sent", "confirmed", "received", "cancelled"], default: "draft" },
+    inventoryAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    payableAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     notes: { type: String },
     
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },

@@ -18,6 +18,8 @@ const creditNoteSchema = new Schema(
     tax: { type: Number, default: 0 },
     total: { type: Number, required: true },
     status: { type: String, enum: ["draft", "issued", "applied"], default: "draft" },
+    revenueAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    receivableAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     notes: String,
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     modifiedBy: { type: Schema.Types.ObjectId, ref: "User" },

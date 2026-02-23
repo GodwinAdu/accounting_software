@@ -6,6 +6,7 @@ import PayrollRun from "../models/payroll-run.model";
 import { withAuth } from "../helpers/auth";
 import { logAudit } from "../helpers/audit";
 import { checkWriteAccess } from "../helpers/check-write-access";
+import { postPayrollToGL } from "../helpers/payroll-accounting";
 
 async function _createPayrollRun(user: any, data: any) {
   try {
@@ -38,6 +39,10 @@ async function _createPayrollRun(user: any, data: any) {
       resourceId: String(payrollRun._id),
       details: { after: payrollRun },
     });
+
+    if (data.status === "completed") {
+      await postPayrollToGL(String(payrollRun._id), String(user._id));
+    }
 
     revalidatePath("/");
     return { success: true, data: JSON.parse(JSON.stringify(payrollRun)) };
@@ -183,6 +188,8 @@ async function _processPayroll(user: any, id: string) {
     if (!run) {
       return { error: "Payroll run not found or already processed" };
     }
+
+    await postPayrollToGL(String(id), String(user._id));
 
     revalidatePath("/");
     return { success: true, data: JSON.parse(JSON.stringify(run)) };

@@ -2,10 +2,13 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Receipt } from "lucide-react";
+import { Edit, Trash2, Receipt, CheckCircle } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
-import { deleteExpense } from "@/lib/actions/expense.action";
+import { deleteExpense, markExpenseAsPaid } from "@/lib/actions/expense.action";
 import { CellAction } from "@/components/table/cell-action";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useState } from "react";
 
 export type Expense = {
   _id: string;
@@ -100,30 +103,56 @@ export const columns: ColumnDef<Expense>[] = [
       const expense = row.original;
       const params = useParams();
       const pathname = usePathname();
+      const [isMarking, setIsMarking] = useState(false);
+
+      const handleMarkAsPaid = async () => {
+        setIsMarking(true);
+        const result = await markExpenseAsPaid(expense._id, pathname);
+        if (result.error) {
+          toast.error(result.error);
+        } else {
+          toast.success("Expense marked as paid");
+        }
+        setIsMarking(false);
+      };
 
       return (
-        <CellAction
-          data={expense}
-          actions={[
-            {
-              label: "Edit",
-              type: "edit",
-              icon: <Edit className="h-4 w-4" />,
-              href: `${pathname}/${expense._id}`,
-              permissionKey: "expenses_update",
-            },
-            {
-              label: "Delete",
-              type: "delete",
-              icon: <Trash2 className="h-4 w-4" />,
-              permissionKey: "expenses_delete",
-            },
-          ]}
-          onDelete={async (id) => {
-            const result = await deleteExpense(id, pathname);
-            if (result.error) throw new Error(result.error);
-          }}
-        />
+        <div className="flex items-center gap-2">
+          {(expense.status === "approved" || expense.status === "pending") && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleMarkAsPaid}
+              disabled={isMarking}
+              className="h-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+            >
+              <CheckCircle className="h-4 w-4 mr-1" />
+              {isMarking ? "Marking..." : "Mark Paid"}
+            </Button>
+          )}
+          <CellAction
+            data={expense}
+            actions={[
+              {
+                label: "Edit",
+                type: "edit",
+                icon: <Edit className="h-4 w-4" />,
+                href: `${pathname}/${expense._id}`,
+                permissionKey: "expenses_update",
+              },
+              {
+                label: "Delete",
+                type: "delete",
+                icon: <Trash2 className="h-4 w-4" />,
+                permissionKey: "expenses_delete",
+              },
+            ]}
+            onDelete={async (id) => {
+              const result = await deleteExpense(id, pathname);
+              if (result.error) throw new Error(result.error);
+            }}
+          />
+        </div>
       );
     },
   },

@@ -7,13 +7,19 @@ import { withAuth } from "../helpers/auth";
 import { logAudit } from "../helpers/audit";
 import { checkWriteAccess } from "../helpers/check-write-access";
 
-async function _createAccount(data: any, user: any) {
+async function _createAccount(user: any, data: any) {
   try {
     await checkWriteAccess(String(user.organizationId));
     await connectToDB();
 
+    // Remove parentAccountId if it's empty or undefined
+    const accountData = { ...data };
+    if (!accountData.parentAccountId) {
+      delete accountData.parentAccountId;
+    }
+
     const account = await Account.create({
-      ...data,
+      ...accountData,
       organizationId: user.organizationId,
       createdBy: user._id,
     });
@@ -230,46 +236,36 @@ async function _initializeDefaultAccounts(user: any) {
       return { error: "Accounts already exist for this organization" };
     }
 
-    const defaultAccounts = [
-      // Assets
-      { accountCode: "1000", accountName: "Cash and Cash Equivalents", accountType: "asset", accountSubType: "current-asset", level: 0, isParent: true },
-      { accountCode: "1010", accountName: "Petty Cash", accountType: "asset", accountSubType: "current-asset", level: 1, allowManualJournal: true },
-      { accountCode: "1020", accountName: "Bank Account", accountType: "asset", accountSubType: "current-asset", level: 1, reconciliationEnabled: true },
-      { accountCode: "1100", accountName: "Accounts Receivable", accountType: "asset", accountSubType: "current-asset", level: 0, isSystemAccount: true },
-      { accountCode: "1200", accountName: "Inventory", accountType: "asset", accountSubType: "current-asset", level: 0 },
-      { accountCode: "1500", accountName: "Fixed Assets", accountType: "asset", accountSubType: "fixed-asset", level: 0, isParent: true },
-      
-      // Liabilities
-      { accountCode: "2000", accountName: "Accounts Payable", accountType: "liability", accountSubType: "current-liability", level: 0, isSystemAccount: true },
-      { accountCode: "2100", accountName: "VAT Payable", accountType: "liability", accountSubType: "current-liability", level: 0, metadata: { taxRate: 12.5 } },
-      { accountCode: "2200", accountName: "PAYE Payable", accountType: "liability", accountSubType: "current-liability", level: 0 },
-      { accountCode: "2300", accountName: "SSNIT Payable", accountType: "liability", accountSubType: "current-liability", level: 0 },
-      
-      // Equity
-      { accountCode: "3000", accountName: "Owner's Equity", accountType: "equity", accountSubType: "equity", level: 0 },
-      { accountCode: "3100", accountName: "Retained Earnings", accountType: "equity", accountSubType: "retained-earnings", level: 0, isSystemAccount: true },
-      
-      // Revenue
-      { accountCode: "4000", accountName: "Sales Revenue", accountType: "revenue", accountSubType: "operating-revenue", level: 0 },
-      { accountCode: "4100", accountName: "Service Revenue", accountType: "revenue", accountSubType: "operating-revenue", level: 0 },
-      
-      // Expenses
-      { accountCode: "5000", accountName: "Cost of Goods Sold", accountType: "expense", accountSubType: "cost-of-sales", level: 0 },
-      { accountCode: "6000", accountName: "Operating Expenses", accountType: "expense", accountSubType: "operating-expense", level: 0, isParent: true },
-      { accountCode: "6100", accountName: "Salaries and Wages", accountType: "expense", accountSubType: "operating-expense", level: 1 },
-      { accountCode: "6200", accountName: "Rent Expense", accountType: "expense", accountSubType: "operating-expense", level: 1 },
-      { accountCode: "6300", accountName: "Utilities Expense", accountType: "expense", accountSubType: "operating-expense", level: 1 },
-    ];
+    const { STANDARD_CHART_OF_ACCOUNTS } = await import("../constants/chart-of-accounts");
+    const accountMap = new Map();
 
-    const accounts = await Account.insertMany(
-      defaultAccounts.map((acc) => ({
-        ...acc,
+    for (const template of STANDARD_CHART_OF_ACCOUNTS) {
+      const parentId = template.parent ? accountMap.get(template.parent) : undefined;
+
+      const account = await Account.create({
         organizationId: user.organizationId,
+        accountCode: template.code,
+        accountName: template.name,
+        accountType: template.type,
+        accountSubType: template.subType,
+        parentAccountId: parentId,
+        level: template.level,
+        isParent: template.isParent || false,
         currency: "GHS",
+        currentBalance: 0,
+        debitBalance: 0,
+        creditBalance: 0,
         isActive: true,
+        isSystemAccount: true,
+        allowManualJournal: true,
+        reconciliationEnabled: false,
+        del_flag: false,
         createdBy: user._id,
-      }))
-    );
+        mod_flag: 0,
+      });
+
+      accountMap.set(template.code, account._id);
+    }
 
     await logAudit({
       organizationId: String(user.organizationId),
@@ -277,10 +273,38 @@ async function _initializeDefaultAccounts(user: any) {
       action: "create",
       resource: "account",
       resourceId: "bulk_initialization",
-      details: { after: { count: accounts.length, accountCodes: accounts.map(a => a.accountCode) } },
+      details: { after: { count: STANDARD_CHART_OF_ACCOUNTS.length } },
     });
 
     revalidatePath("/");
+    return { success: true, message: "Chart of accounts initialized with 35+ standard accounts" };
+  } catch (error: any) {
+    return { error: error.message };
+  }
+}
+
+async function _getTransactableAccounts(user: any, accountType?: string) {
+  try {
+    await connectToDB();
+
+    const query: any = {
+      organizationId: user.organizationId,
+      del_flag: false,
+      isActive: true,
+      $or: [
+        { isParent: false },
+        { isParent: true, allowManualJournal: true }
+      ]
+    };
+
+    if (accountType) {
+      query.accountType = accountType;
+    }
+
+    const accounts = await Account.find(query)
+      .populate("parentAccountId", "accountName accountCode")
+      .sort({ accountCode: 1 });
+
     return { success: true, data: JSON.parse(JSON.stringify(accounts)) };
   } catch (error: any) {
     return { error: error.message };
@@ -289,6 +313,7 @@ async function _initializeDefaultAccounts(user: any) {
 
 export const createAccount = await withAuth(_createAccount);
 export const getAccounts = await withAuth(_getAccounts);
+export const getTransactableAccounts = await withAuth(_getTransactableAccounts);
 export const getAccountsByType = await withAuth(_getAccountsByType);
 export const getAccountById = await withAuth(_getAccountById);
 export const updateAccount = await withAuth(_updateAccount);
