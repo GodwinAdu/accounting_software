@@ -37,6 +37,7 @@ const lineItemSchema = z.object({
   quantity: z.number().min(1),
   unitPrice: z.number().min(0),
   amount: z.number(),
+  variantSku: z.string().optional(),
 });
 
 const salesOrderSchema = z.object({
@@ -63,6 +64,9 @@ export function SalesOrderForm() {
   const [products, setProducts] = useState<any[]>([]);
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
   const [showProductDialog, setShowProductDialog] = useState(false);
+  const [showVariantDialog, setShowVariantDialog] = useState(false);
+  const [selectedProductForVariant, setSelectedProductForVariant] = useState<any>(null);
+  const [currentItemIndex, setCurrentItemIndex] = useState<number>(0);
   const [newCustomer, setNewCustomer] = useState({ name: "", email: "", phone: "", company: "" });
   const [newProduct, setNewProduct] = useState({ name: "", sku: "", sellingPrice: 0, costPrice: 0, currentStock: 0 });
 
@@ -73,7 +77,7 @@ export function SalesOrderForm() {
       orderNumber: `SO-${Date.now().toString().slice(-6)}`,
       orderDate: new Date(),
       deliveryDate: undefined,
-      items: [{ productId: "", description: "", quantity: 1, unitPrice: 0, amount: 0 }],
+      items: [{ productId: "", description: "", quantity: 1, unitPrice: 0, amount: 0, variantSku: "" }],
       discount: 0,
       notes: "",
       revenueAccountId: "",
@@ -121,7 +125,7 @@ export function SalesOrderForm() {
   const addLineItem = () => {
     form.setValue("items", [
       ...items,
-      { productId: "", description: "", quantity: 1, unitPrice: 0, amount: 0 },
+      { productId: "", description: "", quantity: 1, unitPrice: 0, amount: 0, variantSku: "" },
     ]);
   };
 
@@ -134,12 +138,30 @@ export function SalesOrderForm() {
   const handleProductChange = (index: number, productId: string) => {
     const product = products.find(p => p._id === productId);
     if (product) {
-      form.setValue(`items.${index}.productId`, productId);
-      form.setValue(`items.${index}.description`, product.name);
-      form.setValue(`items.${index}.unitPrice`, product.sellingPrice);
-      const qty = form.getValues(`items.${index}.quantity`);
-      form.setValue(`items.${index}.amount`, qty * product.sellingPrice);
+      if (product.hasVariants && product.variants?.length > 0) {
+        setSelectedProductForVariant(product);
+        setCurrentItemIndex(index);
+        setShowVariantDialog(true);
+      } else {
+        form.setValue(`items.${index}.productId`, productId);
+        form.setValue(`items.${index}.description`, product.name);
+        form.setValue(`items.${index}.unitPrice`, product.sellingPrice);
+        const qty = form.getValues(`items.${index}.quantity`);
+        form.setValue(`items.${index}.amount`, qty * product.sellingPrice);
+      }
     }
+  };
+
+  const handleVariantSelect = (variant: any) => {
+    const product = selectedProductForVariant;
+    form.setValue(`items.${currentItemIndex}.productId`, product._id);
+    form.setValue(`items.${currentItemIndex}.description`, `${product.name} - ${variant.name}`);
+    form.setValue(`items.${currentItemIndex}.unitPrice`, variant.sellingPrice);
+    form.setValue(`items.${currentItemIndex}.variantSku`, variant.sku);
+    const qty = form.getValues(`items.${currentItemIndex}.quantity`);
+    form.setValue(`items.${currentItemIndex}.amount`, qty * variant.sellingPrice);
+    setShowVariantDialog(false);
+    setSelectedProductForVariant(null);
   };
 
   const handleCreateCustomer = async () => {
@@ -626,6 +648,50 @@ export function SalesOrderForm() {
             </Card>
           </div>
         </div>
+
+        <Dialog open={showVariantDialog} onOpenChange={setShowVariantDialog}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Select Variant - {selectedProductForVariant?.name}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 max-h-[400px] overflow-y-auto">
+              {selectedProductForVariant?.variants?.map((variant: any, idx: number) => (
+                <Card
+                  key={idx}
+                  className="p-4 cursor-pointer hover:border-emerald-500 transition-colors"
+                  onClick={() => handleVariantSelect(variant)}
+                >
+                  <div className="flex justify-between items-center">
+                    <div className="flex-1">
+                      <p className="font-medium">{variant.name}</p>
+                      <p className="text-sm text-muted-foreground">SKU: {variant.sku}</p>
+                      <div className="flex gap-2 mt-2">
+                        {Object.entries(variant.attributes || {}).map(([key, value]) => (
+                          <Badge key={key} variant="outline">
+                            {key}: {value as string}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-emerald-600">GHS {variant.sellingPrice}</p>
+                      <p className="text-sm text-muted-foreground">Stock: {variant.stock}</p>
+                      {variant.stock === 0 && (
+                        <Badge variant="destructive" className="mt-1">Out of Stock</Badge>
+                      )}
+                      {variant.stock > 0 && variant.stock <= 10 && (
+                        <Badge variant="secondary" className="mt-1">Low Stock</Badge>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowVariantDialog(false)}>Cancel</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={showCustomerDialog} onOpenChange={setShowCustomerDialog}>
           <DialogContent>

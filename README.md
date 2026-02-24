@@ -1,11 +1,14 @@
-# PayFlow
+# FindIT
 
-A modern payroll and accounting SaaS platform built with Next.js, TypeScript, and MongoDB.
+A modern financial management SaaS platform built with Next.js, TypeScript, and MongoDB.
 
 ## Features
 
-- **Automated Payroll Processing**: Process wages in minutes with automated calculations, tax deductions, and direct deposits
-- **Smart Accounting**: Real-time bookkeeping with automated reconciliation and financial reporting
+- **Complete Accounting**: Real-time bookkeeping with automated reconciliation and financial reporting
+- **Inventory Management**: Product tracking with variants, stock adjustments, and reorder alerts
+- **Sales & Invoicing**: Professional invoices, sales orders, and customer management
+- **Purchase Orders**: Vendor management with product and expense tracking
+- **Automated Payroll**: Process wages with automated calculations, tax deductions, and direct deposits
 - **Tax Compliance**: Automatic tax calculations, filings, and year-end reporting
 - **Time Tracking**: Integrated time tracking with automatic wage calculations
 - **Expense Management**: Track expenses, manage reimbursements, and maintain audit trails
@@ -59,7 +62,7 @@ Open [http://localhost:3000](http://localhost:3000)
 ## Project Structure
 
 ```
-payflow/
+findit/
 ├── app/
 │   ├── (auth)/              # Authentication routes
 │   ├── (organisation)/      # Organization-specific routes
@@ -76,9 +79,12 @@ payflow/
 
 ## Core Modules
 
+- **Accounting & Bookkeeping**: Complete double-entry accounting system
+- **Inventory Management**: Product variants, stock tracking, and reorder alerts
+- **Sales Management**: Invoices, sales orders, and customer portal
+- **Purchase Management**: Purchase orders, bills, and vendor management
 - **Payroll Management**: Automated wage processing and direct deposits
-- **General Ledger**: Complete double-entry accounting system
-- **Invoicing & Billing**: Professional invoice generation
+- **General Ledger**: Complete accounting with journal entries
 - **Tax Management**: Automated tax compliance and reporting
 - **Employee Portal**: Self-service portal for employees
 - **Financial Reports**: Real-time insights and analytics
@@ -106,7 +112,7 @@ npm run lint     # Run ESLint
 
 Deploy on [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/payflow)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/yourusername/findit)
 
 See [Next.js deployment docs](https://nextjs.org/docs/app/building-your-application/deploying) for details.
 

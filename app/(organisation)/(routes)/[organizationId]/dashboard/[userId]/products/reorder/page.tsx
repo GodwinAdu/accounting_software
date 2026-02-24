@@ -2,15 +2,13 @@ import { currentUser } from "@/lib/helpers/session";
 import { redirect } from "next/navigation";
 import Heading from "@/components/commons/Header";
 import { Separator } from "@/components/ui/separator";
-import { checkPermission } from "@/lib/helpers/check-permission";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Bell, AlertCircle, Package, ShoppingCart, ShoppingBag } from "lucide-react";
 import Link from "next/link";
-import { connectToDB } from "@/lib/connection/mongoose";
-import Product from "@/lib/models/product.model";
-import CreatePurchaseOrderDialog from "./_components/create-po-dialog";
+import { QuickOrderDialog } from "./_components/quick-order-dialog";
+import { getReorderAlerts } from "@/lib/actions/reorder.action";
 
 type Props = Promise<{ organizationId: string; userId: string }>;
 
@@ -20,22 +18,13 @@ export default async function ReorderAlertsPage({ params }: { params: Props }) {
 
   const { organizationId, userId } = await params;
 
-  const hasViewPermission = await checkPermission("reorderAlerts_view");
-  if (!hasViewPermission) redirect(`/${organizationId}/dashboard/${userId}`);
-
-  await connectToDB();
+  const result = await getReorderAlerts();
   
-  const products = await Product.find({ 
-    organizationId, 
-    del_flag: false,
-    trackInventory: true,
-    status: "active"
-  }).lean();
+  if (result.error) {
+    redirect(`/${organizationId}/dashboard/${userId}`);
+  }
 
-  const lowStockProducts = products.filter(p => p.currentStock <= p.reorderLevel && p.currentStock > 0);
-  const outOfStockProducts = products.filter(p => p.currentStock === 0);
-  const criticalProducts = products.filter(p => p.currentStock < p.reorderLevel * 0.5);
-  const totalAlerts = lowStockProducts.length + outOfStockProducts.length;
+  const { lowStockProducts, outOfStockProducts, criticalProducts, totalAlerts } = result.data!;
 
   const getStockStatus = (product: any) => {
     if (product.currentStock === 0) return { label: "Out of Stock", variant: "destructive" };
@@ -142,7 +131,11 @@ export default async function ReorderAlertsPage({ params }: { params: Props }) {
                         <p className="text-xs text-muted-foreground">Est. Cost: GHS {(product.costPrice * suggestedOrder).toLocaleString()}</p>
                       </div>
                       <Badge variant={status.variant as any}>{status.label}</Badge>
-                      <Button size="sm" variant="outline">Order</Button>
+                      <QuickOrderDialog 
+                        product={product} 
+                        suggestedQuantity={suggestedOrder} 
+                        organizationId={organizationId}
+                      />
                     </div>
                   </div>
                 );

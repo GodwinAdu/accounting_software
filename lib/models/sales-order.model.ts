@@ -6,6 +6,7 @@ export interface ISalesOrderItem {
   quantity: number;
   unitPrice: number;
   amount: number;
+  variantSku?: string;
 }
 
 export interface ISalesOrder extends Document {
@@ -53,6 +54,7 @@ const SalesOrderSchema = new Schema<ISalesOrder>(
       quantity: { type: Number, required: true },
       unitPrice: { type: Number, required: true },
       amount: { type: Number, required: true },
+      variantSku: { type: String },
     }],
     subtotal: { type: Number, required: true },
     taxAmount: { type: Number, default: 0 },

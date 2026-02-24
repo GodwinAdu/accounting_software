@@ -45,17 +45,56 @@ export async function createStockAdjustment(
       return { error: "Product does not track inventory" }
     }
 
-    const previousStock = product.currentStock
-    let newStock = previousStock
-
-    // Calculate new stock based on adjustment type
-    if (data.type === "increase") {
-      newStock = previousStock + (data.quantity || 0)
-    } else if (data.type === "decrease") {
-      newStock = previousStock - (data.quantity || 0)
-      if (newStock < 0) {
-        return { error: "Insufficient stock for decrease" }
+    // Validate variant requirement
+    if (product.hasVariants && product.variants && product.variants.length > 0) {
+      if (!data.variantSku) {
+        return { error: "Please select a variant for this product" }
       }
+    }
+
+    let previousStock = 0
+    let newStock = 0
+
+    // Handle variant stock
+    if (data.variantSku && product.hasVariants && product.variants) {
+      const variantIndex = product.variants.findIndex(v => v.sku === data.variantSku)
+      if (variantIndex === -1) {
+        return { error: "Variant not found" }
+      }
+      
+      previousStock = product.variants[variantIndex].stock
+      
+      if (data.type === "increase") {
+        newStock = previousStock + (data.quantity || 0)
+      } else if (data.type === "decrease") {
+        newStock = previousStock - (data.quantity || 0)
+        if (newStock < 0) {
+          return { error: "Insufficient stock for decrease" }
+        }
+      }
+      
+      // Update variant stock
+      product.variants[variantIndex].stock = newStock
+      await product.save()
+    } else {
+      // Handle regular product stock
+      previousStock = product.currentStock
+
+      if (data.type === "increase") {
+        newStock = previousStock + (data.quantity || 0)
+      } else if (data.type === "decrease") {
+        newStock = previousStock - (data.quantity || 0)
+        if (newStock < 0) {
+          return { error: "Insufficient stock for decrease" }
+        }
+      }
+      
+      // Update product stock
+      await Product.findByIdAndUpdate(data.productId, {
+        currentStock: newStock,
+        modifiedBy: user.id,
+        mod_flag: true
+      })
     }
 
     // Create adjustment record
@@ -67,13 +106,6 @@ export async function createStockAdjustment(
       createdBy: user.id,
       mod_flag: false,
       del_flag: false
-    })
-
-    // Update product stock
-    await Product.findByIdAndUpdate(data.productId, {
-      currentStock: newStock,
-      modifiedBy: user.id,
-      mod_flag: true
     })
 
     await logAudit({

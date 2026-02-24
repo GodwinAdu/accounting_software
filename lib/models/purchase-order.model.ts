@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IPOItem {
   type: "product" | "expense";
   productId?: mongoose.Types.ObjectId;
+  variantSku?: string;
   expenseAccountId?: mongoose.Types.ObjectId;
   description: string;
   quantity: number;
@@ -45,6 +46,7 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
     items: [{
       type: { type: String, enum: ["product", "expense"], required: true },
       productId: { type: Schema.Types.ObjectId, ref: "Product" },
+      variantSku: { type: String },
       expenseAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
       description: { type: String, required: true },
       quantity: { type: Number, required: true },

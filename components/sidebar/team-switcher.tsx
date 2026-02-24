@@ -6,20 +6,19 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-
+import { Logo } from "@/components/logo";
 import { capitalizeFirstLetter } from "@/lib/utils";
 
 export function TeamSwitcher({user}:{user:IEmployee}) {
-  const { open } = useSidebar(); // Detects mobile view
+  const { open } = useSidebar();
 
-
-
-  // Hide sidebar on mobile
   if (!open) return null;
 
-
   return (
-    <SidebarMenu className=" shadow-lg rounded-xl p-3">
+    <SidebarMenu className="shadow-lg rounded-xl p-3">
+      <div className="mb-3 pb-3 border-b">
+        <Logo className="justify-center" />
+      </div>
       <SidebarMenuItem className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-lg transition team-switcher">
         <UserCircle className="w-8 h-8 text-gray-500" />
         <div>

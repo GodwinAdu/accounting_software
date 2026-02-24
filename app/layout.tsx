@@ -19,8 +19,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hub Manager",
-  description: "A powerful tool to manage your projects and teams efficiently.",
+  title: "FindIT - Financial Management System",
+  description: "Complete accounting, inventory, and business management solution.",
 };
 
 export default function RootLayout({

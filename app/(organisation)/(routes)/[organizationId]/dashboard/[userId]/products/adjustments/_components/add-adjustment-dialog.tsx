@@ -25,10 +25,14 @@ export function AddAdjustmentDialog({ organizationId }: { organizationId: string
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [productId, setProductId] = useState("");
+  const [variantSku, setVariantSku] = useState("");
   const [type, setType] = useState<"increase" | "decrease">("increase");
   const [quantity, setQuantity] = useState("");
   const [reason, setReason] = useState("");
   const pathname = usePathname();
+
+  const selectedProduct = products.find(p => p._id === productId);
+  const hasVariants = selectedProduct?.hasVariants && selectedProduct?.variants?.length > 0;
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -47,6 +51,7 @@ export function AddAdjustmentDialog({ organizationId }: { organizationId: string
     const result = await createStockAdjustment(
       {
         productId,
+        variantSku: variantSku || undefined,
         type,
         quantity: parseInt(quantity),
         reason,
@@ -61,6 +66,7 @@ export function AddAdjustmentDialog({ organizationId }: { organizationId: string
       toast.success("Stock adjustment created successfully");
       setOpen(false);
       setProductId("");
+      setVariantSku("");
       setType("increase");
       setQuantity("");
       setReason("");
@@ -84,7 +90,7 @@ export function AddAdjustmentDialog({ organizationId }: { organizationId: string
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="space-y-2">
             <Label>Product *</Label>
-            <Select value={productId} onValueChange={setProductId} required>
+            <Select value={productId} onValueChange={(v) => { setProductId(v); setVariantSku(""); }} required>
               <SelectTrigger>
                 <SelectValue placeholder="Select product" />
               </SelectTrigger>
@@ -97,6 +103,23 @@ export function AddAdjustmentDialog({ organizationId }: { organizationId: string
               </SelectContent>
             </Select>
           </div>
+          {hasVariants && (
+            <div className="space-y-2">
+              <Label>Variant *</Label>
+              <Select value={variantSku} onValueChange={setVariantSku} required>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select variant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedProduct.variants.map((variant: any) => (
+                    <SelectItem key={variant.sku} value={variant.sku}>
+                      {variant.name} (Stock: {variant.stock})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Type *</Label>

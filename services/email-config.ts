@@ -16,7 +16,7 @@ export async function sendEmail(values: EmailProps) {
     const smtpPort = organization?.emailSettings?.smtpPort || parseInt(process.env.SMTP_PORT || "587");
     const smtpUser = organization?.emailSettings?.smtpUsername || process.env.SMTP_USER;
     const smtpPass = organization?.emailSettings?.smtpPassword || process.env.SMTP_PASS;
-    const fromName = organization?.emailSettings?.fromName || organization?.name || process.env.SMTP_FROM_NAME || "PayFlow";
+    const fromName = organization?.emailSettings?.fromName || organization?.name || process.env.SMTP_FROM_NAME || "FindIT";
     const fromEmail = organization?.emailSettings?.fromEmail || organization?.email || smtpUser;
     const replyTo = organization?.emailSettings?.replyToEmail || fromEmail;
 

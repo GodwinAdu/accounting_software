@@ -127,7 +127,7 @@ export const columns: ColumnDef<Product>[] = [
               label: "Edit",
               type: "edit",
               icon: <Edit className="h-4 w-4" />,
-              href: `${pathname}/${product._id}`,
+              href: `${pathname}/${product._id}/edit`,
               permissionKey: "products_update",
             },
             {

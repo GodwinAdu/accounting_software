@@ -4,6 +4,7 @@ export interface IStockAdjustment {
   _id?: string
   organizationId: Schema.Types.ObjectId
   productId: Schema.Types.ObjectId
+  variantSku?: string
   type: "increase" | "decrease"
   quantity: number
   reason: string
@@ -37,6 +38,9 @@ const StockAdjustmentSchema: Schema<IStockAdjustment> = new Schema({
     ref: "Product",
     required: true,
     index: true
+  },
+  variantSku: {
+    type: String
   },
   type: {
     type: String,

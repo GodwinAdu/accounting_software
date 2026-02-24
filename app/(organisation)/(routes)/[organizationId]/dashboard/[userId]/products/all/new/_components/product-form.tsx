@@ -5,7 +5,7 @@ import { useRouter, useParams, usePathname } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -35,12 +35,12 @@ const productSchema = z.object({
   status: z.enum(["active", "inactive"]).default("active"),
   hasVariants: z.boolean().default(false),
   variants: z.array(z.object({
-    name: z.string(),
-    sku: z.string(),
-    attributes: z.record(z.string()),
-    costPrice: z.number(),
-    sellingPrice: z.number(),
-    stock: z.number(),
+    name: z.string().optional(),
+    sku: z.string().optional(),
+    attributes: z.record(z.string()).optional(),
+    costPrice: z.number().optional(),
+    sellingPrice: z.number().optional(),
+    stock: z.number().optional(),
   })).optional(),
   bundleItems: z.array(z.object({
     productId: z.string(),
@@ -58,23 +58,25 @@ const productSchema = z.object({
 type ProductFormValues = z.infer<typeof productSchema>;
 
 interface ProductFormProps {
-  isEdit?: boolean;
   initialData?: any;
 }
 
-export function ProductForm({ isEdit = false, initialData }: ProductFormProps) {
+export function ProductForm({ initialData }: ProductFormProps) {
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
+  const isEdit = !!initialData;
+
+  console.log('ProductForm mounted', { isEdit, initialData });
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: initialData ? {
       sku: initialData.sku,
       name: initialData.name,
-      categoryId: initialData.categoryId || "",
+      categoryId: typeof initialData.categoryId === 'object' ? initialData.categoryId?._id : (initialData.categoryId || ""),
       description: initialData.description || "",
       sellingPrice: initialData.sellingPrice,
       costPrice: initialData.costPrice,
@@ -86,7 +88,7 @@ export function ProductForm({ isEdit = false, initialData }: ProductFormProps) {
       barcode: initialData.barcode || "",
       type: initialData.type,
       status: initialData.status,
-      hasVariants: initialData.hasVariants,
+      hasVariants: initialData.hasVariants || false,
       variants: initialData.variants || [],
       bundleItems: initialData.bundleItems || [],
       suppliers: initialData.suppliers || [],
@@ -124,12 +126,15 @@ export function ProductForm({ isEdit = false, initialData }: ProductFormProps) {
   }, []);
 
   const onSubmit = async (data: ProductFormValues) => {
+    console.log('Form submitted', { isEdit, initialData: initialData?._id, data });
     setIsSubmitting(true);
     try {
       const result = isEdit && initialData
         ? await updateProduct(initialData._id, data, pathname)
         : await createProduct(data, pathname);
 
+      console.log('Result:', result);
+      
       if (result.error) {
         toast.error(result.error);
       } else {
@@ -137,10 +142,29 @@ export function ProductForm({ isEdit = false, initialData }: ProductFormProps) {
         router.push(`/${params.organizationId}/dashboard/${params.userId}/products/all`);
       }
     } catch (error) {
+      console.error('Submit error:', error);
       toast.error(isEdit ? "Failed to update product" : "Failed to create product");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const onError = (errors: any) => {
+    console.log('Form validation errors:', errors);
+    toast.error('Please fix form errors before submitting');
+  };
+
+  const generateSKU = () => {
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+    return `PRD-${timestamp}-${random}`;
+  };
+
+  const generateVariantSKU = (index: number) => {
+    const baseSku = form.getValues("sku") || "PRD";
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.random().toString(36).substring(2, 3).toUpperCase();
+    return `${baseSku}-V${index + 1}-${random}`;
   };
 
   const sellingPrice = form.watch("sellingPrice");
@@ -149,7 +173,7 @@ export function ProductForm({ isEdit = false, initialData }: ProductFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-6">
         <div className="flex items-center justify-between">
           <Button type="button" variant="ghost" onClick={() => router.back()}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -190,9 +214,20 @@ export function ProductForm({ isEdit = false, initialData }: ProductFormProps) {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>SKU *</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
+                        <div className="flex gap-2">
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => form.setValue("sku", generateSKU())}
+                            title="Generate SKU"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                          </Button>
+                        </div>
                         <FormDescription>Stock Keeping Unit</FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -553,9 +588,20 @@ export function ProductForm({ isEdit = false, initialData }: ProductFormProps) {
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>SKU</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} placeholder="Variant SKU" />
-                                  </FormControl>
+                                  <div className="flex gap-2">
+                                    <FormControl>
+                                      <Input {...field} placeholder="Variant SKU" />
+                                    </FormControl>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="icon"
+                                      onClick={() => form.setValue(`variants.${index}.sku`, generateVariantSKU(index))}
+                                      title="Generate SKU"
+                                    >
+                                      <RefreshCw className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 </FormItem>
                               )}
                             />

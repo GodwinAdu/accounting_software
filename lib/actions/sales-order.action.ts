@@ -220,14 +220,33 @@ async function _confirmSalesOrder(user: User, orderId: string, path: string) {
     for (const item of order.items) {
       const product = await Product.findById(item.productId);
       if (product) {
-        const cogsAmount = product.costPrice * item.quantity;
-        totalCOGS += cogsAmount;
-
-        // Reduce stock
-        if (product.trackInventory) {
-          product.currentStock -= item.quantity;
-          await product.save();
+        let cogsAmount = 0;
+        
+        // Handle variant stock
+        if (item.variantSku && product.hasVariants && product.variants) {
+          const variantIndex = product.variants.findIndex(v => v.sku === item.variantSku);
+          if (variantIndex !== -1) {
+            const variant = product.variants[variantIndex];
+            cogsAmount = variant.costPrice * item.quantity;
+            
+            // Reduce variant stock
+            if (product.trackInventory) {
+              product.variants[variantIndex].stock -= item.quantity;
+              await product.save();
+            }
+          }
+        } else {
+          // Handle regular product stock
+          cogsAmount = product.costPrice * item.quantity;
+          
+          // Reduce stock
+          if (product.trackInventory) {
+            product.currentStock -= item.quantity;
+            await product.save();
+          }
         }
+        
+        totalCOGS += cogsAmount;
       }
     }
 

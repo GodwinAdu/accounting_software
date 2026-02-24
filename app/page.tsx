@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Menu, X, ArrowRight, Check, DollarSign, Calculator, TrendingUp, Shield, Clock, Users, FileText, Zap, BarChart3, CreditCard, Lock } from 'lucide-react'
+import { Menu, X, ArrowRight, Check, DollarSign, Calculator, TrendingUp, Shield, Clock, Users, FileText, Zap, BarChart3, CreditCard, Lock, Sparkles, Brain } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
@@ -132,7 +132,7 @@ export default function HomePage() {
       name: 'David Martinez',
       role: 'CFO',
       company: 'TechStart Inc',
-      text: 'PayFlow reduced our payroll processing time by 80%. The automation is incredible.',
+      text: 'FindIT reduced our payroll processing time by 80%. The automation is incredible.',
       rating: 5,
     },
     {
@@ -153,16 +153,16 @@ export default function HomePage() {
 
   const faqs = [
     {
-      question: 'How does PayFlow handle tax compliance?',
-      answer: 'PayFlow automatically calculates federal, state, and local taxes, generates tax forms, and keeps you compliant with the latest regulations. We support W-2, 1099, and all standard tax filings.',
+      question: 'How does FindIT handle tax compliance?',
+      answer: 'FindIT automatically calculates federal, state, and local taxes, generates tax forms, and keeps you compliant with the latest regulations. We support W-2, 1099, and all standard tax filings.',
     },
     {
       question: 'Can I migrate my existing payroll data?',
       answer: 'Yes! Our migration team will help you seamlessly transfer all employee data, payroll history, and accounting records from your current system with zero downtime.',
     },
     {
-      question: 'What integrations does PayFlow support?',
-      answer: 'PayFlow integrates with major banks, accounting software (QuickBooks, Xero), time tracking tools, and HR systems. We also provide a robust API for custom integrations.',
+      question: 'What integrations does FindIT support?',
+      answer: 'FindIT integrates with major banks, accounting software (QuickBooks, Xero), time tracking tools, and HR systems. We also provide a robust API for custom integrations.',
     },
     {
       question: 'Is my financial data secure?',
@@ -194,8 +194,11 @@ export default function HomePage() {
       <nav className={`sticky top-0 z-40 transition-all duration-500 ${scrolled ? 'bg-background/80 backdrop-blur-md border-b border-border/40 shadow-lg' : 'bg-transparent'}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">P</div>
-            <span className="font-bold text-xl bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">PayFlow</span>
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">F</div>
+            <div className="flex items-center">
+              <span className="font-bold text-xl text-emerald-600">Find</span>
+              <span className="font-bold text-xl text-gray-900 dark:text-white">IT</span>
+            </div>
           </div>
 
           <div className="hidden md:flex items-center gap-8">
@@ -232,19 +235,35 @@ export default function HomePage() {
       <section className="relative py-20 md:py-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div className="animate-slideInLeft space-y-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 backdrop-blur border border-emerald-500/20 rounded-full">
-              <Zap size={16} className="text-emerald-600" />
-              <span className="text-sm font-medium">Automated Payroll & Accounting</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-purple-500/10 backdrop-blur border border-purple-500/20 rounded-full">
+              <Sparkles size={16} className="text-purple-600" />
+              <span className="text-sm font-medium">AI-Powered Automation</span>
             </div>
 
             <div className="space-y-4">
               <h1 className="text-5xl md:text-6xl font-bold leading-tight">
-                Payroll & Accounting
-                <span className="block bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 bg-clip-text text-transparent animate-gradientShift">Made Simple</span>
+                Financial Management
+                <span className="block bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 bg-clip-text text-transparent animate-gradientShift">Made Simple with AI</span>
               </h1>
               <p className="text-xl text-foreground/70 max-w-lg">
-                Automate payroll, manage finances, and stay tax compliant. All-in-one accounting software built for modern businesses.
+                Complete accounting, payroll, inventory, and business management with advanced AI features. 
+                Get instant insights, smart categorization, and predictive analytics.
               </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3 py-4">
+              <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                <Brain className="h-4 w-4 text-purple-600" />
+                <span className="text-sm font-medium">AI Chat Assistant</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                <Zap className="h-4 w-4 text-purple-600" />
+                <span className="text-sm font-medium">Invoice OCR</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                <Sparkles className="h-4 w-4 text-purple-600" />
+                <span className="text-sm font-medium">Smart Analytics</span>
+              </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4">
@@ -259,7 +278,7 @@ export default function HomePage() {
 
             <div className="flex items-center gap-8 pt-8 border-t border-border/40" ref={heroRef}>
               <div>
-                <div className="text-2xl font-bold">{companies.count.toLocaleString()}+</div>
+                <div className="text-2xl font-bold">GHS {companies.count.toLocaleString()}+</div>
                 <div className="text-sm text-foreground/60">Companies</div>
               </div>
               <div>
@@ -267,7 +286,7 @@ export default function HomePage() {
                 <div className="text-sm text-foreground/60">Employees Paid</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">${processed.count}M+</div>
+                <div className="text-2xl font-bold">GHS {processed.count}M+</div>
                 <div className="text-sm text-foreground/60">Processed</div>
               </div>
             </div>
@@ -421,8 +440,8 @@ export default function HomePage() {
         <div className="relative rounded-2xl overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 to-teal-600/20"></div>
           <div className="relative p-16 md:p-20 text-center border border-emerald-500/20 backdrop-blur">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">Ready to Simplify Your Payroll?</h2>
-            <p className="text-xl text-foreground/70 max-w-2xl mx-auto mb-8">Join 2,000+ businesses already using PayFlow to automate their finances</p>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">Ready to Simplify Your Finances?</h2>
+            <p className="text-xl text-foreground/70 max-w-2xl mx-auto mb-8">Join 2,000+ businesses already using FindIT to automate their finances</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 text-lg h-14 px-8">
                 Start Free Trial
@@ -445,10 +464,13 @@ export default function HomePage() {
           <div className="grid md:grid-cols-5 gap-12 mb-12">
             <div className="md:col-span-2">
               <div className="flex items-center gap-2 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">P</div>
-                <span className="font-bold text-2xl bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">PayFlow</span>
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">F</div>
+                <div className="flex items-center">
+                  <span className="font-bold text-2xl text-emerald-600">Find</span>
+                  <span className="font-bold text-2xl text-gray-900 dark:text-white">IT</span>
+                </div>
               </div>
-              <p className="text-foreground/70 mb-6 max-w-sm">Modern payroll and accounting software trusted by 2,000+ businesses worldwide. Automate your finances and focus on growth.</p>
+              <p className="text-foreground/70 mb-6 max-w-sm">Modern financial management software trusted by 2,000+ businesses worldwide. Automate your finances and focus on growth.</p>
               <div className="flex gap-4">
                 <a href="#" className="w-10 h-10 rounded-full bg-background/50 border border-border/40 hover:border-emerald-500/40 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all duration-300">
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"></path></svg>
@@ -499,7 +521,7 @@ export default function HomePage() {
           <div className="pt-8 border-t border-border/40">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="flex flex-col md:flex-row items-center gap-4 text-sm text-foreground/60">
-                <p>&copy; ${new Date().getFullYear()} PayFlow. All rights reserved.</p>
+                <p>&copy; ${new Date().getFullYear()} FindIT. All rights reserved.</p>
                 <div className="flex items-center gap-4">
                   <span className="flex items-center gap-2">
                     <Shield className="w-4 h-4 text-emerald-600" />
