@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { getProductById } from "@/lib/actions/product.action";
-import { ProductForm } from "../../new/_components/product-form";
+import { ProductForm } from "../../../new/_components/product-form";
 import { toast } from "sonner";
 
 export function ProductEditForm() {

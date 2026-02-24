@@ -28,10 +28,10 @@ const productSchema = z.object({
   currentStock: z.number().min(0, "Stock must be positive"),
   reorderLevel: z.number().min(0),
   unit: z.string().min(1, "Unit is required"),
-  taxable: z.boolean().default(true),
-  trackInventory: z.boolean().default(true),
+  taxable: z.boolean(),
+  trackInventory: z.boolean(),
   barcode: z.string().optional(),
-  type: z.enum(["product", "service", "bundle"]).default("product"),
+  type: z.enum(["product", "service", "bundle"]),
   status: z.enum(["active", "inactive"]).default("active"),
   hasVariants: z.boolean().default(false),
   variants: z.array(z.object({
