@@ -1,23 +1,58 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Menu, X, ArrowRight, Check, DollarSign, Calculator, TrendingUp, Shield, Clock, Users, FileText, Zap, BarChart3, CreditCard } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Menu, X, ArrowRight, Check, DollarSign, Calculator, TrendingUp, Shield, Clock, Users, FileText, Zap, BarChart3, CreditCard, Lock } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
+import { useScrollAnimation, useCountUp } from '@/hooks/use-scroll-animation'
+import DashboardPreview from './_components/dashboard-preview'
+import TrustBadges from './_components/trust-badges'
+import LiveMetrics from './_components/live-metrics'
+import IntegrationLogos from './_components/integration-logos'
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const heroRef = useRef<HTMLDivElement>(null)
+
+  const companies = useCountUp(2000, 2000)
+  const employees = useCountUp(50000, 2000)
+  const processed = useCountUp(500, 2000)
 
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50)
     }
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY })
+    }
     window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('mousemove', handleMouseMove)
+    }
+  }, [])
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          companies.start()
+          employees.start()
+          processed.start()
+        }
+      },
+      { threshold: 0.5 }
+    )
+    if (heroRef.current) {
+      observer.observe(heroRef.current)
+    }
+    return () => observer.disconnect()
   }, [])
 
   const features = [
@@ -137,10 +172,22 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden">
-      {/* Animated background */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-full blur-3xl animate-float opacity-40"></div>
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full blur-3xl animate-float opacity-40" style={{ animationDelay: '1s' }}></div>
+        <div 
+          className="absolute w-96 h-96 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-full blur-3xl animate-float opacity-40 transition-transform duration-1000"
+          style={{
+            top: `${mousePosition.y / 20}px`,
+            left: `${mousePosition.x / 20}px`,
+          }}
+        />
+        <div 
+          className="absolute w-96 h-96 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-full blur-3xl animate-float opacity-40 transition-transform duration-1000" 
+          style={{
+            bottom: `${mousePosition.y / 30}px`,
+            right: `${mousePosition.x / 30}px`,
+            animationDelay: '1s'
+          }}
+        />
       </div>
 
       {/* Navigation */}
@@ -152,10 +199,10 @@ export default function HomePage() {
           </div>
 
           <div className="hidden md:flex items-center gap-8">
-            <a href="#features" className="hover:text-emerald-600 transition-colors">Features</a>
-            <a href="#modules" className="hover:text-emerald-600 transition-colors">Solutions</a>
-            <a href="#pricing" className="hover:text-emerald-600 transition-colors">Pricing</a>
-            <a href="#faq" className="hover:text-emerald-600 transition-colors">FAQ</a>
+            <Link href="/features" className="hover:text-emerald-600 transition-colors">Features</Link>
+            <Link href="/solutions" className="hover:text-emerald-600 transition-colors">Solutions</Link>
+            <Link href="/pricing" className="hover:text-emerald-600 transition-colors">Pricing</Link>
+            <Link href="/faq" className="hover:text-emerald-600 transition-colors">FAQ</Link>
           </div>
 
           <div className="hidden md:flex gap-4">
@@ -170,11 +217,13 @@ export default function HomePage() {
 
         {mobileMenuOpen && (
           <div className="md:hidden animate-fadeInUp bg-background/95 backdrop-blur-md border-b border-border/40 px-4 py-4 space-y-4">
-            <a href="#features" className="block hover:text-emerald-600">Features</a>
-            <a href="#modules" className="block hover:text-emerald-600">Solutions</a>
-            <a href="#pricing" className="block hover:text-emerald-600">Pricing</a>
-            <a href="#faq" className="block hover:text-emerald-600">FAQ</a>
-            <Button className="w-full bg-gradient-to-r from-emerald-600 to-teal-600">Get Started</Button>
+            <Link href="/features" className="block hover:text-emerald-600">Features</Link>
+            <Link href="/solutions" className="block hover:text-emerald-600">Solutions</Link>
+            <Link href="/pricing" className="block hover:text-emerald-600">Pricing</Link>
+            <Link href="/faq" className="block hover:text-emerald-600">FAQ</Link>
+            <Link href="/sign-up">
+              <Button className="w-full bg-gradient-to-r from-emerald-600 to-teal-600">Get Started</Button>
+            </Link>
           </div>
         )}
       </nav>
@@ -208,59 +257,24 @@ export default function HomePage() {
               </Button>
             </div>
 
-            <div className="flex items-center gap-8 pt-8 border-t border-border/40">
+            <div className="flex items-center gap-8 pt-8 border-t border-border/40" ref={heroRef}>
               <div>
-                <div className="text-2xl font-bold">2,000+</div>
+                <div className="text-2xl font-bold">{companies.count.toLocaleString()}+</div>
                 <div className="text-sm text-foreground/60">Companies</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">50K+</div>
+                <div className="text-2xl font-bold">{(employees.count / 1000).toFixed(0)}K+</div>
                 <div className="text-sm text-foreground/60">Employees Paid</div>
               </div>
               <div>
-                <div className="text-2xl font-bold">$500M+</div>
+                <div className="text-2xl font-bold">${processed.count}M+</div>
                 <div className="text-sm text-foreground/60">Processed</div>
               </div>
             </div>
           </div>
 
           <div className="animate-slideInRight relative h-96 md:h-full">
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-2xl border border-emerald-500/20 backdrop-blur-sm p-8">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-background/50 rounded-lg border border-emerald-500/20">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-full"></div>
-                    <div>
-                      <div className="font-semibold">Monthly Payroll</div>
-                      <div className="text-sm text-foreground/60">Processing...</div>
-                    </div>
-                  </div>
-                  <Check className="text-emerald-600" size={24} />
-                </div>
-                <div className="p-4 bg-background/50 rounded-lg border border-emerald-500/20">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm text-foreground/60">Total Wages</span>
-                    <span className="font-bold">$125,450</span>
-                  </div>
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm text-foreground/60">Tax Deductions</span>
-                    <span className="font-bold">$28,320</span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t border-border/40">
-                    <span className="font-semibold">Net Pay</span>
-                    <span className="font-bold text-emerald-600">$97,130</span>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {['Invoices', 'Expenses', 'Reports'].map((item, i) => (
-                    <div key={i} className="p-3 bg-background/50 rounded-lg border border-emerald-500/20 text-center">
-                      <div className="text-xs text-foreground/60">{item}</div>
-                      <div className="font-bold mt-1">{Math.floor(Math.random() * 50) + 10}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <DashboardPreview />
           </div>
         </div>
       </section>
@@ -276,7 +290,7 @@ export default function HomePage() {
           {features.map((feature, index) => {
             const Icon = feature.icon
             return (
-              <Card key={index} className="group p-8 bg-card/50 backdrop-blur border border-border/40 hover:border-emerald-500/40 transition-all duration-500 cursor-pointer hover:shadow-lg hover:shadow-emerald-500/20 animate-fadeInUp" style={{ animationDelay: `${index * 100}ms` }}>
+              <Card key={index} className="group p-8 bg-card/50 backdrop-blur border border-border/40 hover:border-emerald-500/40 transition-all duration-500 cursor-pointer hover:shadow-lg hover:shadow-emerald-500/20 hover:-translate-y-2 animate-fadeInUp" style={{ animationDelay: `${index * 100}ms` }}>
                 <div className={`w-16 h-16 bg-gradient-to-br ${feature.color} rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500`}>
                   <Icon className="text-white" size={32} />
                 </div>
@@ -297,7 +311,7 @@ export default function HomePage() {
 
         <div className="grid md:grid-cols-3 gap-6">
           {modules.map((module, index) => (
-            <Card key={index} className="group p-8 bg-gradient-to-br from-card/50 to-card/30 backdrop-blur border border-border/40 hover:border-emerald-500/40 transition-all duration-500 cursor-pointer animate-fadeInUp" style={{ animationDelay: `${index * 100}ms` }}>
+            <Card key={index} className="group p-8 bg-gradient-to-br from-card/50 to-card/30 backdrop-blur border border-border/40 hover:border-emerald-500/40 transition-all duration-500 cursor-pointer hover:-translate-y-2 hover:shadow-xl hover:shadow-emerald-500/20 animate-fadeInUp" style={{ animationDelay: `${index * 100}ms` }}>
               <div className={`w-20 h-20 bg-gradient-to-br ${module.gradient} rounded-xl flex items-center justify-center mb-6 text-5xl group-hover:scale-110 transition-transform duration-500 shadow-lg`}>
                 {module.icon}
               </div>
@@ -348,6 +362,8 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      <IntegrationLogos />
 
       {/* Testimonials */}
       <section id="testimonials" className="py-20 md:py-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -418,57 +434,88 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+        
+        <TrustBadges />
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/40 bg-card/30 backdrop-blur">
+      <LiveMetrics />
+
+      <footer className="relative border-t border-border/40 bg-gradient-to-b from-card/30 to-card/60 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="grid md:grid-cols-4 gap-12 mb-12">
-            <div>
+          <div className="grid md:grid-cols-5 gap-12 mb-12">
+            <div className="md:col-span-2">
               <div className="flex items-center gap-2 mb-6">
-                <div className="w-8 h-8 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-lg flex items-center justify-center text-white font-bold">P</div>
-                <span className="font-bold text-lg">PayFlow</span>
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-lg flex items-center justify-center text-white font-bold text-xl shadow-lg">P</div>
+                <span className="font-bold text-2xl bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">PayFlow</span>
               </div>
-              <p className="text-foreground/60">Modern payroll and accounting software for businesses</p>
+              <p className="text-foreground/70 mb-6 max-w-sm">Modern payroll and accounting software trusted by 2,000+ businesses worldwide. Automate your finances and focus on growth.</p>
+              <div className="flex gap-4">
+                <a href="#" className="w-10 h-10 rounded-full bg-background/50 border border-border/40 hover:border-emerald-500/40 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all duration-300">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"></path></svg>
+                </a>
+                <a href="#" className="w-10 h-10 rounded-full bg-background/50 border border-border/40 hover:border-emerald-500/40 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all duration-300">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"></path><circle cx="4" cy="4" r="2"></circle></svg>
+                </a>
+                <a href="#" className="w-10 h-10 rounded-full bg-background/50 border border-border/40 hover:border-emerald-500/40 flex items-center justify-center hover:bg-emerald-600 hover:text-white transition-all duration-300">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path></svg>
+                </a>
+              </div>
             </div>
 
             <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-foreground/60">
-                <li><a href="#features" className="hover:text-emerald-600 transition-colors">Features</a></li>
-                <li><a href="#modules" className="hover:text-emerald-600 transition-colors">Solutions</a></li>
-                <li><a href="#pricing" className="hover:text-emerald-600 transition-colors">Pricing</a></li>
-                <li><a href="#testimonials" className="hover:text-emerald-600 transition-colors">Testimonials</a></li>
+              <h4 className="font-bold mb-4 text-lg">Product</h4>
+              <ul className="space-y-3 text-foreground/60">
+                <li><Link href="/features" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> Features</Link></li>
+                <li><Link href="/solutions" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> Solutions</Link></li>
+                <li><Link href="/pricing" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> Pricing</Link></li>
+                <li><Link href="/testimonials" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> Testimonials</Link></li>
+                <li><Link href="/integrations" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> Integrations</Link></li>
               </ul>
             </div>
 
             <div>
-              <h4 className="font-semibold mb-4">Resources</h4>
-              <ul className="space-y-2 text-foreground/60">
-                <li><a href="#faq" className="hover:text-emerald-600 transition-colors">FAQ</a></li>
-                <li><a href="#features" className="hover:text-emerald-600 transition-colors">Documentation</a></li>
-                <li><a href="#modules" className="hover:text-emerald-600 transition-colors">API</a></li>
-                <li><a href="#pricing" className="hover:text-emerald-600 transition-colors">Support</a></li>
+              <h4 className="font-bold mb-4 text-lg">Resources</h4>
+              <ul className="space-y-3 text-foreground/60">
+                <li><Link href="/faq" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> FAQ</Link></li>
+                <li><Link href="/documentation" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> Documentation</Link></li>
+                <li><Link href="/api-reference" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> API Reference</Link></li>
+                <li><Link href="/support" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> Support Center</Link></li>
+                <li><Link href="/blog" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> Blog</Link></li>
               </ul>
             </div>
 
             <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-foreground/60">
-                <li><a href="#features" className="hover:text-emerald-600 transition-colors">About</a></li>
-                <li><a href="#testimonials" className="hover:text-emerald-600 transition-colors">Customers</a></li>
-                <li><a href="#pricing" className="hover:text-emerald-600 transition-colors">Contact</a></li>
-                <li><a href="#faq" className="hover:text-emerald-600 transition-colors">Legal</a></li>
+              <h4 className="font-bold mb-4 text-lg">Company</h4>
+              <ul className="space-y-3 text-foreground/60">
+                <li><Link href="/about" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> About Us</Link></li>
+                <li><Link href="/careers" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> Careers</Link></li>
+                <li><Link href="/contact" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> Contact</Link></li>
+                <li><Link href="/privacy" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-emerald-600 transition-colors flex items-center gap-2"><span className="text-emerald-600">→</span> Terms of Service</Link></li>
               </ul>
             </div>
           </div>
 
-          <div className="pt-8 border-t border-border/40 flex flex-col md:flex-row justify-between items-center text-foreground/60 text-sm">
-            <p>&copy; 2024 PayFlow. All rights reserved.</p>
-            <div className="flex gap-6 mt-4 md:mt-0">
-              <a href="#" className="hover:text-emerald-600 transition-colors">Twitter</a>
-              <a href="#" className="hover:text-emerald-600 transition-colors">LinkedIn</a>
-              <a href="#" className="hover:text-emerald-600 transition-colors">GitHub</a>
+          <div className="pt-8 border-t border-border/40">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex flex-col md:flex-row items-center gap-4 text-sm text-foreground/60">
+                <p>&copy; ${new Date().getFullYear()} PayFlow. All rights reserved.</p>
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-emerald-600" />
+                    SOC 2 Certified
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-emerald-600" />
+                    256-bit Encryption
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="text-foreground/60">Made with</span>
+                <span className="text-red-500 animate-pulse">❤️</span>
+                <span className="text-foreground/60">for businesses</span>
+              </div>
             </div>
           </div>
         </div>

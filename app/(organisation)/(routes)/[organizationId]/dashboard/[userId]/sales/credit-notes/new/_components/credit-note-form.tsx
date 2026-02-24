@@ -52,7 +52,7 @@ type CreditNoteFormValues = z.infer<typeof creditNoteSchema>;
 
 type Customer = { _id: string; name: string; company?: string };
 type Invoice = { _id: string; invoiceNumber: string };
-type Account = { _id: string; accountName: string; accountCode: string; accountType: string };
+type Account = { _id: string; accountName: string; accountCode: string; accountType: string; isParent?: boolean };
 
 type CreditNoteFormProps = { initialData?: any };
 
@@ -83,7 +83,7 @@ export function CreditNoteForm({ initialData }: CreditNoteFormProps) {
       }
       
       if (accountsResult.success && accountsResult.data) {
-        setAccounts(accountsResult.data.map((a: any) => ({ _id: a._id, accountName: a.accountName, accountCode: a.accountCode, accountType: a.accountType })));
+        setAccounts(accountsResult.data.map((a: any) => ({ _id: a._id, accountName: a.accountName, accountCode: a.accountCode, accountType: a.accountType, isParent: a.isParent })));
       }
     };
     fetchData();
@@ -301,7 +301,7 @@ export function CreditNoteForm({ initialData }: CreditNoteFormProps) {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {accounts.filter(a => a.accountType === 'revenue').map(account => (
+                            {accounts.filter(a => a.accountType === 'revenue' && !a.isParent).map(account => (
                               <SelectItem key={account._id} value={account._id}>
                                 {account.accountCode} - {account.accountName}
                               </SelectItem>
@@ -327,7 +327,7 @@ export function CreditNoteForm({ initialData }: CreditNoteFormProps) {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {accounts.filter(a => a.accountType === 'asset').map(account => (
+                            {accounts.filter(a => a.accountType === 'asset' && !a.isParent).map(account => (
                               <SelectItem key={account._id} value={account._id}>
                                 {account.accountCode} - {account.accountName}
                               </SelectItem>

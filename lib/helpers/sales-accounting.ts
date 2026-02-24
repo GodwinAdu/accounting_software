@@ -15,7 +15,6 @@ export async function postInvoiceToGL(invoiceId: string, userId: string) {
 
     console.log("Posting invoice to GL:", invoiceId);
 
-    // Get default accounts if not set on invoice
     const revenueAccount = invoice.revenueAccountId || await getDefaultAccount(invoice.organizationId, "revenue", "Sales Revenue", userId);
     const receivableAccount = invoice.receivableAccountId || await getDefaultAccount(invoice.organizationId, "asset", "Accounts Receivable", userId);
     const taxAccount = invoice.taxAccountId || await getDefaultAccount(invoice.organizationId, "liability", "VAT Payable", userId);
@@ -77,11 +76,9 @@ export async function postInvoiceToGL(invoiceId: string, userId: string) {
     const fiscalPeriod = new Date(invoice.invoiceDate).getMonth() + 1;
 
     for (const line of lineItems) {
-      // Get current balance for this account
       const account = await Account.findById(line.accountId);
       let runningBalance = account?.currentBalance || 0;
       
-      // Calculate new running balance
       if (["asset", "expense"].includes(account?.accountType || "")) {
         runningBalance += line.debit - line.credit;
       } else {
@@ -106,7 +103,6 @@ export async function postInvoiceToGL(invoiceId: string, userId: string) {
         del_flag: false
       });
 
-      // Update account balances
       await updateAccountBalance(line.accountId, line.debit, line.credit);
     }
 
@@ -308,7 +304,7 @@ export async function postCreditNoteToGL(creditNoteId: string, userId: string) {
     const journalEntry = await JournalEntry.create({
       organizationId: creditNote.organizationId,
       entryNumber: `JE-CN-${creditNote.creditNoteNumber}`,
-      entryDate: new Date(),
+      entryDate: creditNote.date,
       entryType: "automated",
       referenceType: "credit_note",
       referenceId: creditNoteId,
@@ -326,19 +322,28 @@ export async function postCreditNoteToGL(creditNoteId: string, userId: string) {
       mod_flag: 0
     });
 
-    const fiscalYear = new Date().getFullYear();
-    const fiscalPeriod = new Date().getMonth() + 1;
+    const fiscalYear = new Date(creditNote.date).getFullYear();
+    const fiscalPeriod = new Date(creditNote.date).getMonth() + 1;
 
     for (const line of lineItems) {
+      const account = await Account.findById(line.accountId);
+      let runningBalance = account?.currentBalance || 0;
+      
+      if (["asset", "expense"].includes(account?.accountType || "")) {
+        runningBalance += line.debit - line.credit;
+      } else {
+        runningBalance += line.credit - line.debit;
+      }
+
       await GeneralLedger.create({
         organizationId: creditNote.organizationId,
         accountId: line.accountId,
         journalEntryId: journalEntry._id,
-        transactionDate: new Date(),
+        transactionDate: creditNote.date,
         description: line.description,
         debit: line.debit,
         credit: line.credit,
-        runningBalance: 0,
+        runningBalance,
         referenceType: "credit_note",
         referenceId: creditNoteId,
         referenceNumber: creditNote.creditNoteNumber,

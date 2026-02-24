@@ -496,14 +496,20 @@ async function _getARAgingReport(user: any) {
       status: { $in: ["sent", "overdue", "partial"] },
     }).populate("customerId", "name");
 
+    if (!invoices || invoices.length === 0) {
+      return { success: true, data: [] };
+    }
+
     const today = new Date();
     const agingData = invoices.map((inv: any) => {
       const dueDate = new Date(inv.dueDate);
       const daysOverdue = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-      const balance = inv.total - inv.paidAmount;
+      const totalAmount = Number(inv.totalAmount) || 0;
+      const paidAmount = Number(inv.paidAmount) || 0;
+      const balance = totalAmount - paidAmount;
 
       return {
-        id: inv._id,
+        id: String(inv._id),
         customer: inv.customerId?.name || "Unknown",
         current: daysOverdue <= 0 ? balance : 0,
         days30: daysOverdue > 0 && daysOverdue <= 30 ? balance : 0,
@@ -527,18 +533,19 @@ async function _getARAgingReport(user: any) {
           total: 0,
         };
       }
-      acc[item.customer].current += item.current;
-      acc[item.customer].days30 += item.days30;
-      acc[item.customer].days60 += item.days60;
-      acc[item.customer].days90 += item.days90;
-      acc[item.customer].over90 += item.over90;
-      acc[item.customer].total += item.total;
+      acc[item.customer].current += Number(item.current) || 0;
+      acc[item.customer].days30 += Number(item.days30) || 0;
+      acc[item.customer].days60 += Number(item.days60) || 0;
+      acc[item.customer].days90 += Number(item.days90) || 0;
+      acc[item.customer].over90 += Number(item.over90) || 0;
+      acc[item.customer].total += Number(item.total) || 0;
       return acc;
     }, {});
 
     return { success: true, data: Object.values(grouped) };
   } catch (error: any) {
-    return { error: error.message };
+    console.error("AR Aging Report Error:", error);
+    return { success: false, error: error.message, data: [] };
   }
 }
 
@@ -557,7 +564,9 @@ async function _getAPAgingReport(user: any) {
     const agingData = bills.map((bill: any) => {
       const dueDate = new Date(bill.dueDate);
       const daysOverdue = Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
-      const balance = bill.total - bill.paidAmount;
+      const totalAmount = bill.totalAmount || bill.total || 0;
+      const paidAmount = bill.amountPaid || bill.paidAmount || 0;
+      const balance = totalAmount - paidAmount;
 
       return {
         id: bill._id,
@@ -584,12 +593,12 @@ async function _getAPAgingReport(user: any) {
           total: 0,
         };
       }
-      acc[item.vendor].current += item.current;
-      acc[item.vendor].days30 += item.days30;
-      acc[item.vendor].days60 += item.days60;
-      acc[item.vendor].days90 += item.days90;
-      acc[item.vendor].over90 += item.over90;
-      acc[item.vendor].total += item.total;
+      acc[item.vendor].current += item.current || 0;
+      acc[item.vendor].days30 += item.days30 || 0;
+      acc[item.vendor].days60 += item.days60 || 0;
+      acc[item.vendor].days90 += item.days90 || 0;
+      acc[item.vendor].over90 += item.over90 || 0;
+      acc[item.vendor].total += item.total || 0;
       return acc;
     }, {});
 

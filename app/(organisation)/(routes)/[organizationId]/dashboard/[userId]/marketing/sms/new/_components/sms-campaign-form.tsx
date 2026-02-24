@@ -11,12 +11,16 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createSMSCampaign } from "@/lib/actions/sms-campaign.action";
+import { calculateSMSCredits } from "@/lib/utils/sms-credits";
 import { toast } from "sonner";
+import { Coins, AlertCircle } from "lucide-react";
+import Link from "next/link";
 
 const formSchema = z.object({
   name: z.string().min(1, "Campaign name is required"),
-  message: z.string().min(1, "Message is required").max(160, "Message must be 160 characters or less"),
+  message: z.string().min(1, "Message is required"),
   recipientType: z.enum(["all", "customers", "employees", "custom"]),
   customPhones: z.string().optional(),
 });
@@ -26,11 +30,13 @@ export default function SMSCampaignForm({
   employees,
   organizationId,
   userId,
+  credits,
 }: {
   customers: any[];
   employees: any[];
   organizationId: string;
   userId: string;
+  credits: number;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -80,11 +86,35 @@ export default function SMSCampaignForm({
   const recipientType = form.watch("recipientType");
   const message = form.watch("message");
 
+  const messageCredits = calculateSMSCredits(message || "");
+
+  const getRecipientCount = () => {
+    if (recipientType === "customers") return customers.length;
+    if (recipientType === "employees") return employees.length;
+    if (recipientType === "custom") {
+      const phones = form.getValues("customPhones");
+      return phones ? phones.split(",").filter(p => p.trim()).length : 0;
+    }
+    return customers.length + employees.length;
+  };
+
+  const recipientCount = getRecipientCount();
+  const totalCredits = recipientCount * messageCredits;
+  const hasEnoughCredits = credits >= totalCredits;
+
   return (
     <Card className="max-w-3xl">
       <CardHeader>
-        <CardTitle>New SMS Campaign</CardTitle>
-        <CardDescription>Create a new SMS marketing campaign</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>New SMS Campaign</CardTitle>
+            <CardDescription>Create a new SMS marketing campaign</CardDescription>
+          </div>
+          <div className="flex items-center gap-2 text-sm">
+            <Coins className="h-4 w-4 text-yellow-600" />
+            <span className="font-semibold">{credits} Credits</span>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -111,13 +141,13 @@ export default function SMSCampaignForm({
                   <FormLabel>SMS Message</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Enter SMS message (max 160 characters)..."
+                      placeholder="Enter SMS message..."
                       className="min-h-[120px]"
                       {...field}
                     />
                   </FormControl>
                   <FormDescription>
-                    {message.length}/160 characters
+                    {message.length} characters • {messageCredits} credit{messageCredits > 1 ? "s" : ""} per SMS
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -167,6 +197,24 @@ export default function SMSCampaignForm({
               />
             )}
 
+            {recipientCount > 0 && (
+              <Alert variant={hasEnoughCredits ? "default" : "destructive"}>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {hasEnoughCredits ? (
+                    `This campaign will use ${totalCredits} credits (${recipientCount} recipients × ${messageCredits} credit${messageCredits > 1 ? "s" : ""}). You have ${credits} credits available.`
+                  ) : (
+                    <>
+                      Insufficient credits! You need {totalCredits} credits but only have {credits}.{" "}
+                      <Link href={`/${organizationId}/dashboard/${userId}/marketing/sms/credits`} className="underline font-semibold">
+                        Buy more credits
+                      </Link>
+                    </>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="flex gap-3">
               <Button
                 type="button"
@@ -176,7 +224,7 @@ export default function SMSCampaignForm({
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading} className="bg-emerald-600 hover:bg-emerald-700">
+              <Button type="submit" disabled={loading || !hasEnoughCredits} className="bg-emerald-600 hover:bg-emerald-700">
                 {loading ? "Creating..." : "Create Campaign"}
               </Button>
             </div>

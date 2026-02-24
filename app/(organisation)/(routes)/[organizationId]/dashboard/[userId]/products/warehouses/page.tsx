@@ -6,7 +6,8 @@ import { checkPermission } from "@/lib/helpers/check-permission";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Warehouse, Package, MapPin, TrendingUp } from "lucide-react";
+import { Warehouse, Package, MapPin, TrendingUp, ArrowLeftRight } from "lucide-react";
+import Link from "next/link";
 import { connectToDB } from "@/lib/connection/mongoose";
 import WarehouseModel from "@/lib/models/warehouse.model";
 import Product from "@/lib/models/product.model";
@@ -97,7 +98,15 @@ export default async function WarehousesPage({ params }: { params: Props }) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Warehouse Locations</CardTitle>
-          <AddWarehouseDialog />
+          <div className="flex gap-2">
+            <Link href={`/${organizationId}/dashboard/${userId}/products/transfers`}>
+              <Button size="sm" variant="outline">
+                <ArrowLeftRight className="h-4 w-4 mr-1" />
+                Stock Transfers
+              </Button>
+            </Link>
+            <AddWarehouseDialog />
+          </div>
         </CardHeader>
         <CardContent>
           {warehouses.length === 0 ? (

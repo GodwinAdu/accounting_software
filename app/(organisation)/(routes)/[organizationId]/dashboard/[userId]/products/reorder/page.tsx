@@ -6,7 +6,8 @@ import { checkPermission } from "@/lib/helpers/check-permission";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Bell, AlertCircle, Package, ShoppingCart } from "lucide-react";
+import { Bell, AlertCircle, Package, ShoppingCart, ShoppingBag } from "lucide-react";
+import Link from "next/link";
 import { connectToDB } from "@/lib/connection/mongoose";
 import Product from "@/lib/models/product.model";
 import CreatePurchaseOrderDialog from "./_components/create-po-dialog";
@@ -97,7 +98,20 @@ export default async function ReorderAlertsPage({ params }: { params: Props }) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Reorder Recommendations</CardTitle>
-          <CreatePurchaseOrderDialog />
+          <div className="flex gap-2">
+            <Link href={`/${organizationId}/dashboard/${userId}/expenses/purchase-orders/new`}>
+              <Button size="sm" variant="outline">
+                <ShoppingBag className="h-4 w-4 mr-1" />
+                Create PO
+              </Button>
+            </Link>
+            <Link href={`/${organizationId}/dashboard/${userId}/products/inventory`}>
+              <Button size="sm" variant="outline">
+                <Package className="h-4 w-4 mr-1" />
+                Inventory
+              </Button>
+            </Link>
+          </div>
         </CardHeader>
         <CardContent>
           {totalAlerts === 0 ? (

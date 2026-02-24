@@ -42,7 +42,7 @@ export function CustomerCombobox({
   const [open, setOpen] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const selectedCustomer = customers.find((customer) => customer._id === value || customer.id === value);
+  const selectedCustomer = customers.find((customer) => customer._id === value);
 
   return (
     <>

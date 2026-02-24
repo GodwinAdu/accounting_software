@@ -5,7 +5,7 @@ export interface IJournalEntry extends Document {
   entryNumber: string;
   entryDate: Date;
   entryType: "manual" | "automated" | "adjustment" | "closing" | "opening" | "reversal";
-  referenceType?: "invoice" | "bill" | "payment" | "expense" | "payroll" | "other";
+  referenceType?: "invoice" | "bill" | "payment" | "expense" | "payroll" | "receipt" | "credit_note" | "other";
   referenceId?: mongoose.Types.ObjectId;
   referenceNumber?: string;
   description: string;
@@ -53,7 +53,7 @@ const JournalEntrySchema: Schema = new Schema(
     },
     referenceType: { 
       type: String, 
-      enum: ["invoice", "bill", "payment", "expense", "payroll", "other"] 
+      enum: ["invoice", "bill", "payment", "expense", "payroll", "receipt", "credit_note", "other"] 
     },
     referenceId: { type: Schema.Types.ObjectId },
     referenceNumber: { type: String },

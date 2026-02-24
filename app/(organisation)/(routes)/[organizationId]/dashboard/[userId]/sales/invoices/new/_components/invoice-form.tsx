@@ -128,6 +128,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
 
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceSchema),
+    mode: "onChange",
     defaultValues: initialData ? {
       customerId: initialData.customerId?._id || initialData.customerId || "",
       invoiceNumber: initialData.invoiceNumber || `INV-${Date.now().toString().slice(-6)}`,
@@ -324,8 +325,10 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
                         <FormLabel>Customer *</FormLabel>
                         <FormControl>
                           <CustomerCombobox
-                            value={field.value}
-                            onChange={field.onChange}
+                            value={field.value || ""}
+                            onChange={(value) => {
+                              field.onChange(value);
+                            }}
                             customers={customers}
                             onCustomerAdded={(newCustomer) => {
                               setCustomers([...customers, newCustomer]);

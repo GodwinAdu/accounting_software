@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useFieldArray } from "react-hook-form";
 import * as z from "zod";
-import { ArrowLeft, Save, CalendarIcon, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, CalendarIcon, Plus, Trash2, Package, Receipt } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -18,9 +18,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { VendorCombobox } from "../../../all/new/_components/vendor-combobox";
 import { AccountSelector } from "@/components/forms/account-selector";
 import { getVendors } from "@/lib/actions/vendor.action";
+import { getProducts } from "@/lib/actions/product.action";
 import { createPurchaseOrder } from "@/lib/actions/purchase-order.action";
 
 const purchaseOrderSchema = z.object({
@@ -29,6 +34,9 @@ const purchaseOrderSchema = z.object({
   orderDate: z.date(),
   deliveryDate: z.date(),
   items: z.array(z.object({
+    type: z.enum(["product", "expense"]),
+    productId: z.string().optional(),
+    expenseAccountId: z.string().optional(),
     description: z.string().min(1, "Description is required"),
     quantity: z.number().min(1),
     unitPrice: z.number().min(0),
@@ -45,6 +53,7 @@ export function PurchaseOrderForm() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [vendors, setVendors] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const form = useForm<PurchaseOrderFormValues>({
@@ -54,7 +63,7 @@ export function PurchaseOrderForm() {
       vendorId: "",
       orderDate: new Date(),
       deliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      items: [{ description: "", quantity: 1, unitPrice: 0, amount: 0 }],
+      items: [{ type: "product", productId: "", expenseAccountId: "", description: "", quantity: 1, unitPrice: 0, amount: 0 }],
       notes: "",
       inventoryAccountId: "",
       payableAccountId: "",
@@ -71,6 +80,7 @@ export function PurchaseOrderForm() {
 
   useEffect(() => {
     loadVendors();
+    loadProducts();
   }, []);
 
   const loadVendors = async () => {
@@ -83,6 +93,31 @@ export function PurchaseOrderForm() {
       toast.error("Failed to load vendors");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadProducts = async () => {
+    try {
+      const result = await getProducts();
+      if (result.success && result.data) {
+        setProducts(result.data.filter((p: any) => p.status === "active"));
+      } else {
+        console.error("Failed to load products:", result.error);
+      }
+    } catch (error) {
+      console.error("Error loading products:", error);
+      toast.error("Failed to load products");
+    }
+  };
+
+  const handleProductChange = (index: number, productId: string) => {
+    const product = products.find(p => p._id === productId);
+    if (product) {
+      form.setValue(`items.${index}.productId`, productId);
+      form.setValue(`items.${index}.description`, product.name);
+      form.setValue(`items.${index}.unitPrice`, product.costPrice || product.sellingPrice);
+      const qty = form.getValues(`items.${index}.quantity`);
+      form.setValue(`items.${index}.amount`, qty * (product.costPrice || product.sellingPrice));
     }
   };
 
@@ -235,16 +270,127 @@ export function PurchaseOrderForm() {
                 <CardTitle>Items</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {fields.map((field, index) => (
+                {fields.map((field, index) => {
+                  const itemType = form.watch(`items.${index}.type`);
+                  return (
                   <div key={field.id} className="p-4 border rounded-lg space-y-4">
                     <div className="flex justify-between items-center">
-                      <h4 className="font-medium">Item {index + 1}</h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium">Item {index + 1}</h4>
+                        <Badge variant={itemType === "product" ? "default" : "secondary"}>
+                          {itemType === "product" ? <Package className="h-3 w-3 mr-1" /> : <Receipt className="h-3 w-3 mr-1" />}
+                          {itemType === "product" ? "Product" : "Expense"}
+                        </Badge>
+                      </div>
                       {fields.length > 1 && (
                         <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
                           <Trash2 className="h-4 w-4 text-red-600" />
                         </Button>
                       )}
                     </div>
+
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.type`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Item Type *</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="product">Product (Inventory)</SelectItem>
+                              <SelectItem value="expense">Expense (Non-Inventory)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {itemType === "product" && (
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.productId`}
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>Product *</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    className={cn("w-full justify-between", !field.value && "text-muted-foreground")}
+                                  >
+                                    {field.value
+                                      ? products.find((p) => p._id === field.value)?.name
+                                      : "Select product"}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[400px] p-0">
+                                <Command>
+                                  <CommandInput placeholder="Search product..." />
+                                  <CommandList>
+                                    <CommandEmpty>No product found.</CommandEmpty>
+                                    <CommandGroup>
+                                      {products.map((prod) => (
+                                        <CommandItem
+                                          key={prod._id}
+                                          value={`${prod.name} ${prod.sku}`}
+                                          onSelect={() => handleProductChange(index, prod._id)}
+                                        >
+                                          <Check
+                                            className={cn(
+                                              "mr-2 h-4 w-4",
+                                              prod._id === field.value ? "opacity-100" : "opacity-0"
+                                            )}
+                                          />
+                                          <div className="flex items-center justify-between w-full">
+                                            <span>{prod.name}</span>
+                                            <Badge variant="outline" className="ml-2">
+                                              Stock: {prod.currentStock}
+                                            </Badge>
+                                          </div>
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+
+                    {itemType === "expense" && (
+                      <FormField
+                        control={form.control}
+                        name={`items.${index}.expenseAccountId`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Expense Account</FormLabel>
+                            <FormControl>
+                              <AccountSelector
+                                label=""
+                                accountType="expense"
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                placeholder="Default: Purchases"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
 
                     <FormField
                       control={form.control}
@@ -319,12 +465,13 @@ export function PurchaseOrderForm() {
                       />
                     </div>
                   </div>
-                ))}
+                  );
+                })}
 
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => append({ description: "", quantity: 1, unitPrice: 0, amount: 0 })}
+                  onClick={() => append({ type: "product", productId: "", expenseAccountId: "", description: "", quantity: 1, unitPrice: 0, amount: 0 })}
                   className="w-full"
                 >
                   <Plus className="h-4 w-4 mr-2" />

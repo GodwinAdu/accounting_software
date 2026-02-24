@@ -13,7 +13,7 @@ async function _createReceipt(user: User, data: Partial<IReceipt>, path: string)
   try {
     await checkWriteAccess(String(user.organizationId));
     
-    const hasPermission = await checkPermission("receipts_create");
+    const hasPermission = await checkPermission("salesReceipts_create");
     if (!hasPermission) {
       return { error: "You don't have permission to create receipts" };
     }
@@ -54,7 +54,7 @@ export const createReceipt = await withAuth(_createReceipt);
 
 async function _getReceipts(user: User) {
   try {
-    const hasPermission = await checkPermission("receipts_view");
+    const hasPermission = await checkPermission("salesReceipts_view");
     if (!hasPermission) {
       return { error: "You don't have permission to view receipts" };
     }
@@ -81,7 +81,7 @@ export const getReceipts = await withAuth(_getReceipts);
 
 async function _getReceiptById(user: User, receiptId: string) {
   try {
-    const hasPermission = await checkPermission("receipts_view");
+    const hasPermission = await checkPermission("salesReceipts_view");
     if (!hasPermission) {
       return { error: "You don't have permission to view receipts" };
     }
@@ -114,7 +114,7 @@ async function _updateReceipt(user: User, receiptId: string, data: Partial<IRece
   try {
     await checkWriteAccess(String(user.organizationId));
     
-    const hasPermission = await checkPermission("receipts_update");
+    const hasPermission = await checkPermission("salesReceipts_update");
     if (!hasPermission) {
       return { error: "You don't have permission to update receipts" };
     }
@@ -172,7 +172,7 @@ async function _deleteReceipt(user: User, receiptId: string, path: string) {
   try {
     await checkWriteAccess(String(user.organizationId));
     
-    const hasPermission = await checkPermission("receipts_delete");
+    const hasPermission = await checkPermission("salesReceipts_delete");
     if (!hasPermission) {
       return { error: "You don't have permission to delete receipts" };
     }

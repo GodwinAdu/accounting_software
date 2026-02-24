@@ -1,7 +1,9 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IPOItem {
+  type: "product" | "expense";
   productId?: mongoose.Types.ObjectId;
+  expenseAccountId?: mongoose.Types.ObjectId;
   description: string;
   quantity: number;
   unitPrice: number;
@@ -41,7 +43,9 @@ const PurchaseOrderSchema = new Schema<IPurchaseOrder>(
     orderDate: { type: Date, required: true },
     expectedDate: { type: Date },
     items: [{
+      type: { type: String, enum: ["product", "expense"], required: true },
       productId: { type: Schema.Types.ObjectId, ref: "Product" },
+      expenseAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
       description: { type: String, required: true },
       quantity: { type: Number, required: true },
       unitPrice: { type: Number, required: true },

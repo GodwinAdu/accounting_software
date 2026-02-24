@@ -6,6 +6,7 @@ import React from 'react'
 
 import Link from 'next/link'
 import LoginForm from './_components/login-form'
+import LoginCarousel from './_components/login-carousel'
 
 const page = () => {
     return (
@@ -32,13 +33,7 @@ const page = () => {
                 </div>
             </div>
             <div className="hidden bg-muted lg:block">
-                <Image
-                    src="/login.jpg"
-                    alt="Image"
-                    width="1920"
-                    height="1080"
-                    className="h-screen w-full object-cover"
-                />
+                <LoginCarousel />
             </div>
         </div>
     )

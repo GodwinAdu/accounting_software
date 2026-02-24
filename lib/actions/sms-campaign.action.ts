@@ -157,7 +157,6 @@ async function _sendSMSCampaign(user: any, id: string) {
       return { error: "Campaign not found or already sent" };
     }
 
-    // Collect phone numbers
     let phones: string[] = [];
     
     if (campaign.recipients.type === "custom" && campaign.recipients.phones) {
@@ -185,7 +184,23 @@ async function _sendSMSCampaign(user: any, id: string) {
       return { error: "No recipients found" };
     }
 
-    // Send SMS
+    const { calculateSMSCredits } = await import("../utils/sms-credits");
+    const creditsPerMessage = calculateSMSCredits(campaign.message);
+    const totalCredits = phones.length * creditsPerMessage;
+
+    const { deductSMSCredits } = await import("./sms-credit.action");
+    const creditCheck = await deductSMSCredits(
+      user,
+      totalCredits,
+      `SMS Campaign: ${campaign.name}`,
+      String(campaign._id),
+      phones.length
+    );
+
+    if (!creditCheck.success) {
+      return { error: creditCheck.error || "Insufficient SMS credits" };
+    }
+
     const { smsConfig } = await import("../../services/sms-config");
     let sent = 0;
     let failed = 0;
@@ -200,7 +215,6 @@ async function _sendSMSCampaign(user: any, id: string) {
       failed = phones.length;
     }
 
-    // Update campaign
     const updatedCampaign = await SMSCampaign.findByIdAndUpdate(
       id,
       {

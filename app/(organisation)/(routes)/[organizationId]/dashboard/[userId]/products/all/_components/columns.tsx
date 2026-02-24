@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, Package, Layers } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
 import { deleteProduct } from "@/lib/actions/product.action";
 import { CellAction } from "@/components/table/cell-action";
@@ -12,11 +12,15 @@ export type Product = {
   sku: string;
   name: string;
   categoryId?: { name: string };
+  type: "product" | "service" | "bundle";
   sellingPrice: number;
   costPrice: number;
   currentStock: number;
   reorderLevel: number;
   status: string;
+  hasVariants?: boolean;
+  variants?: any[];
+  bundleItems?: any[];
 };
 
 export const columns: ColumnDef<Product>[] = [
@@ -27,6 +31,27 @@ export const columns: ColumnDef<Product>[] = [
   {
     accessorKey: "name",
     header: "Product Name",
+    cell: ({ row }) => {
+      const hasVariants = row.original.hasVariants;
+      const isBundle = row.original.type === "bundle";
+      return (
+        <div className="flex items-center gap-2">
+          <span>{row.getValue("name")}</span>
+          {hasVariants && (
+            <Badge variant="outline" className="text-xs">
+              <Layers className="h-3 w-3 mr-1" />
+              {row.original.variants?.length || 0} variants
+            </Badge>
+          )}
+          {isBundle && (
+            <Badge variant="outline" className="text-xs">
+              <Package className="h-3 w-3 mr-1" />
+              Bundle
+            </Badge>
+          )}
+        </div>
+      );
+    },
   },
   {
     accessorKey: "categoryId.name",

@@ -22,12 +22,12 @@ export default async function ARAgingPage({
   const data = result.data || [];
 
   const totals = data.reduce((acc: any, item: any) => ({
-    current: acc.current + item.current,
-    days30: acc.days30 + item.days30,
-    days60: acc.days60 + item.days60,
-    days90: acc.days90 + item.days90,
-    over90: acc.over90 + item.over90,
-    total: acc.total + item.total,
+    current: (acc.current || 0) + (Number(item.current) || 0),
+    days30: (acc.days30 || 0) + (Number(item.days30) || 0),
+    days60: (acc.days60 || 0) + (Number(item.days60) || 0),
+    days90: (acc.days90 || 0) + (Number(item.days90) || 0),
+    over90: (acc.over90 || 0) + (Number(item.over90) || 0),
+    total: (acc.total || 0) + (Number(item.total) || 0),
   }), { current: 0, days30: 0, days60: 0, days90: 0, over90: 0, total: 0 });
 
   return (

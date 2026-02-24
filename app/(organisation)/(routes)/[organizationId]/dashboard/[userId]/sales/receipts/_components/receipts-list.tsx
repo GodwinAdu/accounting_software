@@ -21,14 +21,14 @@ export function ReceiptsList({ receipts, hasCreatePermission, organizationId, us
     receiptNumber: rec.receiptNumber,
     date: new Date(rec.receiptDate).toLocaleDateString(),
     customer: rec.customerId?.name || "N/A",
-    amount: rec.amount,
+    amount: rec.totalAmount,
     paymentMethod: rec.paymentMethod,
     status: "paid",
   }));
 
-  const totalSales = formattedReceipts.reduce((sum, r) => sum + r.amount, 0);
-  const cashSales = formattedReceipts.filter((r) => r.paymentMethod === "cash").reduce((sum, r) => sum + r.amount, 0);
-  const thisMonth = formattedReceipts.filter((r) => new Date(r.date).getMonth() === new Date().getMonth()).reduce((sum, r) => sum + r.amount, 0);
+  const totalSales = formattedReceipts.reduce((sum, r) => sum + (r.amount || 0), 0);
+  const cashSales = formattedReceipts.filter((r) => r.paymentMethod === "cash").reduce((sum, r) => sum + (r.amount || 0), 0);
+  const thisMonth = formattedReceipts.filter((r) => new Date(r.date).getMonth() === new Date().getMonth()).reduce((sum, r) => sum + (r.amount || 0), 0);
 
   return (
     <div className="space-y-6">

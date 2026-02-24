@@ -1,6 +1,7 @@
-import { Plus } from "lucide-react";
+import { Plus, ArrowLeftRight, Warehouse } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { DataTable } from "@/components/table/data-table";
 import { columns } from "./_components/columns";
 import Heading from "@/components/commons/Header";
@@ -35,9 +36,23 @@ export default async function AdjustmentsPage({
           title="Stock Adjustments"
           description="Record inventory adjustments and corrections"
         />
-        {hasCreatePermission && (
-          <AddAdjustmentDialog organizationId={params.organizationId} />
-        )}
+        <div className="flex gap-2">
+          <Link href={`/${params.organizationId}/dashboard/${params.userId}/products/transfers`}>
+            <Button variant="outline">
+              <ArrowLeftRight className="mr-2 h-4 w-4" />
+              Stock Transfers
+            </Button>
+          </Link>
+          <Link href={`/${params.organizationId}/dashboard/${params.userId}/products/warehouses`}>
+            <Button variant="outline">
+              <Warehouse className="mr-2 h-4 w-4" />
+              Warehouses
+            </Button>
+          </Link>
+          {hasCreatePermission && (
+            <AddAdjustmentDialog organizationId={params.organizationId} />
+          )}
+        </div>
       </div>
       <Separator />
 

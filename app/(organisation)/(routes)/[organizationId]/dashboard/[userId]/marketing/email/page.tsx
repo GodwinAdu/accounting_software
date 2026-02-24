@@ -5,11 +5,8 @@ import Heading from "@/components/commons/Header";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { getEmailCampaigns } from "@/lib/actions/email-campaign.action";
-import { getCustomers } from "@/lib/actions/customer.action";
-import { getEmployees } from "@/lib/actions/employee.action";
 import Link from "next/link";
 import SendCampaignButton from "./_components/send-campaign-button";
-import EmailCampaignModal from "./_components/email-campaign-modal";
 
 export default async function EmailCampaignsPage({
   params,
@@ -18,15 +15,8 @@ export default async function EmailCampaignsPage({
 }) {
   const { organizationId, userId } = await params;
 
-  const [campaignsResult, customersResult, employeesResult] = await Promise.all([
-    getEmailCampaigns(),
-    getCustomers(),
-    getEmployees(),
-  ]);
-
+  const campaignsResult = await getEmailCampaigns();
   const campaigns = campaignsResult.data || [];
-  const customers = customersResult.data || [];
-  const employees = employeesResult.data || [];
 
   const totalSent = campaigns.filter((c: any) => c.status === "sent").length;
   const totalDraft = campaigns.filter((c: any) => c.status === "draft").length;
@@ -38,7 +28,12 @@ export default async function EmailCampaignsPage({
           title="Email Campaigns"
           description="Create and manage email marketing campaigns"
         />
-        <EmailCampaignModal customers={customers} employees={employees} />
+        <Link href={`/${organizationId}/dashboard/${userId}/marketing/email/new`}>
+          <Button className="bg-emerald-600 hover:bg-emerald-700">
+            <Plus className="mr-2 h-4 w-4" />
+            New Campaign
+          </Button>
+        </Link>
       </div>
       <Separator />
 

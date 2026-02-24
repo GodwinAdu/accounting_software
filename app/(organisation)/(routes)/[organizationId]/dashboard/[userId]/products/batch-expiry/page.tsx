@@ -5,7 +5,9 @@ import { Separator } from "@/components/ui/separator";
 import { checkPermission } from "@/lib/helpers/check-permission";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, AlertTriangle, Package, TrendingDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, AlertTriangle, Package, TrendingDown, Warehouse } from "lucide-react";
+import Link from "next/link";
 import { connectToDB } from "@/lib/connection/mongoose";
 import ProductBatch from "@/lib/models/product-batch.model";
 import { format, differenceInDays } from "date-fns";
@@ -111,7 +113,21 @@ export default async function BatchExpiryPage({ params }: { params: Props }) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Batch Tracking</CardTitle>
-          <AddBatchDialog />
+          <div className="flex gap-2">
+            <Link href={`/${organizationId}/dashboard/${userId}/products/warehouses`}>
+              <Button size="sm" variant="outline">
+                <Warehouse className="h-4 w-4 mr-1" />
+                Warehouses
+              </Button>
+            </Link>
+            <Link href={`/${organizationId}/dashboard/${userId}/products/inventory`}>
+              <Button size="sm" variant="outline">
+                <Package className="h-4 w-4 mr-1" />
+                Inventory
+              </Button>
+            </Link>
+            <AddBatchDialog />
+          </div>
         </CardHeader>
         <CardContent>
           {batches.length === 0 ? (

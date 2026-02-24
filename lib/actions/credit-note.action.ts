@@ -11,16 +11,26 @@ import { postCreditNoteToGL } from "../helpers/sales-accounting";
 
 async function _createCreditNote(user: User, data: any, path: string) {
   try {
+    if (!user) throw new Error("User not authorized")
+
     await checkWriteAccess(String(user.organizationId));
+
     const hasPermission = await checkPermission("creditNotes_create");
+
     if (!hasPermission) return { error: "No permission" };
 
     await connectToDB();
+    
     const creditNoteNumber = `CN-${Date.now().toString().slice(-6)}`;
+
+    const subtotal = data.items?.reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0) || 0;
+    const total = subtotal + (data.tax || 0);
 
     const creditNote = await CreditNote.create({
       ...data,
       creditNoteNumber,
+      subtotal,
+      total,
       organizationId: user.organizationId,
       createdBy: user._id,
     });
@@ -34,8 +44,13 @@ async function _createCreditNote(user: User, data: any, path: string) {
       details: { after: creditNote },
     });
 
+    console.log("Credit note created with status:", data.status);
     if (data.status === "issued" || data.status === "applied") {
-      await postCreditNoteToGL(String(creditNote._id), String(user._id));
+      console.log("Posting credit note to GL...");
+      const glResult = await postCreditNoteToGL(String(creditNote._id), String(user._id));
+      console.log("GL posting result:", glResult);
+    } else {
+      console.log("Skipping GL posting - status is:", data.status);
     }
 
     revalidatePath(path);
@@ -54,7 +69,8 @@ async function _getCreditNotes(user: User) {
     const creditNotes = await CreditNote.find({ organizationId: user.organizationId, del_flag: false })
       .populate("customerId", "name email")
       .populate("invoiceId", "invoiceNumber")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     return { success: true, data: JSON.parse(JSON.stringify(creditNotes)) };
   } catch (error: any) {
@@ -88,9 +104,16 @@ async function _updateCreditNote(user: User, id: string, data: any, path: string
     if (!hasPermission) return { error: "No permission" };
 
     await connectToDB();
+
+    const oldCreditNote = await CreditNote.findOne({ _id: id, organizationId: user.organizationId, del_flag: false });
+    if (!oldCreditNote) return { error: "Credit note not found" };
+
+    const subtotal = data.items?.reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0) || 0;
+    const total = subtotal + (data.tax || 0);
+
     const creditNote = await CreditNote.findOneAndUpdate(
       { _id: id, organizationId: user.organizationId, del_flag: false },
-      { ...data, modifiedBy: user._id, mod_flag: true },
+      { ...data, subtotal, total, modifiedBy: user._id, mod_flag: true },
       { new: true }
     );
 
@@ -102,10 +125,10 @@ async function _updateCreditNote(user: User, id: string, data: any, path: string
       action: "update",
       resource: "credit-note",
       resourceId: id,
-      details: { after: creditNote },
+      details: { before: oldCreditNote, after: creditNote },
     });
 
-    if ((data.status === "issued" || data.status === "applied") && creditNote.status !== "draft") {
+    if ((data.status === "issued" || data.status === "applied") && oldCreditNote.status === "draft") {
       await postCreditNoteToGL(id, String(user._id));
     }
 

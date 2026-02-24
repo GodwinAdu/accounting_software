@@ -1,6 +1,7 @@
-import { Download, AlertTriangle } from "lucide-react";
+import { Download, AlertTriangle, Bell, Calendar } from "lucide-react";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import { DataTable } from "@/components/table/data-table";
 import { columns } from "./_components/columns";
 import Heading from "@/components/commons/Header";
@@ -42,10 +43,24 @@ export default async function InventoryPage({
           title="Inventory Tracking"
           description="Monitor stock levels and inventory value"
         />
-        <Button variant="outline">
-          <Download className="mr-2 h-4 w-4" />
-          Export Report
-        </Button>
+        <div className="flex gap-2">
+          <Link href={`/${params.organizationId}/dashboard/${params.userId}/products/reorder`}>
+            <Button variant="outline">
+              <Bell className="mr-2 h-4 w-4" />
+              Reorder Alerts
+            </Button>
+          </Link>
+          <Link href={`/${params.organizationId}/dashboard/${params.userId}/products/batch-expiry`}>
+            <Button variant="outline">
+              <Calendar className="mr-2 h-4 w-4" />
+              Batch & Expiry
+            </Button>
+          </Link>
+          <Button variant="outline">
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
+        </div>
       </div>
       <Separator />
 

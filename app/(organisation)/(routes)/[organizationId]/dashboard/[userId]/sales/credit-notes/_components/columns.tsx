@@ -13,7 +13,7 @@ export type CreditNote = {
   date: string;
   customer: string;
   reason?: string;
-  total: number;
+  total?: number;
   status: "draft" | "issued" | "applied";
 };
 
@@ -33,7 +33,7 @@ export const columns: ColumnDef<CreditNote>[] = [
   { 
     accessorKey: "total", 
     header: "Amount", 
-    cell: ({ row }) => <div className="font-semibold text-red-600">-GHS {row.getValue<number>("total").toLocaleString()}</div> 
+    cell: ({ row }) => <div className="font-semibold text-red-600">-GHS {(row.getValue<number>("total") || 0).toLocaleString()}</div> 
   },
   {
     accessorKey: "status",

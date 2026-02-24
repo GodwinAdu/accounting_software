@@ -192,41 +192,60 @@ export async function postPurchaseOrderToGL(poId: string, userId: string) {
   try {
     await connectToDB();
 
-    const po = await PurchaseOrder.findById(poId).lean();
+    const Product = (await import("../models/product.model")).default;
+    const po = await PurchaseOrder.findById(poId).populate("items.productId").lean();
     if (!po || po.status !== "received") return { success: false };
 
-    const inventoryAccount = po.inventoryAccountId 
-      ? po.inventoryAccountId 
-      : await getDefaultAccount(po.organizationId, "asset", "Inventory");
-    
-    const payableAccount = po.payableAccountId 
-      ? po.payableAccountId 
-      : await getDefaultAccount(po.organizationId, "liability", "Accounts Payable");
+    const payableAccount = po.payableAccountId || await getDefaultAccount(po.organizationId, "liability", "Accounts Payable");
+    const lineItems = [];
 
-    const lineItems = [
-      {
-        accountId: inventoryAccount,
-        description: `PO ${po.poNumber} - Goods Received`,
-        debit: po.total,
-        credit: 0
-      },
-      {
-        accountId: payableAccount,
-        description: `PO ${po.poNumber} - Goods Received`,
-        debit: 0,
-        credit: po.total
+    // Process each item based on type
+    for (const item of po.items) {
+      if (item.type === "product" && item.productId) {
+        // Product purchase - Debit Inventory
+        const inventoryAccount = po.inventoryAccountId || await getDefaultAccount(po.organizationId, "asset", "Inventory");
+        lineItems.push({
+          accountId: inventoryAccount,
+          description: `PO ${po.poNumber} - ${item.description}`,
+          debit: item.amount,
+          credit: 0
+        });
+
+        // Update product stock
+        const product = await Product.findById(item.productId);
+        if (product && product.trackInventory) {
+          product.currentStock += item.quantity;
+          await product.save();
+        }
+      } else if (item.type === "expense") {
+        // Expense purchase - Debit Expense Account
+        const expenseAccount = item.expenseAccountId || await getDefaultAccount(po.organizationId, "expense", "Purchases");
+        lineItems.push({
+          accountId: expenseAccount,
+          description: `PO ${po.poNumber} - ${item.description}`,
+          debit: item.amount,
+          credit: 0
+        });
       }
-    ];
+    }
+
+    // Credit: Accounts Payable (total)
+    lineItems.push({
+      accountId: payableAccount,
+      description: `PO ${po.poNumber} - Goods/Services Received`,
+      debit: 0,
+      credit: po.total
+    });
 
     const journalEntry = await JournalEntry.create({
       organizationId: po.organizationId,
       entryNumber: `JE-PO-${po.poNumber}`,
       entryDate: new Date(),
       entryType: "automated",
-      referenceType: "other",
+      referenceType: "purchase_order",
       referenceId: poId,
       referenceNumber: po.poNumber,
-      description: `PO ${po.poNumber} - Goods Received`,
+      description: `PO ${po.poNumber} - Goods/Services Received`,
       lineItems,
       totalDebit: po.total,
       totalCredit: po.total,
@@ -252,7 +271,7 @@ export async function postPurchaseOrderToGL(poId: string, userId: string) {
         debit: line.debit,
         credit: line.credit,
         runningBalance: 0,
-        referenceType: "other",
+        referenceType: "purchase_order",
         referenceId: poId,
         referenceNumber: po.poNumber,
         fiscalYear,
@@ -286,7 +305,8 @@ async function getDefaultAccount(organizationId: any, accountType: string, accou
       "Accounts Payable": "2000",
       "Cost of Goods Sold": "5000",
       "VAT Payable": "2100",
-      "Inventory": "1300"
+      "Inventory": "1300",
+      "Purchases": "5100"
     };
 
     const newAccount = await Account.create({

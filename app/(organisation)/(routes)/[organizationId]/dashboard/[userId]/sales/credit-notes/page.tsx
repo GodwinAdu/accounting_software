@@ -22,6 +22,8 @@ export default async function CreditNotesPage({ params }: { params: Props }) {
   const result = await getCreditNotes();
   const creditNotes = result.success ? result.data : [];
 
+  // console.log("Credit Notes Data:", creditNotes)
+
   return (
     <div className="space-y-6">
       <Heading title="Credit Notes" description="Issue credit notes for refunds and adjustments" />

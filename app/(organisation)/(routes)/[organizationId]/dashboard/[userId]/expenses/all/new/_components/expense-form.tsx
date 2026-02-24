@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useParams, usePathname } from "next/navigation";
+import { useRouter, useParams, usePathname, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { ArrowLeft, Save, CalendarIcon, Upload, X } from "lucide-react";
+import { ArrowLeft, Save, CalendarIcon, Upload, X, Sparkles, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -13,6 +13,7 @@ import { createExpense } from "@/lib/actions/expense.action";
 import { getVendors } from "@/lib/actions/vendor.action";
 import { getExpenseCategories } from "@/lib/actions/expense-category.action";
 import { getCustomers } from "@/lib/actions/customer.action";
+import { categorizeExpense } from "@/lib/actions/ai.action";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -71,11 +72,51 @@ export function ExpenseForm() {
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [vendors, setVendors] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [aiSuggestion, setAiSuggestion] = useState<any>(null);
+  const [isCategorizingAI, setIsCategorizingAI] = useState(false);
+
+  const form = useForm<ExpenseFormValues>({
+    resolver: zodResolver(expenseSchema),
+    defaultValues: {
+      expenseNumber: `EXP-${Date.now().toString().slice(-6)}`,
+      date: new Date(),
+      vendorId: "",
+      categoryId: "",
+      amount: 0,
+      paymentMethod: "cash",
+      reference: "",
+      description: "",
+      notes: "",
+      billable: false,
+      customerId: "",
+      taxAmount: 0,
+      hasReceipt: false,
+      expenseAccountId: "",
+      paymentAccountId: "",
+    },
+  });
+
+  useEffect(() => {
+    const ocrData = searchParams.get('ocr');
+    if (ocrData) {
+      try {
+        const data = JSON.parse(decodeURIComponent(ocrData));
+        if (data.amount) form.setValue('amount', data.amount);
+        if (data.date) form.setValue('date', new Date(data.date));
+        if (data.description) form.setValue('description', data.description);
+        if (data.tax) form.setValue('taxAmount', data.tax);
+        toast.success('Invoice data loaded from OCR');
+      } catch (error) {
+        console.error('Failed to parse OCR data:', error);
+      }
+    }
+  }, [searchParams, form]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -101,30 +142,11 @@ export function ExpenseForm() {
     fetchData();
   }, []);
 
-  const form = useForm<ExpenseFormValues>({
-    resolver: zodResolver(expenseSchema),
-    defaultValues: {
-      expenseNumber: `EXP-${Date.now().toString().slice(-6)}`,
-      date: new Date(),
-      vendorId: "",
-      categoryId: "",
-      amount: 0,
-      paymentMethod: "cash",
-      reference: "",
-      description: "",
-      notes: "",
-      billable: false,
-      customerId: "",
-      taxAmount: 0,
-      hasReceipt: false,
-      expenseAccountId: "",
-      paymentAccountId: "",
-    },
-  });
-
   const billable = form.watch("billable");
   const amount = form.watch("amount");
   const taxAmount = form.watch("taxAmount");
+  const description = form.watch("description");
+  const vendorId = form.watch("vendorId");
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -137,6 +159,39 @@ export function ExpenseForm() {
   const removeReceipt = () => {
     setReceiptFile(null);
     form.setValue("hasReceipt", false);
+  };
+
+  const handleAICategorize = async () => {
+    if (!description || !amount) {
+      toast.error("Please enter description and amount first");
+      return;
+    }
+
+    setIsCategorizingAI(true);
+    try {
+      const vendor = vendors.find(v => v.id === vendorId);
+      const result = await categorizeExpense(description, amount, vendor?.name);
+
+      if (result.success && result.suggestion) {
+        setAiSuggestion(result.suggestion);
+        
+        const suggestedCategory = categories.find(c => 
+          c.name.toLowerCase() === result.suggestion.category?.toLowerCase()
+        );
+        
+        if (suggestedCategory) {
+          form.setValue("categoryId", suggestedCategory.id);
+        }
+
+        toast.success(`AI Suggestion: ${result.suggestion.category} (${result.suggestion.confidence} confidence)`);
+      } else {
+        toast.error(result.error || "Failed to get AI suggestion");
+      }
+    } catch (error) {
+      toast.error("Failed to categorize expense");
+    } finally {
+      setIsCategorizingAI(false);
+    }
   };
 
   const onSubmit = async (data: ExpenseFormValues) => {
@@ -297,6 +352,40 @@ export function ExpenseForm() {
                     </FormItem>
                   )}
                 />
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleAICategorize}
+                    disabled={isCategorizingAI || !description || !amount}
+                    className="bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 hover:from-emerald-100 hover:to-teal-100"
+                  >
+                    {isCategorizingAI ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-4 w-4 mr-2 text-emerald-600" />
+                    )}
+                    {isCategorizingAI ? "Analyzing..." : "AI Categorize"}
+                  </Button>
+                  {aiSuggestion && (
+                    <div className="flex-1 text-sm">
+                      <span className="text-muted-foreground">AI suggests: </span>
+                      <span className="font-medium text-emerald-600">{aiSuggestion.category}</span>
+                      <span className="text-xs text-muted-foreground ml-2">({aiSuggestion.confidence})</span>
+                    </div>
+                  )}
+                </div>
+
+                {aiSuggestion?.reasoning && (
+                  <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                    <p className="text-sm text-blue-900 dark:text-blue-100">
+                      <span className="font-medium">AI Reasoning: </span>
+                      {aiSuggestion.reasoning}
+                    </p>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <FormField

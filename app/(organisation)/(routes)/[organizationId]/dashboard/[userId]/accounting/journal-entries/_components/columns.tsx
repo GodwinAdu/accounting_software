@@ -4,6 +4,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MoreHorizontal, Eye, Edit, Trash2, CheckCircle } from "lucide-react";
+import { useRouter, useParams } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -71,7 +72,10 @@ export const columns: ColumnDef<JournalEntry>[] = [
   {
     id: "actions",
     cell: ({ row }) => {
+      const entry = row.original;
       const status = row.getValue("status") as string;
+      const router = useRouter();
+      const params = useParams();
 
       return (
         <DropdownMenu>
@@ -82,7 +86,7 @@ export const columns: ColumnDef<JournalEntry>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push(`/${params.organizationId}/dashboard/${params.userId}/accounting/journal-entries/${entry.id}`)}>
               <Eye className="mr-2 h-4 w-4" />
               View Details
             </DropdownMenuItem>

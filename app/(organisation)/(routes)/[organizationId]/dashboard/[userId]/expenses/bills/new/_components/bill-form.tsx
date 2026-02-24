@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useFieldArray } from "react-hook-form";
 import * as z from "zod";
@@ -48,6 +48,7 @@ type BillFormValues = z.infer<typeof billSchema>;
 
 export function BillForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [vendors, setVendors] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
@@ -76,6 +77,30 @@ export function BillForm() {
 
   const items = form.watch("items");
   const subtotal = items.reduce((sum, item) => sum + (item.amount || 0), 0);
+
+  useEffect(() => {
+    const ocrData = searchParams.get('ocr');
+    if (ocrData) {
+      try {
+        const data = JSON.parse(decodeURIComponent(ocrData));
+        if (data.amount) form.setValue('items.0.unitPrice', data.amount);
+        if (data.date) form.setValue('billDate', new Date(data.date));
+        if (data.invoiceNumber) form.setValue('reference', data.invoiceNumber);
+        if (data.items && data.items.length > 0) {
+          form.setValue('items', data.items.map((item: any) => ({
+            description: item.description || '',
+            categoryId: '',
+            quantity: item.quantity || 1,
+            unitPrice: item.price || 0,
+            amount: (item.quantity || 1) * (item.price || 0)
+          })));
+        }
+        toast.success('Invoice data loaded from OCR');
+      } catch (error) {
+        console.error('Failed to parse OCR data:', error);
+      }
+    }
+  }, [searchParams, form]);
 
   useEffect(() => {
     loadData();

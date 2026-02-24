@@ -6,7 +6,8 @@ import { checkPermission } from "@/lib/helpers/check-permission";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftRight, Package, CheckCircle, Clock } from "lucide-react";
+import { ArrowLeftRight, Package, CheckCircle, Clock, Warehouse } from "lucide-react";
+import Link from "next/link";
 import { connectToDB } from "@/lib/connection/mongoose";
 import StockTransfer from "@/lib/models/stock-transfer.model";
 import { format } from "date-fns";
@@ -112,7 +113,15 @@ export default async function StockTransferPage({ params }: { params: Props }) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Transfer History</CardTitle>
-          <NewTransferDialog />
+          <div className="flex gap-2">
+            <Link href={`/${organizationId}/dashboard/${userId}/products/warehouses`}>
+              <Button size="sm" variant="outline">
+                <Warehouse className="h-4 w-4 mr-1" />
+                Warehouses
+              </Button>
+            </Link>
+            <NewTransferDialog />
+          </div>
         </CardHeader>
         <CardContent>
           {transfers.length === 0 ? (

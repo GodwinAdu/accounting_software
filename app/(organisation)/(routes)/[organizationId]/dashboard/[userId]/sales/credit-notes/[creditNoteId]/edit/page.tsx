@@ -5,9 +5,10 @@ import { CreditNoteForm } from "../../new/_components/credit-note-form";
 export default async function EditCreditNotePage({
   params,
 }: {
-  params: { creditNoteId: string };
+  params: Promise<{ creditNoteId: string }>;
 }) {
-  const result = await getCreditNoteById(params.creditNoteId);
+  const {creditNoteId} = await params
+  const result = await getCreditNoteById(creditNoteId);
 
   if (result.error || !result.data) {
     notFound();

@@ -8,7 +8,7 @@ export interface IProduct {
   name: string
   description?: string
   categoryId?: Schema.Types.ObjectId
-  type: "product" | "service"
+  type: "product" | "service" | "bundle"
   
   // Pricing
   costPrice: number
@@ -24,17 +24,43 @@ export interface IProduct {
   reorderQuantity?: number
   unit: string
   
+  // Variants
+  hasVariants: boolean
+  variants?: Array<{
+    name: string
+    sku: string
+    barcode?: string
+    attributes: Record<string, string>
+    costPrice: number
+    sellingPrice: number
+    stock: number
+    image?: string
+  }>
+  
+  // Bundle (for product kits)
+  bundleItems?: Array<{
+    productId: Schema.Types.ObjectId
+    quantity: number
+  }>
+  
+  // Suppliers
+  suppliers?: Array<{
+    supplierId: Schema.Types.ObjectId
+    supplierSKU?: string
+    costPrice: number
+    leadTime?: number
+    isPreferred: boolean
+  }>
+  
   // Images
   images?: string[]
   primaryImage?: string
   
+  // Custom Fields
+  customFields?: Record<string, any>
+  
   // Status
   status: "active" | "inactive" | "discontinued"
-  
-  // Accounting
-  inventoryAccountId?: Schema.Types.ObjectId
-  cogsAccountId?: Schema.Types.ObjectId
-  revenueAccountId?: Schema.Types.ObjectId
   
   // Audit fields
   createdBy: Schema.Types.ObjectId
@@ -73,7 +99,7 @@ const ProductSchema: Schema<IProduct> = new Schema({
   },
   type: {
     type: String,
-    enum: ["product", "service"],
+    enum: ["product", "service", "bundle"],
     default: "product"
   },
   
@@ -124,29 +150,55 @@ const ProductSchema: Schema<IProduct> = new Schema({
     default: "pcs"
   },
   
+  // Variants
+  hasVariants: {
+    type: Boolean,
+    default: false
+  },
+  variants: [{
+    name: String,
+    sku: String,
+    barcode: String,
+    attributes: Schema.Types.Mixed,
+    costPrice: Number,
+    sellingPrice: Number,
+    stock: Number,
+    image: String
+  }],
+  
+  // Bundle
+  bundleItems: [{
+    productId: {
+      type: Schema.Types.ObjectId,
+      ref: "Product"
+    },
+    quantity: Number
+  }],
+  
+  // Suppliers
+  suppliers: [{
+    supplierId: {
+      type: Schema.Types.ObjectId,
+      ref: "Vendor"
+    },
+    supplierSKU: String,
+    costPrice: Number,
+    leadTime: Number,
+    isPreferred: Boolean
+  }],
+  
   // Images
   images: [String],
   primaryImage: String,
+  
+  // Custom Fields
+  customFields: Schema.Types.Mixed,
   
   // Status
   status: {
     type: String,
     enum: ["active", "inactive", "discontinued"],
     default: "active"
-  },
-  
-  // Accounting
-  inventoryAccountId: {
-    type: Schema.Types.ObjectId,
-    ref: "Account"
-  },
-  cogsAccountId: {
-    type: Schema.Types.ObjectId,
-    ref: "Account"
-  },
-  revenueAccountId: {
-    type: Schema.Types.ObjectId,
-    ref: "Account"
   },
   
   // Audit fields

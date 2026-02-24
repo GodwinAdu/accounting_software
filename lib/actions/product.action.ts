@@ -59,6 +59,7 @@ export const createProduct = await withAuth(_createProduct)
 // Get Products
 async function _getProducts(user: User) {
   try {
+    if(!user) throw new Error("User not found")
     const hasPermission = await checkPermission("products_view")
     if (!hasPermission) {
       return { error: "You don't have permission to view products" }
@@ -73,6 +74,8 @@ async function _getProducts(user: User) {
       .populate("categoryId", "name")
       .sort({ createdAt: -1 })
       .lean()
+
+      console.log("product",products)
 
     return { success: true, data: JSON.parse(JSON.stringify(products)) }
   } catch (error: any) {

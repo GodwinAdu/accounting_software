@@ -16,7 +16,7 @@ export default function CreditNotesList({ creditNotes, hasCreatePermission }: Cr
   const router = useRouter();
   const params = useParams();
 
-  const totalAmount = creditNotes.reduce((sum, cn) => sum + cn.total, 0);
+  const totalAmount = creditNotes.reduce((sum, cn) => sum + (cn.total || 0), 0);
   const issuedNotes = creditNotes.filter(cn => cn.status === "issued").length;
   const appliedNotes = creditNotes.filter(cn => cn.status === "applied").length;
 
@@ -26,7 +26,7 @@ export default function CreditNotesList({ creditNotes, hasCreatePermission }: Cr
     date: new Date(cn.date).toLocaleDateString(),
     customer: cn.customerId?.name || "N/A",
     reason: cn.reason,
-    total: cn.total,
+    total: cn.total || 0,
     status: cn.status,
   }));
 

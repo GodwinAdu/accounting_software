@@ -13,7 +13,7 @@ export type Receipt = {
   receiptNumber: string;
   date: string;
   customer: string;
-  amount: number;
+  amount?: number;
   paymentMethod: "cash" | "card" | "mobile_money" | "bank_transfer";
   status: "paid" | "void";
 };
@@ -37,7 +37,7 @@ export const columns: ColumnDef<Receipt>[] = [
       return <Badge className={config.className}>{config.label}</Badge>;
     },
   },
-  { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="font-semibold">GHS {row.getValue<number>("amount").toLocaleString()}</div> },
+  { accessorKey: "amount", header: "Amount", cell: ({ row }) => <div className="font-semibold">GHS {(row.getValue<number>("amount") || 0).toLocaleString()}</div> },
   {
     accessorKey: "status",
     header: "Status",

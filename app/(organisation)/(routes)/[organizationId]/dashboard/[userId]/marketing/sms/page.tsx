@@ -1,15 +1,13 @@
-import { MessageSquare, Plus } from "lucide-react";
+import { MessageSquare, Plus, Coins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Heading from "@/components/commons/Header";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { getSMSCampaigns } from "@/lib/actions/sms-campaign.action";
-import { getCustomers } from "@/lib/actions/customer.action";
-import { getEmployees } from "@/lib/actions/employee.action";
+import { getSMSCredits } from "@/lib/actions/sms-credit.action";
 import Link from "next/link";
 import SendCampaignButton from "../email/_components/send-campaign-button";
-import SMSCampaignModal from "./_components/sms-campaign-modal";
 
 export default async function SMSCampaignsPage({
   params,
@@ -18,15 +16,13 @@ export default async function SMSCampaignsPage({
 }) {
   const { organizationId, userId } = await params;
 
-  const [campaignsResult, customersResult, employeesResult] = await Promise.all([
+  const [campaignsResult, creditsResult] = await Promise.all([
     getSMSCampaigns(),
-    getCustomers(),
-    getEmployees(),
+    getSMSCredits(),
   ]);
 
   const campaigns = campaignsResult.data || [];
-  const customers = customersResult.data || [];
-  const employees = employeesResult.data || [];
+  const credits = creditsResult.data || { balance: 0 };
 
   const totalSent = campaigns.filter((c: any) => c.status === "sent").length;
   const totalDraft = campaigns.filter((c: any) => c.status === "draft").length;
@@ -38,7 +34,20 @@ export default async function SMSCampaignsPage({
           title="SMS Campaigns"
           description="Create and manage SMS marketing campaigns"
         />
-        <SMSCampaignModal customers={customers} employees={employees} />
+        <div className="flex gap-2">
+          <Link href={`/${organizationId}/dashboard/${userId}/marketing/sms/credits`}>
+            <Button variant="outline">
+              <Coins className="mr-2 h-4 w-4 text-yellow-600" />
+              {credits.balance} Credits
+            </Button>
+          </Link>
+          <Link href={`/${organizationId}/dashboard/${userId}/marketing/sms/new`}>
+            <Button className="bg-emerald-600 hover:bg-emerald-700">
+              <Plus className="mr-2 h-4 w-4" />
+              New Campaign
+            </Button>
+          </Link>
+        </div>
       </div>
       <Separator />
 

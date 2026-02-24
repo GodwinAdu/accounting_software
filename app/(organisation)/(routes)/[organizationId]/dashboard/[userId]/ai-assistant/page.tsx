@@ -1,45 +1,42 @@
-import { currentUser } from "@/lib/helpers/session";
-import { redirect } from "next/navigation";
+"use client";
+
+import { useState, useEffect } from "react";
 import Heading from "@/components/commons/Header";
 import { Separator } from "@/components/ui/separator";
-import { checkPermission } from "@/lib/helpers/check-permission";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Lightbulb, AlertCircle, TrendingUp, Brain, Sparkles, CheckCircle } from "lucide-react";
-import { getAIInsights } from "@/lib/actions/ai.action";
+import { Lightbulb, AlertCircle, TrendingUp, Brain, Sparkles, Loader2 } from "lucide-react";
+import { getFinancialInsights } from "@/lib/actions/ai.action";
+import { toast } from "sonner";
 
-type Props = Promise<{ organizationId: string; userId: string }>;
+export default function AIAssistantPage() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
 
-export default async function AIAssistantPage({ params }: { params: Props }) {
-  const user = await currentUser();
-  if (!user) redirect("/login");
-
-  const { organizationId, userId } = await params;
-
-  // const hasViewPermission = await checkPermission("aiAssistant_view");
-  // if (!hasViewPermission) redirect(`/${organizationId}/dashboard/${userId}`);
-
-  const { insights, summary, metrics } = await getAIInsights();
-  const { newInsights, criticalInsights, totalImpact, healthScore } = summary;
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case "critical": return "text-red-600 bg-red-50 border-red-200";
-      case "high": return "text-orange-600 bg-orange-50 border-orange-200";
-      case "medium": return "text-yellow-600 bg-yellow-50 border-yellow-200";
-      default: return "text-blue-600 bg-blue-50 border-blue-200";
+  const generateInsights = async () => {
+    setIsLoading(true);
+    try {
+      const data = await getFinancialInsights();
+      setResult(data);
+      if (data.success) {
+        toast.success("Insights generated successfully");
+      } else {
+        toast.error(data.error || "Failed to generate insights");
+      }
+    } catch (error) {
+      toast.error("Failed to generate insights");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const getTypeIcon = (type: string) => {
-    switch (type) {
-      case "fraud_alert": return <AlertCircle className="h-5 w-5 text-red-600" />;
-      case "cash_flow": return <TrendingUp className="h-5 w-5 text-blue-600" />;
-      case "tax_optimization": return <Sparkles className="h-5 w-5 text-purple-600" />;
-      default: return <Lightbulb className="h-5 w-5 text-yellow-600" />;
-    }
+  const metrics = {
+    totalRevenue: result?.metrics?.totalRevenue || 0,
+    totalExpenses: result?.metrics?.totalExpenses || 0,
+    cashFlow: (result?.metrics?.totalRevenue || 0) - (result?.metrics?.totalExpenses || 0),
   };
+
+  const healthScore = result?.success ? Math.min(100, Math.max(0, 50 + (result.metrics?.profitMargin || 0))) : 0;
 
   return (
     <div className="space-y-6">
@@ -68,30 +65,30 @@ export default async function AIAssistantPage({ params }: { params: Props }) {
             <Lightbulb className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{newInsights}</div>
-            <p className="text-xs text-muted-foreground mt-1">Unread</p>
+            <div className="text-2xl font-bold">{result ? 1 : 0}</div>
+            <p className="text-xs text-muted-foreground mt-1">Available</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Critical Alerts</CardTitle>
+            <CardTitle className="text-sm font-medium">Overdue Invoices</CardTitle>
             <AlertCircle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{criticalInsights}</div>
+            <div className="text-2xl font-bold text-red-600">{result?.metrics?.overdueInvoices || 0}</div>
             <p className="text-xs text-muted-foreground mt-1">Require action</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Potential Impact</CardTitle>
+            <CardTitle className="text-sm font-medium">Profit Margin</CardTitle>
             <TrendingUp className="h-4 w-4 text-emerald-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">GHS {totalImpact.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground mt-1">Savings opportunity</p>
+            <div className="text-2xl font-bold text-emerald-600">{result?.metrics?.profitMargin || 0}%</div>
+            <p className="text-xs text-muted-foreground mt-1">Current margin</p>
           </CardContent>
         </Card>
       </div>
@@ -128,50 +125,79 @@ export default async function AIAssistantPage({ params }: { params: Props }) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>AI Insights & Recommendations</CardTitle>
-          <Button size="sm">Generate Insights</Button>
+          <Button 
+            onClick={generateInsights} 
+            disabled={isLoading}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate Insights
+              </>
+            )}
+          </Button>
         </CardHeader>
         <CardContent>
-          {insights.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-12">
+              <Loader2 className="h-12 w-12 animate-spin text-purple-600 mx-auto mb-4" />
+              <p className="text-muted-foreground">Analyzing your financial data...</p>
+            </div>
+          ) : !result ? (
             <div className="text-center py-12">
               <Brain className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No insights generated yet</p>
-              <p className="text-sm text-muted-foreground mt-2">AI will analyze your data and provide recommendations</p>
+              <p className="text-muted-foreground">Click "Generate Insights" to analyze your data</p>
+              <p className="text-sm text-muted-foreground mt-2">AI will provide personalized financial recommendations</p>
+            </div>
+          ) : !result.success ? (
+            <div className="text-center py-12">
+              <AlertCircle className="h-12 w-12 mx-auto text-red-600 mb-4" />
+              <p className="text-muted-foreground">Failed to generate insights</p>
+              <p className="text-sm text-muted-foreground mt-2">{result.error}</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {insights.map((insight: any) => (
-                <div key={insight._id} className={`p-4 border rounded-lg ${getSeverityColor(insight.severity)}`}>
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-3">
-                      {getTypeIcon(insight.type)}
-                      <div>
-                        <h3 className="font-semibold">{insight.title}</h3>
-                        <p className="text-sm mt-1">{insight.description}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={insight.severity === "critical" ? "destructive" : "outline"}>
-                        {insight.severity}
-                      </Badge>
-                      {insight.status === "actioned" && <CheckCircle className="h-4 w-4 text-emerald-600" />}
-                    </div>
-                  </div>
-                  <div className="mt-3 pt-3 border-t">
-                    <p className="text-sm font-medium mb-1">Recommendation:</p>
-                    <p className="text-sm">{insight.recommendation}</p>
-                    {insight.impact > 0 && (
-                      <p className="text-sm font-medium text-emerald-600 mt-2">
-                        Potential savings: GHS {insight.impact.toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex gap-2 mt-3">
-                    <Button size="sm" variant="outline">View Details</Button>
-                    <Button size="sm" variant="outline">Mark as Actioned</Button>
-                    <Button size="sm" variant="ghost">Dismiss</Button>
+            <div className="space-y-6">
+              <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 border border-purple-200 rounded-lg p-6">
+                <div className="flex items-start gap-3 mb-4">
+                  <Sparkles className="h-6 w-6 text-purple-600 flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">AI-Generated Financial Insights</h3>
+                    <p className="text-sm text-muted-foreground">Based on your recent financial data</p>
                   </div>
                 </div>
-              ))}
+                <div className="whitespace-pre-wrap text-sm leading-relaxed">{result.insights}</div>
+              </div>
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-emerald-600" />
+                      Net Income
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">GHS {result.metrics?.netIncome?.toLocaleString()}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                      Total Overdue
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-red-600">GHS {result.metrics?.totalOverdue?.toLocaleString()}</p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           )}
         </CardContent>

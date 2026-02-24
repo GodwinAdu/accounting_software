@@ -54,6 +54,7 @@ import {
   Building,
   Landmark,
   PiggyBank,
+  Sparkles,
 } from "lucide-react";
 import {
   Collapsible,
@@ -222,6 +223,13 @@ export function NavMain({ role, organization }: NavMainProps) {
           url: `/${organizationId}/dashboard/${userId}/sales/credit-notes`,
           icon: FileOutput,
           roleField: "creditNotes_view",
+          isNew: true,
+        },
+        {
+          title: "Sales Orders",
+          url: `/${organizationId}/dashboard/${userId}/sales/sales-orders`,
+          icon: ShoppingBag,
+          roleField: "invoices_view",
           isNew: true,
         },
         {
@@ -562,6 +570,13 @@ export function NavMain({ role, organization }: NavMainProps) {
           icon: FileText,
           roleField: "taxSummary_view",
         },
+        {
+          title: "Audit Reports",
+          url: `/${organizationId}/dashboard/${userId}/reports/audit`,
+          icon: Shield,
+          roleField: "reports_view",
+          isNew: true,
+        },
       ],
     },
     organization?.modules?.projects && {
@@ -703,12 +718,32 @@ export function NavMain({ role, organization }: NavMainProps) {
     },
     organization?.modules?.ai && {
       title: "AI Assistant",
-      url: `/${organizationId}/dashboard/${userId}/ai-assistant`,
+      url: "#",
       icon: Lightbulb,
-      description: "Smart financial insights",
+      description: "AI-powered financial tools",
       roleField: "ai_view",
       isNew: true,
-      isPro: true,
+      items: [
+        {
+          title: "AI Chat",
+          url: `/${organizationId}/dashboard/${userId}/ai`,
+          icon: MessageSquare,
+          roleField: "ai_view",
+        },
+        {
+          title: "AI Tools Hub",
+          url: `/${organizationId}/dashboard/${userId}/ai/tools`,
+          icon: Sparkles,
+          roleField: "ai_view",
+          isNew: true,
+        },
+        {
+          title: "Financial Insights",
+          url: `/${organizationId}/dashboard/${userId}/ai-assistant`,
+          icon: Lightbulb,
+          roleField: "ai_view",
+        },
+      ],
     },
     {
       title: "Marketing",

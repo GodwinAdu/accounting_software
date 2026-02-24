@@ -5,9 +5,12 @@ import { ReceiptForm } from "../../new/_components/receipt-form";
 export default async function EditReceiptPage({
   params,
 }: {
-  params: { receiptId: string };
+  params: Promise<{ receiptId: string }>;
 }) {
-  const result = await getReceiptById(params.receiptId);
+  
+  const { receiptId } = await params;
+
+  const result = await getReceiptById(receiptId);
 
   if (result.error || !result.data) {
     notFound();
