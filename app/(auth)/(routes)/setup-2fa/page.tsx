@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Shield, Loader2, Copy, Check } from "lucide-react";
 import QRCode from "qrcode";
 import { enable2FAForLogin, verify2FASetupForLogin } from "@/lib/actions/two-factor.action";
 
-export default function Setup2FAPage() {
+function Setup2FAContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const userId = searchParams.get("userId");
@@ -171,5 +171,17 @@ export default function Setup2FAPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function Setup2FAPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-gray-900 dark:to-gray-800">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+      </div>
+    }>
+      <Setup2FAContent />
+    </Suspense>
   );
 }
