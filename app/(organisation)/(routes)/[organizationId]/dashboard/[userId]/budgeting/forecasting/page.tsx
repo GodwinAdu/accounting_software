@@ -5,10 +5,14 @@ import { Separator } from "@/components/ui/separator";
 import { checkPermission } from "@/lib/helpers/check-permission";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { TrendingUp, DollarSign, Calendar, BarChart3 } from "lucide-react";
-import { getBudgetForecasting } from "@/lib/actions/budget.action";
+import { TrendingUp, DollarSign, Calendar, BarChart3, Info } from "lucide-react";
+import { getAllBudgets } from "@/lib/actions/budget.action";
+import { calculateForecasting } from "@/lib/helpers/budget-forecasting";
 
 type Props = Promise<{ organizationId: string; userId: string }>;
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function ForecastingPage({ params }: { params: Props }) {
   const user = await currentUser();
@@ -19,13 +23,25 @@ export default async function ForecastingPage({ params }: { params: Props }) {
   const hasViewPermission = await checkPermission("forecasting_view");
   if (!hasViewPermission) redirect(`/${organizationId}/dashboard/${userId}`);
 
-  const { summary, scenarios } = await getBudgetForecasting();
-  const { projectedRevenue, projectedExpenses, projectedProfit, avgMonthlyRevenue } = summary;
+  const result = await getAllBudgets();
+  const budgets = result.success ? (result.budgets || []) : [];
+  
+  const forecast = await calculateForecasting(user.organizationId as string);
+  const { projectedRevenue, projectedExpenses, projectedProfit, avgMonthlyRevenue } = forecast.summary;
+  const scenarios = forecast.scenarios;
 
   return (
     <div className="space-y-6">
       <Heading title="Financial Forecasting" description="Financial forecasting and scenario planning" />
       <Separator />
+      
+      <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+        <div className="text-sm text-blue-900">
+          <p className="font-medium mb-1">How forecasting works</p>
+          <p className="text-blue-700">Projections are calculated from your last 6 months of invoices and expenses. The average monthly amounts are multiplied by 12 to forecast the next year. Three scenarios show conservative (-10% revenue, +5% expenses), base (current trend), and optimistic (+20% revenue, -5% expenses) outcomes.</p>
+        </div>
+      </div>
       
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
@@ -76,9 +92,9 @@ export default async function ForecastingPage({ params }: { params: Props }) {
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle>Forecast Scenarios</CardTitle>
-          <Button size="sm">Create Scenario</Button>
+          <p className="text-sm text-muted-foreground mt-1">Compare different growth scenarios based on historical data</p>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">

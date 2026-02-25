@@ -126,7 +126,8 @@ const authConfig = {
         "/magic-link-login",
         "/payment-callback",
         "/sms-payment-callback",
-        "/api/*"
+        "/api/*",
+        "/setup-2fa"
     ],
     protectedRoutes: [] as string[],
     loginUrl: "/sign-in",

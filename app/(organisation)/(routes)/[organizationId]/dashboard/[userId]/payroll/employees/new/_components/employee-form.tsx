@@ -1,15 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { ArrowLeft, Save, CalendarIcon, Upload, X } from "lucide-react";
+import { ArrowLeft, Save, CalendarIcon, Upload, X, Check, ChevronsUpDown, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { createEmployee } from "@/lib/actions/employee.action";
-import { fetchOrganizationUsers } from "@/lib/actions/user.action";
+import { createDepartment } from "@/lib/actions/department.action";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
 
 const employeeSchema = z.object({
   userId: z.string().min(1, "User is required"),
@@ -44,10 +45,16 @@ const employeeSchema = z.object({
 
 type EmployeeFormValues = z.infer<typeof employeeSchema>;
 
-export function EmployeeForm({users}) {
+export function EmployeeForm({users, departments: initialDepartments}) {
   const router = useRouter();
+  const params = useParams()
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [documents, setDocuments] = useState<File[]>([]);
+  const [departments, setDepartments] = useState(initialDepartments || []);
+  const [openDept, setOpenDept] = useState(false);
+  const [newDeptName, setNewDeptName] = useState("");
+
+  const {orgainzation, userId } = params
 
 
   const form = useForm<EmployeeFormValues>({
@@ -71,6 +78,21 @@ export function EmployeeForm({users}) {
     },
   });
 
+
+  const handleCreateDepartment = async () => {
+    if (!newDeptName.trim()) return;
+    try {
+      await createDepartment({ name: newDeptName });
+      const newDept = { _id: Date.now().toString(), name: newDeptName };
+      setDepartments([...departments, newDept]);
+      form.setValue("department", newDeptName);
+      setNewDeptName("");
+      setOpenDept(false);
+      toast.success("Department created");
+    } catch (error) {
+      toast.error("Failed to create department");
+    }
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -117,7 +139,7 @@ export function EmployeeForm({users}) {
         toast.error(result.error);
       } else {
         toast.success("Employee created successfully");
-        router.push("../");
+        router.push(`/${orgainzation}/dashboard/${userId}/payroll/employees`);
       }
     } catch (error) {
       toast.error("Failed to create employee");
@@ -318,23 +340,44 @@ export function EmployeeForm({users}) {
                     control={form.control}
                     name="department"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="flex flex-col">
                         <FormLabel>Department *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select department" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="engineering">Engineering</SelectItem>
-                            <SelectItem value="sales">Sales</SelectItem>
-                            <SelectItem value="marketing">Marketing</SelectItem>
-                            <SelectItem value="finance">Finance</SelectItem>
-                            <SelectItem value="hr">Human Resources</SelectItem>
-                            <SelectItem value="operations">Operations</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <Popover open={openDept} onOpenChange={setOpenDept}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button variant="outline" role="combobox" className={cn("justify-between", !field.value && "text-muted-foreground")}>
+                                {field.value || "Select department"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[300px] p-0">
+                            <Command>
+                              <CommandInput placeholder="Search department..." />
+                              <CommandList>
+                                <CommandEmpty>No department found.</CommandEmpty>
+                                <CommandGroup>
+                                  {departments?.map((dept: any) => (
+                                    <CommandItem key={dept._id} value={dept.name} onSelect={() => { field.onChange(dept.name); setOpenDept(false); }}>
+                                      <Check className={cn("mr-2 h-4 w-4", field.value === dept.name ? "opacity-100" : "opacity-0")} />
+                                      {dept.name}
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                                <CommandSeparator />
+                                <CommandGroup>
+                                  <div className="p-2 space-y-2">
+                                    <Input placeholder="New department name" value={newDeptName} onChange={(e) => setNewDeptName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleCreateDepartment())} />
+                                    <Button type="button" size="sm" className="w-full" onClick={handleCreateDepartment}>
+                                      <Plus className="h-4 w-4 mr-2" />
+                                      Create Department
+                                    </Button>
+                                  </div>
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                         <FormMessage />
                       </FormItem>
                     )}

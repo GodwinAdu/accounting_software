@@ -29,6 +29,7 @@ const productSchema = z.object({
   reorderLevel: z.number().min(0),
   unit: z.string().min(1, "Unit is required"),
   taxable: z.boolean(),
+  taxRate: z.number().min(0).max(100).optional(),
   trackInventory: z.boolean(),
   barcode: z.string().optional(),
   type: z.enum(["product", "service", "bundle"]),
@@ -84,6 +85,7 @@ export function ProductForm({ initialData }: ProductFormProps) {
       reorderLevel: initialData.reorderLevel,
       unit: initialData.unit,
       taxable: initialData.taxable,
+      taxRate: initialData.taxRate || 0,
       trackInventory: initialData.trackInventory,
       barcode: initialData.barcode || "",
       type: initialData.type,
@@ -103,6 +105,7 @@ export function ProductForm({ initialData }: ProductFormProps) {
       reorderLevel: 20,
       unit: "pcs",
       taxable: true,
+      taxRate: 12.5,
       trackInventory: true,
       barcode: "",
       type: "product",
@@ -432,6 +435,29 @@ export function ProductForm({ initialData }: ProductFormProps) {
                     </FormItem>
                   )}
                 />
+
+                {form.watch("taxable") && (
+                  <FormField
+                    control={form.control}
+                    name="taxRate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tax Rate (%)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            placeholder="12.5"
+                          />
+                        </FormControl>
+                        <FormDescription>VAT rate for this product (Ghana standard: 12.5%)</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
               </CardContent>
             </Card>
           </TabsContent>

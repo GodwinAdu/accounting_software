@@ -672,3 +672,140 @@ async function _getOrganizationUsers(user: UserType) {
 }
 
 export const getOrganizationUsers = await withAuth(_getOrganizationUsers)
+
+async function _updateSecuritySettings(user: UserType, data: {
+    twoFactorRequired: boolean
+    sessionTimeout: number
+    passwordExpiry: number
+}) {
+    try {
+        await checkWriteAccess(String(user.organizationId));
+        if (!user) throw new Error("User not authenticated")
+
+        const organizationId = user.organizationId as string
+
+        if (!organizationId) {
+            throw new Error("User does not belong to any organization")
+        }
+
+        await connectToDB()
+
+        const organization = await Organization.findByIdAndUpdate(
+            organizationId,
+            {
+                "security.twoFactorRequired": data.twoFactorRequired,
+                "security.sessionTimeout": data.sessionTimeout,
+                "security.passwordExpiry": data.passwordExpiry,
+            },
+            { new: true }
+        )
+
+        if (!organization) {
+            throw new Error("Organization not found")
+        }
+
+        await logAudit({
+            organizationId,
+            userId: String(user._id || user.id),
+            action: "update",
+            resource: "security_settings",
+            resourceId: organizationId,
+            details: { after: data },
+        })
+
+        return { success: true }
+    } catch (error) {
+        console.error("Update security settings error:", error)
+        return { success: false, error: "Failed to update security settings" }
+    }
+}
+
+export const updateSecuritySettings = await withAuth(_updateSecuritySettings)
+
+async function _updatePayrollSettings(user: UserType, data: any) {
+    try {
+        await checkWriteAccess(String(user.organizationId));
+        if (!user) throw new Error("User not authenticated")
+
+        const organizationId = user.organizationId as string
+
+        if (!organizationId) {
+            throw new Error("User does not belong to any organization")
+        }
+
+        await connectToDB()
+
+        const organization = await Organization.findByIdAndUpdate(
+            organizationId,
+            { payrollSettings: data },
+            { new: true }
+        )
+
+        if (!organization) {
+            throw new Error("Organization not found")
+        }
+
+        await logAudit({
+            organizationId,
+            userId: String(user._id || user.id),
+            action: "update",
+            resource: "payroll_settings",
+            resourceId: organizationId,
+            details: { after: data },
+        })
+
+        return { success: true }
+    } catch (error) {
+        console.error("Update payroll settings error:", error)
+        return { success: false, error: "Failed to update payroll settings" }
+    }
+}
+
+export const updatePayrollSettings = await withAuth(_updatePayrollSettings)
+
+async function _updateTaxSettings(user: UserType, data: {
+    taxRegistered: boolean
+    taxNumber?: string
+    taxRate: number
+    taxType?: string
+    enableTaxCalculation: boolean
+}) {
+    try {
+        await checkWriteAccess(String(user.organizationId));
+        if (!user) throw new Error("User not authenticated")
+
+        const organizationId = user.organizationId as string
+
+        if (!organizationId) {
+            throw new Error("User does not belong to any organization")
+        }
+
+        await connectToDB()
+
+        const organization = await Organization.findByIdAndUpdate(
+            organizationId,
+            { taxSettings: data },
+            { new: true }
+        )
+
+        if (!organization) {
+            throw new Error("Organization not found")
+        }
+
+        await logAudit({
+            organizationId,
+            userId: String(user._id || user.id),
+            action: "update",
+            resource: "tax_settings",
+            resourceId: organizationId,
+            details: { after: data },
+        })
+
+        return { success: true }
+    } catch (error) {
+        console.error("Update tax settings error:", error)
+        return { success: false, error: "Failed to update tax settings" }
+    }
+}
+
+export const updateTaxSettings = await withAuth(_updateTaxSettings)

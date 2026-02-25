@@ -11,6 +11,8 @@ export interface IInvoice extends Document {
     quantity: number;
     rate: number;
     amount: number;
+    taxRate: number;
+    taxAmount: number;
     productId?: mongoose.Types.ObjectId;
   }>;
   subtotal: number;
@@ -22,6 +24,7 @@ export interface IInvoice extends Document {
   revenueAccountId?: mongoose.Types.ObjectId;
   receivableAccountId?: mongoose.Types.ObjectId;
   taxAccountId?: mongoose.Types.ObjectId;
+  projectId?: mongoose.Types.ObjectId;
   notes?: string;
   terms?: string;
   del_flag: boolean;
@@ -43,6 +46,8 @@ const InvoiceSchema = new Schema<IInvoice>(
       quantity: { type: Number, required: true },
       rate: { type: Number, required: true },
       amount: { type: Number, required: true },
+      taxRate: { type: Number, default: 0 },
+      taxAmount: { type: Number, default: 0 },
       productId: { type: Schema.Types.ObjectId, ref: "Product" },
     }],
     subtotal: { type: Number, required: true },
@@ -54,6 +59,7 @@ const InvoiceSchema = new Schema<IInvoice>(
     revenueAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     receivableAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     taxAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    projectId: { type: Schema.Types.ObjectId, ref: "Project" },
     notes: { type: String },
     terms: { type: String },
     del_flag: { type: Boolean, default: false },

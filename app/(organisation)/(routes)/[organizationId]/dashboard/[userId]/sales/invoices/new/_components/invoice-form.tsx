@@ -40,6 +40,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { CustomerCombobox } from "./customer-combobox";
 import { AccountSelector } from "@/components/forms/account-selector";
+import { ProjectSelector } from "@/components/selectors/project-selector";
 import { createInvoice, updateInvoice } from "@/lib/actions/invoice.action";
 import { getCustomers } from "@/lib/actions/customer.action";
 import { useParams, usePathname } from "next/navigation";
@@ -57,6 +58,7 @@ const lineItemSchema = z.object({
   quantity: z.number().min(0.01, "Quantity must be positive"),
   rate: z.number().min(0, "Rate must be positive"),
   taxRate: z.number().min(0).max(100),
+  taxAmount: z.number(),
   amount: z.number(),
 });
 
@@ -75,6 +77,7 @@ const invoiceSchema = z.object({
   revenueAccountId: z.string().optional(),
   receivableAccountId: z.string().optional(),
   taxAccountId: z.string().optional(),
+  projectId: z.string().optional(),
 });
 
 type InvoiceFormValues = z.infer<typeof invoiceSchema>;
@@ -136,7 +139,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
       dueDate: initialData.dueDate ? new Date(initialData.dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       paymentTerms: initialData.paymentTerms || "net-30",
       lineItems: initialData.lineItems || [
-        { description: "", quantity: 1, rate: 0, taxRate: 0, amount: 0 },
+        { description: "", quantity: 1, rate: 0, taxRate: defaultTaxRate, taxAmount: 0, amount: 0 },
       ],
       notes: initialData.notes || "",
       terms: initialData.terms || "",
@@ -146,6 +149,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
       revenueAccountId: initialData.revenueAccountId || "",
       receivableAccountId: initialData.receivableAccountId || "",
       taxAccountId: initialData.taxAccountId || "",
+      projectId: initialData.projectId || "",
     } : {
       customerId: "",
       invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
@@ -153,7 +157,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
       dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       paymentTerms: "net-30",
       lineItems: [
-        { description: "", quantity: 1, rate: 0, taxRate: 0, amount: 0 },
+        { description: "", quantity: 1, rate: 0, taxRate: defaultTaxRate, taxAmount: 0, amount: 0 },
       ],
       notes: "",
       terms: "",
@@ -163,6 +167,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
       revenueAccountId: "",
       receivableAccountId: "",
       taxAccountId: "",
+      projectId: "",
     },
   });
 
@@ -213,7 +218,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
     const currentItems = form.getValues("lineItems");
     form.setValue("lineItems", [
       ...currentItems,
-      { description: "", quantity: 1, rate: 0, taxRate: defaultTaxRate, amount: 0 },
+      { description: "", quantity: 1, rate: 0, taxRate: defaultTaxRate, taxAmount: 0, amount: 0 },
     ]);
   };
 
@@ -245,6 +250,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
         revenueAccountId: data.revenueAccountId,
         receivableAccountId: data.receivableAccountId,
         taxAccountId: data.taxAccountId,
+        projectId: data.projectId,
       };
 
       const result = isEditMode 
@@ -501,9 +507,13 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
                                         const value = parseFloat(e.target.value) || 0;
                                         field.onChange(value);
                                         const rate = form.getValues(`lineItems.${index}.rate`);
+                                        const lineAmount = calculateLineAmount(value, rate);
+                                        const taxRate = form.getValues(`lineItems.${index}.taxRate`);
+                                        const lineTax = (lineAmount * taxRate) / 100;
+                                        form.setValue(`lineItems.${index}.taxAmount`, lineTax);
                                         form.setValue(
                                           `lineItems.${index}.amount`,
-                                          calculateLineAmount(value, rate)
+                                          lineAmount
                                         );
                                       }}
                                     />
@@ -530,9 +540,13 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
                                         const value = parseFloat(e.target.value) || 0;
                                         field.onChange(value);
                                         const qty = form.getValues(`lineItems.${index}.quantity`);
+                                        const lineAmount = calculateLineAmount(qty, value);
+                                        const taxRate = form.getValues(`lineItems.${index}.taxRate`);
+                                        const lineTax = (lineAmount * taxRate) / 100;
+                                        form.setValue(`lineItems.${index}.taxAmount`, lineTax);
                                         form.setValue(
                                           `lineItems.${index}.amount`,
-                                          calculateLineAmount(qty, value)
+                                          lineAmount
                                         );
                                       }}
                                     />
@@ -642,10 +656,29 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground mb-4">
-                  Leave blank to use default accounts. Select specific accounts to override defaults.
+                  Link to project or select specific accounts to override defaults.
                 </p>
                 
                 <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="projectId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Project</FormLabel>
+                        <FormControl>
+                          <ProjectSelector
+                            value={field.value || ""}
+                            onValueChange={field.onChange}
+                          />
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Link this invoice to a project for tracking
+                        </p>
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="revenueAccountId"

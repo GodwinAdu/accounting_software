@@ -47,6 +47,7 @@ import { VendorCombobox } from "./vendor-combobox";
 import { CategoryCombobox } from "./category-combobox";
 import { CustomerCombobox } from "./customer-combobox";
 import { AccountSelector } from "@/components/forms/account-selector";
+import { ProjectSelector } from "@/components/selectors/project-selector";
 
 const expenseSchema = z.object({
   expenseNumber: z.string().min(1, "Expense number is required"),
@@ -54,16 +55,19 @@ const expenseSchema = z.object({
   vendorId: z.string().optional(),
   categoryId: z.string().optional(),
   amount: z.number().min(0.01, "Amount must be greater than 0"),
+  taxAmount: z.number().min(0).default(0),
+  taxRate: z.number().min(0).max(100).default(0),
+  isTaxable: z.boolean().default(true),
   paymentMethod: z.enum(["cash", "card", "bank_transfer", "mobile_money", "cheque"]),
   reference: z.string().optional(),
   description: z.string().min(1, "Description is required"),
   notes: z.string().optional(),
   billable: z.boolean().default(false),
   customerId: z.string().optional(),
-  taxAmount: z.number().min(0).default(0),
   hasReceipt: z.boolean().default(false),
   expenseAccountId: z.string().optional(),
   paymentAccountId: z.string().optional(),
+  projectId: z.string().optional(),
 });
 
 type ExpenseFormValues = z.infer<typeof expenseSchema>;
@@ -89,6 +93,9 @@ export function ExpenseForm() {
       vendorId: "",
       categoryId: "",
       amount: 0,
+      taxAmount: 0,
+      taxRate: 0,
+      isTaxable: true,
       paymentMethod: "cash",
       reference: "",
       description: "",
@@ -96,9 +103,11 @@ export function ExpenseForm() {
       billable: false,
       customerId: "",
       taxAmount: 0,
+      isTaxable: true,
       hasReceipt: false,
       expenseAccountId: "",
       paymentAccountId: "",
+      projectId: "",
     },
   });
 
@@ -202,6 +211,9 @@ export function ExpenseForm() {
         vendorId: data.vendorId,
         categoryId: data.categoryId,
         amount: data.amount,
+        taxAmount: data.taxAmount,
+        taxRate: data.taxRate,
+        isTaxable: data.isTaxable,
         paymentMethod: data.paymentMethod,
         reference: data.reference,
         description: data.description,
@@ -209,6 +221,7 @@ export function ExpenseForm() {
         status: "pending" as const,
         expenseAccountId: data.expenseAccountId || undefined,
         paymentAccountId: data.paymentAccountId || undefined,
+        projectId: data.projectId || undefined,
       };
 
       const result = await createExpense(expenseData, pathname);
@@ -409,24 +422,49 @@ export function ExpenseForm() {
 
                   <FormField
                     control={form.control}
-                    name="taxAmount"
+                    name="taxRate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Tax Amount (GHS)</FormLabel>
+                        <FormLabel>Tax Rate (%)</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
                             step="0.01"
                             {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            onChange={(e) => {
+                              const rate = parseFloat(e.target.value) || 0;
+                              field.onChange(rate);
+                              const amt = form.getValues("amount");
+                              form.setValue("taxAmount", (amt * rate) / 100);
+                            }}
                           />
                         </FormControl>
-                        <FormDescription>VAT or other taxes included</FormDescription>
+                        <FormDescription>Input VAT rate (e.g., 12.5)</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
+
+                <FormField
+                  control={form.control}
+                  name="taxAmount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tax Amount (GHS)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormDescription>Calculated VAT amount (Input VAT)</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
 
@@ -599,8 +637,27 @@ export function ExpenseForm() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground mb-4">
-                  Leave blank to use default accounts
+                  Link to project or select specific accounts
                 </p>
+                
+                <FormField
+                  control={form.control}
+                  name="projectId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project</FormLabel>
+                      <FormControl>
+                        <ProjectSelector
+                          value={field.value || ""}
+                          onValueChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Link this expense to a project for tracking
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
                 
                 <FormField
                   control={form.control}

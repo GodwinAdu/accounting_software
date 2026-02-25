@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { fetchOrganizationUserById } from "@/lib/actions/organization.action"
+import { fetchOrganizationUserById, updateTaxSettings } from "@/lib/actions/organization.action"
 import { Loader2, Receipt } from "lucide-react"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 export default function TaxSettingsTab() {
+  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -48,8 +50,14 @@ export default function TaxSettingsTab() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      toast.success("Tax settings updated successfully")
-      setEditing(false)
+      const result = await updateTaxSettings(formData)
+      if (result.success) {
+        toast.success("Tax settings updated successfully")
+        setEditing(false)
+        router.refresh()
+      } else {
+        toast.error(result.error || "Failed to update tax settings")
+      }
     } catch (error) {
       toast.error("Failed to update tax settings")
     } finally {

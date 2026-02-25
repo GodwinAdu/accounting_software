@@ -5,6 +5,7 @@ import { currentUser } from "@/lib/helpers/session";
 import { fetchOrganizationUserById } from "@/lib/actions/organization.action";
 import { OrganizationSettingsProvider } from "@/providers/organization-settings-provider";
 import { getOrganizationSettings } from "@/lib/helpers/organization";
+import { KeyboardShortcutsProvider } from "@/components/providers/keyboard-shortcuts-provider";
 
 
 
@@ -71,17 +72,19 @@ export default async function RootLayout({
 
     return (
         <OrganizationSettingsProvider settings={settings || defaultSettings}>
-            <SidebarProvider className="sidebar">
-                <AppSidebarMain />
-                <SidebarInset >
-                    <Navbar  user={user} pro={pro} />
-                    <div className="relative scrollbar-hide">
-                        <div id="main-content" className="py-4 px-4 overflow-hidden scrollbar-hide">
-                            {children}
+            <KeyboardShortcutsProvider>
+                <SidebarProvider className="sidebar">
+                    <AppSidebarMain />
+                    <SidebarInset >
+                        <Navbar  user={user} pro={pro} />
+                        <div className="relative scrollbar-hide">
+                            <div id="main-content" className="py-4 px-4 overflow-hidden scrollbar-hide">
+                                {children}
+                            </div>
                         </div>
-                    </div>
-                </SidebarInset>
-            </SidebarProvider>
+                    </SidebarInset>
+                </SidebarProvider>
+            </KeyboardShortcutsProvider>
         </OrganizationSettingsProvider>
     );
 }

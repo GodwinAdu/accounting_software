@@ -203,6 +203,11 @@ async function _getDashboardStats(user: any, startDate?: Date, endDate?: Date) {
       });
     }
 
+    // VAT Calculations
+    const outputVAT = invoices.reduce((sum, inv) => sum + (inv.taxAmount || 0), 0);
+    const inputVAT = expenses.reduce((sum, exp) => sum + (exp.taxAmount || 0), 0);
+    const netVAT = outputVAT - inputVAT;
+
     return {
       success: true,
       data: {
@@ -243,6 +248,11 @@ async function _getDashboardStats(user: any, startDate?: Date, endDate?: Date) {
         })),
         monthlyRevenueExpenses: monthlyData,
         cashFlowData,
+        vatData: {
+          outputVAT,
+          inputVAT,
+          netVAT,
+        },
       },
     };
   } catch (error: any) {

@@ -2,152 +2,153 @@
 
 import { connectToDB } from "@/lib/connection/mongoose";
 import Budget from "@/lib/models/budget.model";
-import Department from "@/lib/models/deparment.model";
-import Invoice from "@/lib/models/invoice.model";
-import Expense from "@/lib/models/expense.model";
 import { withAuth } from "@/lib/helpers/auth";
-import { checkPermission } from "@/lib/helpers/check-permission";
+import { revalidatePath } from "next/cache";
 
-async function _getAnnualBudgets(user: any) {
-  const hasPermission = await checkPermission("annualBudget_view");
-  if (!hasPermission) throw new Error("Permission denied");
+async function _createBudget(user: any, data: {
+  name: string;
+  fiscalYear: number;
+  startDate: Date;
+  endDate: Date;
+  departmentId?: string;
+  lineItems: Array<{
+    accountId: string;
+    accountCode: string;
+    accountName: string;
+    budgetedAmount: number;
+    allocations: Array<{ month: number; amount: number }>;
+  }>;
+  notes?: string;
+}) {
+  try {
+    await connectToDB();
 
-  await connectToDB();
-  
-  const currentYear = new Date().getFullYear();
-  const budgets = await Budget.find({ 
-    organizationId: user.organizationId, 
-    del_flag: false,
-    type: "annual",
-    fiscalYear: currentYear
-  }).sort({ createdAt: -1 }).lean();
+    const count = await Budget.countDocuments({ organizationId: user.organizationId });
+    const budgetNumber = `BUD-${data.fiscalYear}-${String(count + 1).padStart(4, "0")}`;
 
-  const totalBudgeted = budgets.reduce((sum: number, b: any) => sum + b.totalBudgeted, 0);
-  const totalActual = budgets.reduce((sum: number, b: any) => sum + b.totalActual, 0);
-  const totalVariance = totalBudgeted - totalActual;
-  const activeBudgets = budgets.filter((b: any) => b.status === "active").length;
+    const totalBudget = data.lineItems.reduce((sum, item) => sum + item.budgetedAmount, 0);
 
-  return JSON.parse(JSON.stringify({
-    budgets,
-    summary: { totalBudgeted, totalActual, totalVariance, activeBudgets }
-  }));
+    const budget = await Budget.create({
+      ...data,
+      budgetNumber,
+      organizationId: user.organizationId,
+      totalBudget,
+      status: "draft",
+      del_flag: false,
+      createdBy: user._id,
+      mod_flag: false,
+    });
+
+    revalidatePath("/dashboard/budgeting");
+    return { success: true, budget: JSON.parse(JSON.stringify(budget)) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 }
 
-export const getAnnualBudgets = await withAuth(_getAnnualBudgets);
+export const createBudget = await withAuth(_createBudget);
 
-async function _getDepartmentBudgets(user: any) {
-  const hasPermission = await checkPermission("departmentBudgets_view");
-  if (!hasPermission) throw new Error("Permission denied");
+async function _getAllBudgets(user: any) {
+  try {
+    await connectToDB();
 
-  await connectToDB();
-  
-  const [budgets, departments] = await Promise.all([
-    Budget.find({ 
-      organizationId: user.organizationId, 
+    const budgets = await Budget.find({
+      organizationId: user.organizationId,
       del_flag: false,
-      type: "department"
-    }).sort({ createdAt: -1 }).lean(),
-    Department.find({ 
-      organizationId: user.organizationId, 
-      del_flag: false 
-    }).lean()
-  ]);
+    })
+      .populate("departmentId", "name")
+      .sort({ fiscalYear: -1, createdAt: -1 });
 
-  const totalAllocated = budgets.reduce((sum: number, b: any) => sum + b.totalBudgeted, 0);
-  const totalSpent = budgets.reduce((sum: number, b: any) => sum + b.totalActual, 0);
-  const overBudget = budgets.filter((b: any) => b.totalActual > b.totalBudgeted).length;
-
-  return JSON.parse(JSON.stringify({
-    budgets,
-    departments,
-    summary: { totalDepartments: departments.length, totalAllocated, totalSpent, overBudget }
-  }));
+    return { success: true, budgets: JSON.parse(JSON.stringify(budgets)) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 }
 
-export const getDepartmentBudgets = await withAuth(_getDepartmentBudgets);
+export const getAllBudgets = await withAuth(_getAllBudgets);
 
-async function _getBudgetForecasting(user: any) {
-  const hasPermission = await checkPermission("forecasting_view");
-  if (!hasPermission) throw new Error("Permission denied");
+async function _getBudgetById(user: any, budgetId: string) {
+  try {
+    await connectToDB();
 
-  await connectToDB();
-  
-  const threeMonthsAgo = new Date();
-  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-
-  const [invoices, expenses] = await Promise.all([
-    Invoice.find({ 
-      organizationId: user.organizationId, 
+    const budget = await Budget.findOne({
+      _id: budgetId,
+      organizationId: user.organizationId,
       del_flag: false,
-      createdAt: { $gte: threeMonthsAgo }
-    }).lean(),
-    Expense.find({ 
-      organizationId: user.organizationId, 
-      del_flag: false,
-      createdAt: { $gte: threeMonthsAgo }
-    }).lean()
-  ]);
+    }).populate("departmentId", "name");
 
-  const totalRevenue = invoices.reduce((sum: number, inv: any) => sum + inv.total, 0);
-  const totalExpenses = expenses.reduce((sum: number, exp: any) => sum + exp.amount, 0);
-  const avgMonthlyRevenue = totalRevenue / 3;
-  const avgMonthlyExpenses = totalExpenses / 3;
+    if (!budget) throw new Error("Budget not found");
 
-  const projectedRevenue = avgMonthlyRevenue * 12;
-  const projectedExpenses = avgMonthlyExpenses * 12;
-  const projectedProfit = projectedRevenue - projectedExpenses;
+    return { success: true, budget: JSON.parse(JSON.stringify(budget)) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
 
-  const scenarios = [
-    {
-      name: "Conservative",
-      revenue: projectedRevenue * 0.9,
-      expenses: projectedExpenses * 1.1,
-      profit: (projectedRevenue * 0.9) - (projectedExpenses * 1.1)
-    },
-    {
-      name: "Base",
-      revenue: projectedRevenue,
-      expenses: projectedExpenses,
-      profit: projectedProfit
-    },
-    {
-      name: "Optimistic",
-      revenue: projectedRevenue * 1.2,
-      expenses: projectedExpenses * 0.95,
-      profit: (projectedRevenue * 1.2) - (projectedExpenses * 0.95)
+export const getBudgetById = await withAuth(_getBudgetById);
+
+async function _updateBudget(user: any, budgetId: string, data: any) {
+  try {
+    await connectToDB();
+
+    if (data.lineItems) {
+      data.totalBudget = data.lineItems.reduce((sum: number, item: any) => sum + item.budgetedAmount, 0);
     }
-  ];
 
-  return JSON.parse(JSON.stringify({
-    summary: { projectedRevenue, projectedExpenses, projectedProfit, avgMonthlyRevenue },
-    scenarios
-  }));
+    const budget = await Budget.findOneAndUpdate(
+      { _id: budgetId, organizationId: user.organizationId, del_flag: false },
+      { ...data, modifiedBy: user._id, mod_flag: true },
+      { new: true }
+    );
+
+    if (!budget) throw new Error("Budget not found");
+
+    revalidatePath("/dashboard/budgeting");
+    return { success: true, budget: JSON.parse(JSON.stringify(budget)) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 }
 
-export const getBudgetForecasting = await withAuth(_getBudgetForecasting);
+export const updateBudget = await withAuth(_updateBudget);
 
-async function _getBudgetVariance(user: any) {
-  const hasPermission = await checkPermission("budgetVariance_view");
-  if (!hasPermission) throw new Error("Permission denied");
+async function _activateBudget(user: any, budgetId: string) {
+  try {
+    await connectToDB();
 
-  await connectToDB();
-  
-  const budgets = await Budget.find({ 
-    organizationId: user.organizationId, 
-    del_flag: false,
-    status: "active"
-  }).sort({ createdAt: -1 }).lean();
+    const budget = await Budget.findOneAndUpdate(
+      { _id: budgetId, organizationId: user.organizationId, del_flag: false },
+      { status: "active", modifiedBy: user._id, mod_flag: true },
+      { new: true }
+    );
 
-  const totalVariance = budgets.reduce((sum: number, b: any) => sum + b.totalVariance, 0);
-  const favorable = budgets.filter((b: any) => b.totalVariance >= 0).reduce((sum: number, b: any) => sum + b.totalVariance, 0);
-  const unfavorable = budgets.filter((b: any) => b.totalVariance < 0).reduce((sum: number, b: any) => sum + Math.abs(b.totalVariance), 0);
-  const totalBudgeted = budgets.reduce((sum: number, b: any) => sum + b.totalBudgeted, 0);
-  const variancePercent = totalBudgeted > 0 ? ((totalVariance / totalBudgeted) * 100).toFixed(1) : "0.0";
+    if (!budget) throw new Error("Budget not found");
 
-  return JSON.parse(JSON.stringify({
-    budgets,
-    summary: { totalVariance, favorable, unfavorable, variancePercent }
-  }));
+    revalidatePath("/dashboard/budgeting");
+    return { success: true, budget: JSON.parse(JSON.stringify(budget)) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
 }
 
-export const getBudgetVariance = await withAuth(_getBudgetVariance);
+export const activateBudget = await withAuth(_activateBudget);
+
+async function _deleteBudget(user: any, budgetId: string) {
+  try {
+    await connectToDB();
+
+    await Budget.findOneAndUpdate(
+      { _id: budgetId, organizationId: user.organizationId },
+      { del_flag: true, modifiedBy: user._id, mod_flag: true }
+    );
+
+    revalidatePath("/dashboard/budgeting");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export const deleteBudget = await withAuth(_deleteBudget);
+
+export const getBudgets = getAllBudgets;

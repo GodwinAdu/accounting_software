@@ -7,7 +7,7 @@ import { loginUser, verifyEmailCode, resendVerificationEmail as resendVerificati
 import { registerOrganization } from "@/lib/actions/organization.action"
 
 interface AuthContextType extends AuthState {
-    login: (credentials: LoginCredentials | { phone: string; code?: string }) => Promise<{ success: boolean; requiresMfa?: boolean; phoneCodeSent?: boolean; error?: string; mfaToken?: string; user?: any }>
+    login: (credentials: LoginCredentials | { phone: string; code?: string }) => Promise<{ success: boolean; requiresMfa?: boolean; requiresMfaSetup?: boolean; phoneCodeSent?: boolean; error?: string; mfaToken?: string; user?: any; userId?: string; email?: string; message?: string }>
     register: (data: RegisterData) => Promise<{ success: boolean; error?: string; requiresEmailVerification?: boolean; email?: string }>
     logout: () => Promise<void>
     refreshToken: () => Promise<boolean>
@@ -108,6 +108,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
             
             if (!data.success) {
                 return { success: false, error: data.error || "Invalid credentials" }
+            }
+
+            if (data.requiresMFASetup) {
+                return { 
+                    success: true, 
+                    requiresMfaSetup: true, 
+                    userId: data.userId, 
+                    email: data.email,
+                    message: data.message 
+                }
             }
 
             if (data.requiresMFA) {

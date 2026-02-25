@@ -2,119 +2,135 @@
 
 import { connectToDB } from "@/lib/connection/mongoose";
 import FixedAsset from "@/lib/models/fixed-asset.model";
-import { checkPermission } from "@/lib/helpers/check-permission";
+import { withAuth } from "@/lib/helpers/auth";
 import { revalidatePath } from "next/cache";
-import { withAuth, type User } from "@/lib/helpers/auth";
 
-async function _createFixedAsset(user: User, data: any) {
+async function _createFixedAsset(user: any, data: {
+  assetName: string;
+  description?: string;
+  category: string;
+  purchaseDate: Date;
+  purchasePrice: number;
+  salvageValue: number;
+  usefulLife: number;
+  depreciationMethod: string;
+  assetAccountId: string;
+  depreciationAccountId: string;
+  accumulatedDepreciationAccountId: string;
+  location?: string;
+  serialNumber?: string;
+  vendor?: string;
+  warrantyExpiry?: Date;
+  notes?: string;
+}) {
   try {
-    const hasPermission = await checkPermission("assets_create");
-    if (!hasPermission) return { error: "You don't have permission to create assets" };
-
     await connectToDB();
+
+    const count = await FixedAsset.countDocuments({ organizationId: user.organizationId });
+    const assetNumber = `FA-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
 
     const asset = await FixedAsset.create({
       ...data,
+      assetNumber,
       organizationId: user.organizationId,
-      createdBy: user._id || user.id,
       currentValue: data.purchasePrice,
+      accumulatedDepreciation: 0,
+      status: "active",
+      del_flag: false,
+      createdBy: user._id,
+      mod_flag: 0,
     });
 
-    revalidatePath(`/${user.organizationId}/dashboard/${user.id}/assets/all`);
-    return { success: true, data: JSON.parse(JSON.stringify(asset)) };
+    revalidatePath("/dashboard/fixed-assets");
+    return { success: true, asset: JSON.parse(JSON.stringify(asset)) };
   } catch (error: any) {
-    return { error: error.message };
+    return { success: false, error: error.message };
   }
 }
 
 export const createFixedAsset = await withAuth(_createFixedAsset);
 
-async function _getFixedAssets(user: User) {
+async function _getAllFixedAssets(user: any) {
   try {
-    const hasPermission = await checkPermission("assets_view");
-    if (!hasPermission) return { error: "You don't have permission to view assets" };
-
     await connectToDB();
 
     const assets = await FixedAsset.find({
       organizationId: user.organizationId,
       del_flag: false,
-    }).sort({ createdAt: -1 });
+    })
+      .populate("assetAccountId", "accountCode accountName")
+      .populate("depreciationAccountId", "accountCode accountName")
+      .populate("accumulatedDepreciationAccountId", "accountCode accountName")
+      .sort({ createdAt: -1 });
 
-    return { success: true, data: JSON.parse(JSON.stringify(assets)) };
+    return { success: true, assets: JSON.parse(JSON.stringify(assets)) };
   } catch (error: any) {
-    return { error: error.message };
+    return { success: false, error: error.message };
   }
 }
 
-export const getFixedAssets = await withAuth(_getFixedAssets);
+export const getAllFixedAssets = await withAuth(_getAllFixedAssets);
 
-async function _getFixedAssetById(user: User, id: string) {
+async function _getFixedAssetById(user: any, assetId: string) {
   try {
-    const hasPermission = await checkPermission("assets_view");
-    if (!hasPermission) return { error: "You don't have permission to view assets" };
-
     await connectToDB();
 
     const asset = await FixedAsset.findOne({
-      _id: id,
+      _id: assetId,
       organizationId: user.organizationId,
       del_flag: false,
-    });
+    })
+      .populate("assetAccountId", "accountCode accountName")
+      .populate("depreciationAccountId", "accountCode accountName")
+      .populate("accumulatedDepreciationAccountId", "accountCode accountName");
 
-    if (!asset) return { error: "Asset not found" };
-    return { success: true, data: JSON.parse(JSON.stringify(asset)) };
+    if (!asset) throw new Error("Asset not found");
+
+    return { success: true, asset: JSON.parse(JSON.stringify(asset)) };
   } catch (error: any) {
-    return { error: error.message };
+    return { success: false, error: error.message };
   }
 }
 
 export const getFixedAssetById = await withAuth(_getFixedAssetById);
 
-async function _updateFixedAsset(user: User, id: string, data: any) {
+async function _updateFixedAsset(user: any, assetId: string, data: any) {
   try {
-    const hasPermission = await checkPermission("assets_edit");
-    if (!hasPermission) return { error: "You don't have permission to edit assets" };
-
     await connectToDB();
 
     const asset = await FixedAsset.findOneAndUpdate(
-      { _id: id, organizationId: user.organizationId, del_flag: false },
-      { ...data, modifiedBy: user._id || user.id, $inc: { mod_flag: 1 } },
+      { _id: assetId, organizationId: user.organizationId, del_flag: false },
+      { ...data, modifiedBy: user._id, mod_flag: 1 },
       { new: true }
     );
 
-    if (!asset) return { error: "Asset not found" };
+    if (!asset) throw new Error("Asset not found");
 
-    revalidatePath(`/${user.organizationId}/dashboard/${user.id}/assets/all`);
-    return { success: true, data: JSON.parse(JSON.stringify(asset)) };
+    revalidatePath("/dashboard/fixed-assets");
+    return { success: true, asset: JSON.parse(JSON.stringify(asset)) };
   } catch (error: any) {
-    return { error: error.message };
+    return { success: false, error: error.message };
   }
 }
 
 export const updateFixedAsset = await withAuth(_updateFixedAsset);
 
-async function _deleteFixedAsset(user: User, id: string) {
+async function _deleteFixedAsset(user: any, assetId: string) {
   try {
-    const hasPermission = await checkPermission("assets_delete");
-    if (!hasPermission) return { error: "You don't have permission to delete assets" };
-
     await connectToDB();
 
-    const asset = await FixedAsset.findOneAndUpdate(
-      { _id: id, organizationId: user.organizationId },
-      { del_flag: true, deletedBy: user._id || user.id },
-      { new: true }
+    await FixedAsset.findOneAndUpdate(
+      { _id: assetId, organizationId: user.organizationId },
+      { del_flag: true, modifiedBy: user._id, mod_flag: 1 }
     );
 
-    if (!asset) return { error: "Asset not found" };
-
-    revalidatePath(`/${user.organizationId}/dashboard/${user.id}/assets/all`);
+    revalidatePath("/dashboard/fixed-assets");
     return { success: true };
   } catch (error: any) {
-    return { error: error.message };
+    return { success: false, error: error.message };
   }
 }
 
 export const deleteFixedAsset = await withAuth(_deleteFixedAsset);
+
+export const getFixedAssets = getAllFixedAssets;

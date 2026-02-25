@@ -2,11 +2,10 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import { format } from "date-fns";
+import { LeaveRequestDialog } from "./leave-request-dialog";
 
-export default function EmployeeLeaveRequests({ leaveRequests }: any) {
+export default function EmployeeLeaveRequests({ leaveRequests, employeeId }: any) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "approved": return "default";
@@ -24,10 +23,7 @@ export default function EmployeeLeaveRequests({ leaveRequests }: any) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Leave Requests</CardTitle>
-        <Button size="sm">
-          <Plus className="h-4 w-4 mr-1" />
-          Request Leave
-        </Button>
+        <LeaveRequestDialog employeeId={employeeId} />
       </CardHeader>
       <CardContent>
         {leaveRequests.length === 0 ? (

@@ -89,6 +89,9 @@ interface IOrganization {
     enableLeaveManagement?: boolean
     defaultWorkingHours?: number
     defaultWorkingDays?: number
+    salaryExpenseAccountId?: Schema.Types.ObjectId
+    salaryPayableAccountId?: Schema.Types.ObjectId
+    taxPayableAccountId?: Schema.Types.ObjectId
   }
   
   emailSettings?: {
@@ -249,7 +252,10 @@ const OrganizationSchema: Schema<IOrganization> = new Schema({
     enableTimeTracking: { type: Boolean, default: true },
     enableLeaveManagement: { type: Boolean, default: true },
     defaultWorkingHours: { type: Number, default: 8 },
-    defaultWorkingDays: { type: Number, default: 5 }
+    defaultWorkingDays: { type: Number, default: 5 },
+    salaryExpenseAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    salaryPayableAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    taxPayableAccountId: { type: Schema.Types.ObjectId, ref: "Account" }
   },
   
   emailSettings: {

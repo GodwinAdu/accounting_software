@@ -20,7 +20,7 @@ export default async function PipelinePage({ params }: { params: Props }) {
   }
 
   const result = await getOpportunities();
-  const opportunities = result.success ? result.data : [];
+  const opportunities = result.success ? (result.opportunities || []) : [];
 
   return (
     <div className="space-y-6">

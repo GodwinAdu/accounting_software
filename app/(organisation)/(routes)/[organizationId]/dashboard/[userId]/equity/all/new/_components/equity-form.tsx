@@ -41,14 +41,13 @@ import { Separator } from "@/components/ui/separator";
 import { AccountSelector } from "@/components/forms/account-selector";
 
 const equitySchema = z.object({
-  transactionNumber: z.string().min(1, "Transaction number is required"),
   transactionType: z.enum(["investment", "drawing", "dividend"]),
   transactionDate: z.date(),
   amount: z.number().min(0.01, "Amount must be greater than 0"),
   ownerName: z.string().min(1, "Owner name is required"),
   description: z.string().min(1, "Description is required"),
-  equityAccountId: z.string().optional(),
-  cashAccountId: z.string().optional(),
+  equityAccountId: z.string().min(1, "Equity account is required"),
+  cashAccountId: z.string().min(1, "Cash account is required"),
 });
 
 type EquityFormValues = z.infer<typeof equitySchema>;
@@ -61,7 +60,6 @@ export function EquityForm() {
   const form = useForm<EquityFormValues>({
     resolver: zodResolver(equitySchema),
     defaultValues: {
-      transactionNumber: `EQ-${Date.now().toString().slice(-6)}`,
       transactionType: "investment",
       transactionDate: new Date(),
       amount: 0,
@@ -110,21 +108,14 @@ export function EquityForm() {
                 <CardDescription>Enter the equity transaction details</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="transactionNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Transaction Number *</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="EQ-001" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-blue-900">
+                    <strong>Equity Transactions:</strong> Track owner investments, withdrawals, and profit distributions.
+                    All transactions automatically post to the General Ledger.
+                  </p>
+                </div>
 
+                <div className="grid grid-cols-1 gap-4">
                   <FormField
                     control={form.control}
                     name="transactionType"
@@ -244,28 +235,29 @@ export function EquityForm() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Accounting (Optional)</CardTitle>
+                <CardTitle>Account Selection</CardTitle>
+                <CardDescription>Select the accounts for this transaction</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground mb-4">
-                  Leave blank to use default accounts
-                </p>
-
                 <FormField
                   control={form.control}
                   name="equityAccountId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Equity Account</FormLabel>
+                      <FormLabel>Equity Account *</FormLabel>
                       <FormControl>
                         <AccountSelector
                           label=""
                           accountType="equity"
                           value={field.value || ""}
                           onChange={field.onChange}
-                          placeholder="Default: Owner's Equity"
+                          placeholder="Select equity account"
                         />
                       </FormControl>
+                      <FormDescription>
+                        Owner's Equity, Retained Earnings, or Capital account
+                      </FormDescription>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -275,16 +267,20 @@ export function EquityForm() {
                   name="cashAccountId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Cash Account</FormLabel>
+                      <FormLabel>Cash Account *</FormLabel>
                       <FormControl>
                         <AccountSelector
                           label=""
                           accountType="asset"
                           value={field.value || ""}
                           onChange={field.onChange}
-                          placeholder="Default: Cash"
+                          placeholder="Select cash account"
                         />
                       </FormControl>
+                      <FormDescription>
+                        Cash or Bank account for the transaction
+                      </FormDescription>
+                      <FormMessage />
                     </FormItem>
                   )}
                 />

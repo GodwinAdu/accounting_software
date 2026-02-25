@@ -13,6 +13,8 @@ export interface IProject extends Document {
   actualCost: number;
   revenue: number;
   managerId: mongoose.Types.ObjectId;
+  revenueAccountId?: mongoose.Types.ObjectId;
+  expenseAccountId?: mongoose.Types.ObjectId;
   del_flag: boolean;
   createdBy: mongoose.Types.ObjectId;
   modifiedBy?: mongoose.Types.ObjectId;
@@ -34,6 +36,8 @@ const ProjectSchema = new Schema<IProject>(
     actualCost: { type: Number, default: 0 },
     revenue: { type: Number, default: 0 },
     managerId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    revenueAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    expenseAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     del_flag: { type: Boolean, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     modifiedBy: { type: Schema.Types.ObjectId, ref: "User" },

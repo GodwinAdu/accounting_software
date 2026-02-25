@@ -15,14 +15,14 @@ interface OpportunitiesListProps {
   userId: string;
 }
 
-export default function OpportunitiesList({ opportunities, hasCreatePermission }: OpportunitiesListProps) {
+export default function OpportunitiesList({ opportunities = [], hasCreatePermission }: OpportunitiesListProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const totalOpportunities = opportunities.length;
-  const openOpportunities = opportunities.filter(o => !["closed-won", "closed-lost"].includes(o.stage)).length;
-  const wonOpportunities = opportunities.filter(o => o.stage === "closed-won").length;
-  const totalValue = opportunities.reduce((sum, o) => sum + (o.value || 0), 0);
-  const wonValue = opportunities.filter(o => o.stage === "closed-won").reduce((sum, o) => sum + (o.value || 0), 0);
+  const openOpportunities = opportunities.filter(o => !["closed_won", "closed_lost"].includes(o.stage)).length;
+  const wonOpportunities = opportunities.filter(o => o.stage === "closed_won").length;
+  const totalValue = opportunities.reduce((sum, o) => sum + (o.amount || 0), 0);
+  const wonValue = opportunities.filter(o => o.stage === "closed_won").reduce((sum, o) => sum + (o.amount || 0), 0);
   const avgProbability = opportunities.length > 0 ? Math.round(opportunities.reduce((sum, o) => sum + o.probability, 0) / opportunities.length) : 0;
 
   const filterGroups = [
@@ -34,8 +34,8 @@ export default function OpportunitiesList({ opportunities, hasCreatePermission }
         { _id: "qualification", label: "Qualification" },
         { _id: "proposal", label: "Proposal" },
         { _id: "negotiation", label: "Negotiation" },
-        { _id: "closed-won", label: "Closed Won" },
-        { _id: "closed-lost", label: "Closed Lost" },
+        { _id: "closed_won", label: "Closed Won" },
+        { _id: "closed_lost", label: "Closed Lost" },
       ],
     },
   ];

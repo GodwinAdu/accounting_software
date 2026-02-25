@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Input } from "@/components/ui/input"
-import { fetchOrganizationUserById } from "@/lib/actions/organization.action"
+import { fetchOrganizationUserById, updateSecuritySettings } from "@/lib/actions/organization.action"
 import { Loader2, Shield, Lock, Clock } from "lucide-react"
 import { toast } from "sonner"
 
@@ -42,8 +42,12 @@ export default function SecurityTab() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      // TODO: Implement security settings update
-      toast.success("Security settings updated successfully")
+      const result = await updateSecuritySettings(settings)
+      if (result.success) {
+        toast.success("Security settings updated successfully")
+      } else {
+        toast.error(result.error || "Failed to update security settings")
+      }
     } catch (error) {
       toast.error("Failed to update security settings")
     } finally {
@@ -74,7 +78,7 @@ export default function SecurityTab() {
             <div className="space-y-0.5">
               <Label htmlFor="2fa">Require Two-Factor Authentication</Label>
               <p className="text-sm text-muted-foreground">
-                Force all users to enable 2FA for enhanced security
+                Force all users to enable 2FA for enhanced security. Users without 2FA will be blocked from logging in.
               </p>
             </div>
             <Switch
@@ -139,7 +143,7 @@ export default function SecurityTab() {
       </Card>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving}>
+        <Button onClick={handleSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Save Security Settings
         </Button>

@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Building2, DollarSign, TrendingDown, Users } from "lucide-react";
-import { getDepartmentBudgets } from "@/lib/actions/budget.action";
+import { getAllBudgets } from "@/lib/actions/budget.action";
+import CreateBudgetDialog from "../annual/_components/create-budget-dialog";
 
 type Props = Promise<{ organizationId: string; userId: string }>;
 
@@ -17,11 +18,17 @@ export default async function DepartmentBudgetsPage({ params }: { params: Props 
 
   const { organizationId, userId } = await params;
 
-  const hasViewPermission = await checkPermission("departmentBudgets_view");
+  const hasViewPermission = await checkPermission("budgeting_view");
   if (!hasViewPermission) redirect(`/${organizationId}/dashboard/${userId}`);
 
-  const { budgets, departments, summary } = await getDepartmentBudgets();
-  const { totalDepartments, totalAllocated, totalSpent, overBudget } = summary;
+  const result = await getAllBudgets();
+  const budgets = result.success ? (result.budgets || []) : [];
+  const departmentBudgets = budgets.filter(b => b.departmentId);
+  
+  const totalDepartments = new Set(departmentBudgets.map(b => b.departmentId?._id)).size;
+  const totalAllocated = departmentBudgets.reduce((sum, b) => sum + b.totalBudget, 0);
+  const totalSpent = 0;
+  const overBudget = 0;
 
   return (
     <div className="space-y-6">
@@ -77,10 +84,12 @@ export default async function DepartmentBudgetsPage({ params }: { params: Props 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Department Budgets</CardTitle>
-          <Button size="sm">Allocate Budget</Button>
+          <CreateBudgetDialog>
+            <Button size="sm" className="bg-gradient-to-r from-emerald-600 to-teal-600">Allocate Budget</Button>
+          </CreateBudgetDialog>
         </CardHeader>
         <CardContent>
-          {budgets.length === 0 ? (
+          {departmentBudgets.length === 0 ? (
             <div className="text-center py-12">
               <Building2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">No department budgets allocated</p>
@@ -88,9 +97,9 @@ export default async function DepartmentBudgetsPage({ params }: { params: Props 
             </div>
           ) : (
             <div className="space-y-3">
-              {budgets.map((budget: any) => {
-                const utilization = budget.totalBudgeted > 0 ? ((budget.totalActual / budget.totalBudgeted) * 100).toFixed(1) : "0.0";
-                const isOverBudget = budget.totalActual > budget.totalBudgeted;
+              {departmentBudgets.map((budget: any) => {
+                const utilization = "0.0";
+                const isOverBudget = false;
                 return (
                   <div key={budget._id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
                     <div className="flex items-center gap-3">
@@ -98,21 +107,21 @@ export default async function DepartmentBudgetsPage({ params }: { params: Props 
                       <div>
                         <p className="font-medium">{budget.departmentId?.name || "Unknown Department"}</p>
                         <p className="text-sm text-muted-foreground">
-                          Budget: GHS {budget.totalBudgeted.toLocaleString()} • Spent: GHS {budget.totalActual.toLocaleString()}
+                          Budget: GHS {budget.totalBudget.toLocaleString()}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <p className={`text-sm font-medium ${isOverBudget ? 'text-red-600' : 'text-emerald-600'}`}>
-                          {utilization}% utilized
+                        <p className="text-sm font-medium text-muted-foreground">
+                          {budget.lineItems?.length || 0} accounts
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          GHS {(budget.totalBudgeted - budget.totalActual).toLocaleString()} remaining
+                          {budget.fiscalYear}
                         </p>
                       </div>
-                      <Badge variant={isOverBudget ? "destructive" : "default"}>
-                        {isOverBudget ? "Over Budget" : "On Track"}
+                      <Badge variant={budget.status === "active" ? "default" : "secondary"}>
+                        {budget.status}
                       </Badge>
                     </div>
                   </div>

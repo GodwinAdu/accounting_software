@@ -1,12 +1,14 @@
-import { Play, Download, Eye } from "lucide-react";
+import { Eye, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import Heading from "@/components/commons/Header";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getEmployees } from "@/lib/actions/employee.action";
 import { getDeductions } from "@/lib/actions/deduction.action";
+import { fetchOrganizationUserById } from "@/lib/actions/organization.action";
+import { PayrollRunClient } from "./_components/payroll-run-client";
+import Link from "next/link";
 
 export default async function PayrollRunPage({
   params,
@@ -15,13 +17,18 @@ export default async function PayrollRunPage({
 }) {
   const { organizationId, userId } = await params;
 
-  const [employeesResult, deductionsResult] = await Promise.all([
+  const [employeesResult, deductionsResult, org] = await Promise.all([
     getEmployees(),
     getDeductions(),
+    fetchOrganizationUserById(),
   ]);
 
   const employees = (employeesResult.data || []).filter((e: any) => e.status === "active");
   const deductions = (deductionsResult.data || []).filter((d: any) => d.status === "active");
+  
+  const hasPayrollAccounts = org.payrollSettings?.salaryExpenseAccountId && 
+                             org.payrollSettings?.salaryPayableAccountId && 
+                             org.payrollSettings?.taxPayableAccountId;
 
   const payrollData = employees.map((emp: any) => {
     let totalDeductions = 0;
@@ -52,24 +59,23 @@ export default async function PayrollRunPage({
           title="Run Payroll"
           description="Process employee salaries and generate payslips"
         />
-        <div className="flex gap-3">
-          <Select defaultValue="2024-01">
-            <SelectTrigger className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="2024-01">January 2024</SelectItem>
-              <SelectItem value="2024-02">February 2024</SelectItem>
-              <SelectItem value="2024-03">March 2024</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button className="bg-emerald-600 hover:bg-emerald-700">
-            <Play className="mr-2 h-4 w-4" />
-            Run Payroll
-          </Button>
-        </div>
+        <PayrollRunClient payrollData={payrollData} totalGross={totalGross} totalDeductions={totalDeductions} totalNet={totalNet} />
       </div>
       <Separator />
+
+      {!hasPayrollAccounts && (
+        <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-950">
+          <Settings className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="ml-2">
+            <span className="font-medium text-amber-900 dark:text-amber-100">Payroll accounts not configured.</span>
+            <span className="text-amber-700 dark:text-amber-200"> Please set up your payroll account mapping in </span>
+            <Link href={`/${organizationId}/dashboard/${userId}/settings/company?tab=payroll`} className="font-medium underline text-amber-900 dark:text-amber-100 hover:text-amber-700">
+              Company Settings → Payroll
+            </Link>
+            <span className="text-amber-700 dark:text-amber-200"> to ensure payroll transactions are recorded correctly. Default accounts will be created if not configured.</span>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

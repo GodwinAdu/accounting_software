@@ -69,9 +69,9 @@ async function _getEmployees(user: any) {
       organizationId: user.organizationId,
       del_flag: false,
     })
-      .populate("userId", "firstName lastName email phone")
+      .populate("userId", "fullName email phone")
       .sort({ createdAt: -1 });
-      console.log('employees', employees)
+   
 
     return { success: true, data: JSON.parse(JSON.stringify(employees)) };
   } catch (error: any) {

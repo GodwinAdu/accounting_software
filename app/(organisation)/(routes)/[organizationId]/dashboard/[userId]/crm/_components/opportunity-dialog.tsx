@@ -11,12 +11,12 @@ import { createOpportunity, updateOpportunity } from "@/lib/actions/opportunity.
 import { usePathname } from "next/navigation";
 
 export default function OpportunityDialog({ open, onOpenChange, opportunity, onSuccess }: any) {
-  const [formData, setFormData] = useState({ name: "", value: 0, stage: "prospecting", probability: 0, expectedCloseDate: "", notes: "" });
+  const [formData, setFormData] = useState({ name: "", amount: 0, stage: "prospecting", probability: 0, expectedCloseDate: "", notes: "" });
   const pathname = usePathname();
 
   useEffect(() => {
     if (opportunity) setFormData(opportunity);
-    else setFormData({ name: "", value: 0, stage: "prospecting", probability: 0, expectedCloseDate: "", notes: "" });
+    else setFormData({ name: "", amount: 0, stage: "prospecting", probability: 0, expectedCloseDate: "", notes: "" });
   }, [opportunity]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,7 +42,7 @@ export default function OpportunityDialog({ open, onOpenChange, opportunity, onS
             </div>
             <div>
               <Label>Value *</Label>
-              <Input type="number" value={formData.value} onChange={(e) => setFormData({ ...formData, value: Number(e.target.value) })} required />
+              <Input type="number" value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })} required />
             </div>
             <div>
               <Label>Stage</Label>
@@ -53,8 +53,8 @@ export default function OpportunityDialog({ open, onOpenChange, opportunity, onS
                   <SelectItem value="qualification">Qualification</SelectItem>
                   <SelectItem value="proposal">Proposal</SelectItem>
                   <SelectItem value="negotiation">Negotiation</SelectItem>
-                  <SelectItem value="closed-won">Closed Won</SelectItem>
-                  <SelectItem value="closed-lost">Closed Lost</SelectItem>
+                  <SelectItem value="closed_won">Closed Won</SelectItem>
+                  <SelectItem value="closed_lost">Closed Lost</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -1,125 +1,135 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { connectToDB } from "@/lib/connection/mongoose";
 import Opportunity from "@/lib/models/opportunity.model";
-import { checkPermission } from "@/lib/helpers/check-permission";
-import { checkWriteAccess } from "@/lib/helpers/check-write-access";
-import { connectToDB } from "../connection/mongoose";
-import { withAuth, type User } from "../helpers/auth";
-import { logAudit } from "../helpers/audit";
+import { withAuth } from "@/lib/helpers/auth";
+import { revalidatePath } from "next/cache";
 
-async function _createOpportunity(user: User, data: any, path: string) {
+async function _createOpportunity(user: any, data: {
+  name: string;
+  customerId?: string;
+  leadId?: string;
+  amount: number;
+  probability?: number;
+  expectedCloseDate: Date;
+  source?: string;
+  description?: string;
+}) {
   try {
-    await checkWriteAccess(String(user.organizationId));
-    const hasPermission = await checkPermission("opportunities_create");
-    if (!hasPermission) return { error: "No permission" };
-
     await connectToDB();
-    const opportunityNumber = `OPP-${Date.now().toString().slice(-6)}`;
+
+    const count = await Opportunity.countDocuments({ organizationId: user.organizationId });
+    const opportunityNumber = `OPP-${String(count + 1).padStart(5, "0")}`;
 
     const opportunity = await Opportunity.create({
       ...data,
       opportunityNumber,
       organizationId: user.organizationId,
+      stage: "prospecting",
+      probability: data.probability || 50,
+      assignedTo: user._id,
+      del_flag: false,
       createdBy: user._id,
+      mod_flag: false,
     });
 
-    await logAudit({
-      organizationId: String(user.organizationId),
-      userId: String(user._id || user.id),
-      action: "create",
-      resource: "opportunity",
-      resourceId: String(opportunity._id),
-      details: { after: opportunity },
-    });
-
-    revalidatePath(path);
-    return { success: true, data: JSON.parse(JSON.stringify(opportunity)) };
+    revalidatePath("/dashboard/crm/opportunities");
+    return { success: true, opportunity: JSON.parse(JSON.stringify(opportunity)) };
   } catch (error: any) {
-    return { error: error.message };
-  }
-}
-
-async function _getOpportunities(user: User) {
-  try {
-    const hasPermission = await checkPermission("opportunities_view");
-    if (!hasPermission) return { error: "No permission" };
-
-    await connectToDB();
-    const opportunities = await Opportunity.find({ organizationId: user.organizationId, del_flag: false })
-      .populate("assignedTo", "fullName")
-      .populate("contactId", "firstName lastName")
-      .sort({ createdAt: -1 });
-
-    return { success: true, data: JSON.parse(JSON.stringify(opportunities)) };
-  } catch (error: any) {
-    return { error: error.message };
-  }
-}
-
-async function _updateOpportunity(user: User, id: string, data: any, path: string) {
-  try {
-    await checkWriteAccess(String(user.organizationId));
-    const hasPermission = await checkPermission("opportunities_update");
-    if (!hasPermission) return { error: "No permission" };
-
-    await connectToDB();
-    const opportunity = await Opportunity.findOneAndUpdate(
-      { _id: id, organizationId: user.organizationId, del_flag: false },
-      { ...data, modifiedBy: user._id, mod_flag: true },
-      { new: true }
-    );
-
-    if (!opportunity) return { error: "Opportunity not found" };
-
-    await logAudit({
-      organizationId: String(user.organizationId),
-      userId: String(user._id || user.id),
-      action: "update",
-      resource: "opportunity",
-      resourceId: id,
-      details: { after: opportunity },
-    });
-
-    revalidatePath(path);
-    return { success: true, data: JSON.parse(JSON.stringify(opportunity)) };
-  } catch (error: any) {
-    return { error: error.message };
-  }
-}
-
-async function _deleteOpportunity(user: User, id: string, path: string) {
-  try {
-    await checkWriteAccess(String(user.organizationId));
-    const hasPermission = await checkPermission("opportunities_delete");
-    if (!hasPermission) return { error: "No permission" };
-
-    await connectToDB();
-    const opportunity = await Opportunity.findOneAndUpdate(
-      { _id: id, organizationId: user.organizationId, del_flag: false },
-      { del_flag: true, deletedBy: user._id },
-      { new: true }
-    );
-
-    if (!opportunity) return { error: "Opportunity not found" };
-
-    await logAudit({
-      organizationId: String(user.organizationId),
-      userId: String(user._id || user.id),
-      action: "delete",
-      resource: "opportunity",
-      resourceId: id,
-      details: { before: opportunity },
-    });
-
-    revalidatePath(path);
-    return { success: true };
-  } catch (error: any) {
-    return { error: error.message };
+    return { success: false, error: error.message };
   }
 }
 
 export const createOpportunity = await withAuth(_createOpportunity);
-export const getOpportunities = await withAuth(_getOpportunities);
+
+async function _getAllOpportunities(user: any) {
+  try {
+    await connectToDB();
+
+    const opportunities = await Opportunity.find({
+      organizationId: user.organizationId,
+      del_flag: false,
+    })
+      .populate("customerId", "name email company")
+      .populate("leadId", "name email")
+      .sort({ createdAt: -1 });
+
+    return { success: true, opportunities: JSON.parse(JSON.stringify(opportunities)) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export const getAllOpportunities = await withAuth(_getAllOpportunities);
+
+async function _updateOpportunityStage(user: any, opportunityId: string, stage: string) {
+  try {
+    await connectToDB();
+
+    const updateData: any = {
+      stage,
+      modifiedBy: user._id,
+      mod_flag: true,
+    };
+
+    if (stage === "closed_won" || stage === "closed_lost") {
+      updateData.actualCloseDate = new Date();
+    }
+
+    const opportunity = await Opportunity.findOneAndUpdate(
+      { _id: opportunityId, organizationId: user.organizationId, del_flag: false },
+      updateData,
+      { new: true }
+    );
+
+    if (!opportunity) throw new Error("Opportunity not found");
+
+    revalidatePath("/dashboard/crm/opportunities");
+    return { success: true, opportunity: JSON.parse(JSON.stringify(opportunity)) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export const updateOpportunityStage = await withAuth(_updateOpportunityStage);
+
+async function _updateOpportunity(user: any, opportunityId: string, data: any) {
+  try {
+    await connectToDB();
+
+    const opportunity = await Opportunity.findOneAndUpdate(
+      { _id: opportunityId, organizationId: user.organizationId, del_flag: false },
+      { ...data, modifiedBy: user._id, mod_flag: true },
+      { new: true }
+    );
+
+    if (!opportunity) throw new Error("Opportunity not found");
+
+    revalidatePath("/dashboard/crm/opportunities");
+    return { success: true, opportunity: JSON.parse(JSON.stringify(opportunity)) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 export const updateOpportunity = await withAuth(_updateOpportunity);
+
+async function _deleteOpportunity(user: any, opportunityId: string) {
+  try {
+    await connectToDB();
+
+    await Opportunity.findOneAndUpdate(
+      { _id: opportunityId, organizationId: user.organizationId },
+      { del_flag: true, modifiedBy: user._id, mod_flag: true }
+    );
+
+    revalidatePath("/dashboard/crm/opportunities");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 export const deleteOpportunity = await withAuth(_deleteOpportunity);
+
+export const getOpportunities = getAllOpportunities;

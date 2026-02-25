@@ -7,15 +7,18 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Bell, ChevronDown, Settings, LogOut, User, Lock} from 'lucide-react'
+import { Bell, Settings, LogOut, User, Lock, HelpCircle, Keyboard, Shield, CreditCard, Building2 } from 'lucide-react'
 import { Badge } from "@/components/ui/badge"
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { logout } from '@/lib/helpers/session'
+import { ModeToggle } from '../theme/mode-toggle'
+import { useParams} from 'next/navigation'
 
 
 interface UserDropdownProps {
@@ -26,6 +29,9 @@ interface UserDropdownProps {
 }
 
 export default function UserDropdown({ username, avatarUrl, email, notificationCount = 0 }: UserDropdownProps) {
+
+  const params = useParams()
+  const {organizationId,userId} = params
   const [isOpen, setIsOpen] = useState(false)
 
   const handleLogout = async () => {
@@ -46,51 +52,89 @@ export default function UserDropdown({ username, avatarUrl, email, notificationC
 
   return (
     <div className="flex items-center space-x-3">
-      {/* <div className="relative">
-        <Bell className="h-5 w-5 text-gray-300 hover:text-white cursor-pointer" />
+      <div className="relative">
+        <Bell className="h-5 w-5 text-muted-foreground hover:text-foreground cursor-pointer transition-colors" />
         {notificationCount > 0 && (
           <Badge
-            className="absolute -top-2 -right-2 h-4 min-w-4 px-1 bg-[#FFA116] hover:bg-[#FFA116] text-[10px] flex items-center justify-center rounded-full"
+            className="absolute -top-2 -right-2 h-4 min-w-4 px-1 bg-emerald-600 hover:bg-emerald-600 text-white text-[10px] flex items-center justify-center rounded-full"
           >
             {notificationCount}
           </Badge>
         )}
-      </div> */}
+      </div>
 
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-        <DropdownMenuTrigger className="flex items-center space-x-2 focus:outline-hidden">
-          <Avatar className="h-8 w-8 border-2 border-transparent hover:border-[#FFA116] transition-colors">
+        <DropdownMenuTrigger className="flex items-center space-x-2 focus:outline-none">
+          <Avatar className="h-9 w-9 border-2 border-emerald-500/20 hover:border-emerald-500/40 transition-colors">
             <AvatarImage src={avatarUrl} alt={username} />
-            <AvatarFallback className="bg-black text-white">
+            <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-teal-600 text-white font-bold">
               {username?.[0]?.toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          className="w-[280px] shadow-xl bg-card backdrop-blur-xs  text-card-foreground p-4"
+          className="w-72 shadow-xl rounded-lg p-2"
           align="end"
         >
-          <div className="flex items-start space-x-3 mb-3">
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={avatarUrl} alt={username} />
-              <AvatarFallback className="bg-black text-white">
-                {username?.[0]?.toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col">
-              <span className="text-card-foreground font-bold">{username}</span>
-              <span className="text-[#FFA116] text-sm">
-                {email}
-              </span>
+          <DropdownMenuLabel className="p-0 font-normal">
+            <div className="flex items-center gap-3 px-3 py-3">
+              <Avatar className="h-12 w-12 border-2 border-emerald-500/20">
+                <AvatarImage src={avatarUrl} alt={username} />
+                <AvatarFallback className="bg-gradient-to-br from-emerald-600 to-teal-600 text-white font-bold text-lg">
+                  {username?.[0]?.toUpperCase() || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="font-semibold text-base truncate">{username}</span>
+                <span className="text-sm text-muted-foreground truncate">
+                  {email}
+                </span>
+              </div>
             </div>
-          </div>
-          <DropdownMenuSeparator className="bg-card-foreground" />
+          </DropdownMenuLabel>
+          
+          <DropdownMenuSeparator />
 
-          <DropdownMenuGroup className="space-y-1">
-            <MenuItem icon={User} label="Profile" href={`/dashboard/profile`} />
-            <MenuItem icon={Lock} label="Reset Password" href={`/dashboard/reset-password`} />
-            <MenuItem icon={LogOut} label="Sign Out" onClick={handleLogout} />
+          <DropdownMenuGroup>
+            <MenuItem icon={User} label="My Profile" href={`/${organizationId}/dashboard/${userId}/profile`} />
+            <MenuItem icon={Building2} label="Company Settings" href={`/${organizationId}/dashboard/${userId}/settings/company`} />
+            <MenuItem icon={Settings} label="Preferences" href={`/${organizationId}/dashboard/${userId}/settings/preferences` } />
           </DropdownMenuGroup>
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuGroup>
+            <div className="flex gap-2 items-center px-3 py-2">
+              <ModeToggle />
+              <span className="text-sm font-medium">Theme</span>
+            </div>
+            <MenuItem icon={Keyboard} label="Keyboard Shortcuts" href={`/${organizationId}/dashboard/${userId}/settings/shortcuts`} />
+          </DropdownMenuGroup>
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuGroup>
+            <MenuItem icon={CreditCard} label="Billing & Subscription" href={`/${organizationId}/dashboard/${userId}/settings/company?tab=subscription` } />
+            <MenuItem icon={Shield} label="Security" href={`/${organizationId}/dashboard/${userId}/settings/company?tab=security`} />
+            <MenuItem icon={Lock} label="Change Password" href={`/${organizationId}/dashboard/${userId}/settings/password}`} />
+          </DropdownMenuGroup>
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuGroup>
+            <MenuItem icon={HelpCircle} label="Help & Support" href={`/${organizationId}/dashboard/${userId}/help`} />
+            <MenuItem icon={Bell} label="What's New" href="/changelog" />
+          </DropdownMenuGroup>
+          
+          <DropdownMenuSeparator />
+          
+          <DropdownMenuItem 
+            onClick={handleLogout}
+            className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/20"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            <span>Log Out</span>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
@@ -98,14 +142,27 @@ export default function UserDropdown({ username, avatarUrl, email, notificationC
 }
 
 
-function MenuItem({ icon: Icon, label, hasChevron, onClick, disabled, href }: { icon: LucideIcon; label: string; hasChevron?: boolean, onClick?: () => void, disabled?: boolean, href?: string }) {
-  return (
-    <DropdownMenuItem disabled={disabled} onClick={onClick}>
-      <Link href={href || '#'} className="flex items-center px-2 py-2  rounded-md cursor-pointer" >
-        <Icon className="h-5 w-5 mr-3" />
-        <span className="grow">{label}</span>
-        {hasChevron && <ChevronDown className="h-4 w-4 rotate-[-90deg]" />}
+function MenuItem({ icon: Icon, label, onClick, disabled, href }: { icon: LucideIcon; label: string; onClick?: () => void; disabled?: boolean; href?: string }) {
+  const content = (
+    <>
+      <Icon className="h-4 w-4 mr-2" />
+      <span>{label}</span>
+    </>
+  )
+
+  if (href) {
+    return (
+      <Link href={href}>
+        <DropdownMenuItem disabled={disabled} className="cursor-pointer">
+          {content}
+        </DropdownMenuItem>
       </Link>
+    )
+  }
+
+  return (
+    <DropdownMenuItem disabled={disabled} onClick={onClick} className="cursor-pointer">
+      {content}
     </DropdownMenuItem>
   )
 }

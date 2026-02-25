@@ -12,7 +12,7 @@ export type Opportunity = {
   _id: string;
   opportunityNumber: string;
   name: string;
-  value: number;
+  amount: number;
   stage: string;
   probability: number;
   expectedCloseDate: string;
@@ -24,8 +24,8 @@ const getStageColor = (stage: string) => {
     qualification: "bg-yellow-100 text-yellow-700",
     proposal: "bg-orange-100 text-orange-700",
     negotiation: "bg-purple-100 text-purple-700",
-    "closed-won": "bg-green-100 text-green-700",
-    "closed-lost": "bg-red-100 text-red-700",
+    closed_won: "bg-green-100 text-green-700",
+    closed_lost: "bg-red-100 text-red-700",
   };
   return colors[stage] || "bg-gray-100 text-gray-700";
 };
@@ -42,9 +42,12 @@ export const columns: ColumnDef<Opportunity>[] = [
     cell: ({ row }) => <div className="font-medium">{row.getValue("name")}</div>,
   },
   {
-    accessorKey: "value",
+    accessorKey: "amount",
     header: "Value",
-    cell: ({ row }) => <div className="font-semibold">GHS {row.getValue<number>("value").toLocaleString()}</div>,
+    cell: ({ row }) => {
+      const amount = row.getValue<number>("amount");
+      return <div className="font-semibold">GHS {amount ? amount.toLocaleString() : '0'}</div>;
+    },
   },
   {
     accessorKey: "stage",

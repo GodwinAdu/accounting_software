@@ -9,38 +9,23 @@ import { CellAction } from "@/components/table/cell-action";
 
 export type Contact = {
   _id: string;
-  contactNumber: string;
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
-  company: string;
-  title: string;
-  type: string;
-};
-
-const getTypeColor = (type: string) => {
-  const colors: Record<string, string> = {
-    customer: "bg-blue-100 text-blue-700",
-    vendor: "bg-green-100 text-green-700",
-    partner: "bg-purple-100 text-purple-700",
-    other: "bg-gray-100 text-gray-700",
-  };
-  return colors[type] || "bg-gray-100 text-gray-700";
+  phone?: string;
+  jobTitle?: string;
+  customerId: any;
+  isPrimary: boolean;
 };
 
 export const columns: ColumnDef<Contact>[] = [
   {
-    accessorKey: "contactNumber",
-    header: "Contact #",
-    cell: ({ row }) => <div className="font-medium">{row.getValue("contactNumber")}</div>,
-  },
-  {
     accessorKey: "firstName",
     header: "Name",
     cell: ({ row }) => (
-      <div className="font-medium">
-        {row.getValue("firstName")} {row.original.lastName}
+      <div>
+        <div className="font-medium">{row.original.firstName} {row.original.lastName}</div>
+        {row.original.jobTitle && <div className="text-xs text-muted-foreground">{row.original.jobTitle}</div>}
       </div>
     ),
   },
@@ -51,25 +36,24 @@ export const columns: ColumnDef<Contact>[] = [
   {
     accessorKey: "phone",
     header: "Phone",
-    cell: ({ row }) => <div>{row.getValue("phone") || "—"}</div>,
+    cell: ({ row }) => row.getValue("phone") || "—",
   },
   {
-    accessorKey: "company",
-    header: "Company",
-    cell: ({ row }) => <div>{row.getValue("company") || "—"}</div>,
-  },
-  {
-    accessorKey: "title",
-    header: "Title",
-    cell: ({ row }) => <div>{row.getValue("title") || "—"}</div>,
-  },
-  {
-    accessorKey: "type",
-    header: "Type",
+    accessorKey: "customerId",
+    header: "Customer",
     cell: ({ row }) => {
-      const type = row.getValue("type") as string;
-      return <Badge className={getTypeColor(type)}>{type}</Badge>;
+      const customer = row.getValue("customerId") as any;
+      return customer?.name || "—";
     },
+  },
+  {
+    accessorKey: "isPrimary",
+    header: "Type",
+    cell: ({ row }) => (
+      <Badge variant={row.getValue("isPrimary") ? "default" : "secondary"}>
+        {row.getValue("isPrimary") ? "Primary" : "Secondary"}
+      </Badge>
+    ),
   },
   {
     id: "actions",
@@ -95,8 +79,8 @@ export const columns: ColumnDef<Contact>[] = [
             },
           ]}
           onDelete={async (id) => {
-            const result = await deleteContact(id, pathname);
-            if (result.error) throw new Error(result.error);
+            const result = await deleteContact(id);
+            if (!result.success) throw new Error(result.error);
           }}
         />
       );

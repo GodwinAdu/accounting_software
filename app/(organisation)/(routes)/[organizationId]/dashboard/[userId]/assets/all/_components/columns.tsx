@@ -11,12 +11,12 @@ export type FixedAsset = {
   _id: string;
   assetNumber: string;
   assetName: string;
-  assetType: "property" | "equipment" | "vehicle" | "furniture" | "other";
+  category: "building" | "equipment" | "vehicle" | "furniture" | "computer" | "land" | "other";
   purchaseDate: Date;
   purchasePrice: number;
   currentValue: number;
   accumulatedDepreciation: number;
-  status: "active" | "disposed" | "fully-depreciated";
+  status: "active" | "disposed" | "fully_depreciated";
 };
 
 export const columns: ColumnDef<FixedAsset>[] = [
@@ -32,18 +32,20 @@ export const columns: ColumnDef<FixedAsset>[] = [
     header: "Asset Name",
   },
   {
-    accessorKey: "assetType",
-    header: "Type",
+    accessorKey: "category",
+    header: "Category",
     cell: ({ row }) => {
-      const type = row.getValue("assetType") as string;
-      const typeConfig = {
-        property: "Property",
+      const category = row.getValue("category") as string;
+      const categoryConfig = {
+        building: "Building",
         equipment: "Equipment",
         vehicle: "Vehicle",
         furniture: "Furniture",
+        computer: "Computer",
+        land: "Land",
         other: "Other",
       };
-      return <Badge variant="outline">{typeConfig[type as keyof typeof typeConfig]}</Badge>;
+      return <Badge variant="outline">{categoryConfig[category as keyof typeof categoryConfig]}</Badge>;
     },
   },
   {
@@ -82,7 +84,7 @@ export const columns: ColumnDef<FixedAsset>[] = [
       const statusConfig = {
         active: { label: "Active", className: "bg-emerald-100 text-emerald-700" },
         disposed: { label: "Disposed", className: "bg-gray-100 text-gray-700" },
-        "fully-depreciated": { label: "Fully Depreciated", className: "bg-amber-100 text-amber-700" },
+        fully_depreciated: { label: "Fully Depreciated", className: "bg-amber-100 text-amber-700" },
       };
       const config = statusConfig[status as keyof typeof statusConfig];
       return <Badge className={config.className}>{config.label}</Badge>;

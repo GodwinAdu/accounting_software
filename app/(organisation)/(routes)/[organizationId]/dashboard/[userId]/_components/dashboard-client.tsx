@@ -15,6 +15,7 @@ import UpcomingReminders from "./upcoming-reminders";
 import TopCustomersVendors from "./top-customers-vendors";
 import AccountHealth from "./account-health";
 import ActivityFeed from "./activity-feed";
+import { TaxWidget } from "@/components/dashboard/tax-widget";
 import { DateRange } from "react-day-picker";
 import { getDashboardStats } from "@/lib/actions/dashboard.action";
 
@@ -222,6 +223,18 @@ export default function DashboardClient({ initialStats }: { initialStats: any })
             <Badge variant="secondary" className="mt-2 bg-emerald-100 text-emerald-700">Healthy</Badge>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <div className="md:col-span-1">
+          <TaxWidget
+            vatPayable={stats.vatData?.outputVAT || 0}
+            vatReceivable={stats.vatData?.inputVAT || 0}
+            netVAT={stats.vatData?.netVAT || 0}
+            organizationId={params.organizationId as string}
+            userId={params.userId as string}
+          />
+        </div>
       </div>
     </div>
   );

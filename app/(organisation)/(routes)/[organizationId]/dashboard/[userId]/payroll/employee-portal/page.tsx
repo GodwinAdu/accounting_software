@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Copy, Check, ExternalLink } from "lucide-react";
+import { getEmployees } from "@/lib/actions/employee.action";
+import { ClockInOut } from "../time-tracking/_components/clock-in-out";
 import Link from "next/link";
 
 type Props = Promise<{ organizationId: string; userId: string }>;
@@ -22,12 +24,17 @@ export default async function EmployeePortalPage({ params }: { params: Props }) 
   const hasViewPermission = await checkPermission("employeePortal_view");
   if (!hasViewPermission) redirect(`/${organizationId}/dashboard/${userId}`);
 
+  const employeesResult = await getEmployees();
+  const employees = employeesResult.data || [];
+  const currentEmployee = employees.find((e: any) => e.userId?._id === userId);
+
   const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/employee-portal/${organizationId}`;
 
   return (
     <div className="space-y-6">
       <Heading title="Employee Portal" description="Self-service portal for employees" />
       <Separator />
+    
       
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

@@ -26,7 +26,7 @@ export default async function EmployeesPage({
     _id: emp._id,
     id: emp._id,
     employeeId: emp.employeeNumber,
-    name: emp.userId ? `${emp.userId.firstName} ${emp.userId.lastName}` : "N/A",
+    name: emp.userId ? `${emp.userId.fullName}` : "N/A",
     email: emp.userId?.email || "N/A",
     phone: emp.userId?.phone || "N/A",
     department: emp.department,

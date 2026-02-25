@@ -7,6 +7,9 @@ export interface IExpense extends Document {
   categoryId?: mongoose.Types.ObjectId;
   date: Date;
   amount: number;
+  taxAmount: number;
+  taxRate: number;
+  isTaxable: boolean;
   paymentMethod: "cash" | "bank_transfer" | "mobile_money" | "cheque" | "card";
   reference?: string;
   description?: string;
@@ -14,6 +17,7 @@ export interface IExpense extends Document {
   status: "pending" | "approved" | "paid" | "rejected";
   expenseAccountId?: mongoose.Types.ObjectId;
   paymentAccountId?: mongoose.Types.ObjectId;
+  projectId?: mongoose.Types.ObjectId;
   approvedBy?: mongoose.Types.ObjectId;
   approvedAt?: Date;
   rejectedBy?: mongoose.Types.ObjectId;
@@ -38,6 +42,9 @@ const ExpenseSchema = new Schema<IExpense>(
     categoryId: { type: Schema.Types.ObjectId, ref: "ExpenseCategory" },
     date: { type: Date, required: true },
     amount: { type: Number, required: true },
+    taxAmount: { type: Number, default: 0 },
+    taxRate: { type: Number, default: 0 },
+    isTaxable: { type: Boolean, default: true },
     paymentMethod: { type: String, enum: ["cash", "bank_transfer", "mobile_money", "cheque", "card"], required: true },
     reference: { type: String },
     description: { type: String },
@@ -45,6 +52,7 @@ const ExpenseSchema = new Schema<IExpense>(
     status: { type: String, enum: ["pending", "approved", "paid", "rejected"], default: "pending" },
     expenseAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     paymentAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
+    projectId: { type: Schema.Types.ObjectId, ref: "Project" },
     approvedBy: { type: Schema.Types.ObjectId, ref: "User" },
     approvedAt: { type: Date },
     rejectedBy: { type: Schema.Types.ObjectId, ref: "User" },

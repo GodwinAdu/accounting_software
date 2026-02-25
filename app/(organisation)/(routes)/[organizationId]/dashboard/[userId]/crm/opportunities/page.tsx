@@ -22,7 +22,7 @@ export default async function OpportunitiesPage({ params }: { params: Props }) {
   const hasCreatePermission = await checkPermission("opportunities_create");
 
   const result = await getOpportunities();
-  const opportunities = result.success ? result.data : [];
+  const opportunities = result.success ? (result.opportunities || []) : [];
 
   return (
     <div className="space-y-6">

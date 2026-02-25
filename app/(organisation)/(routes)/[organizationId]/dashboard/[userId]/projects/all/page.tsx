@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { currentUser } from "@/lib/helpers/session";
 import { redirect } from "next/navigation";
 import Heading from "@/components/commons/Header";
@@ -17,7 +18,7 @@ export default async function ProjectsAllPage({ params }: { params: Props }) {
 
   const { organizationId, userId } = await params;
 
-  const hasViewPermission = await checkPermission("projects  _view");
+  const hasViewPermission = await checkPermission("projects_view");
   if (!hasViewPermission) redirect(`/${organizationId}/dashboard/${userId}`);
 
   const { projects, summary } = await getAllProjects();
@@ -77,7 +78,9 @@ export default async function ProjectsAllPage({ params }: { params: Props }) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>All Projects</CardTitle>
-          <Button size="sm">Create Project</Button>
+          <Link href={`/${organizationId}/dashboard/${userId}/projects/all/new`}>
+            <Button size="sm">Create Project</Button>
+          </Link>
         </CardHeader>
         <CardContent>
           {projects.length === 0 ? (
@@ -91,7 +94,8 @@ export default async function ProjectsAllPage({ params }: { params: Props }) {
               {projects.map((project: any) => {
                 const progress = project.budget > 0 ? ((project.actualCost / project.budget) * 100).toFixed(0) : "0";
                 return (
-                  <div key={project._id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
+                  <Link key={project._id} href={`/${organizationId}/dashboard/${userId}/projects/all/${project._id}`}>
+                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
                     <div className="flex items-center gap-3">
                       <Briefcase className="h-5 w-5 text-muted-foreground" />
                       <div>
@@ -111,6 +115,7 @@ export default async function ProjectsAllPage({ params }: { params: Props }) {
                       </Badge>
                     </div>
                   </div>
+                  </Link>
                 );
               })}
             </div>

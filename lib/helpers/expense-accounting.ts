@@ -13,7 +13,6 @@ export async function postExpenseToGL(expenseId: string, userId: string) {
     const expense = await Expense.findById(expenseId).lean();
     if (!expense) throw new Error("Expense not found");
 
-    // Check if already posted to GL
     const existingEntry = await JournalEntry.findOne({
       organizationId: expense.organizationId,
       referenceType: "other",
@@ -26,10 +25,19 @@ export async function postExpenseToGL(expenseId: string, userId: string) {
       return { success: true, journalEntryId: existingEntry._id, message: "Already posted" };
     }
 
-    const expenseAccount = expense.expenseAccountId || await getDefaultAccount(expense.organizationId, "expense", "Operating Expenses", userId);
+    let expenseAccount = expense.expenseAccountId;
+    
+    if (expense.projectId) {
+      const Project = (await import("../models/project.model")).default;
+      const project = await Project.findById(expense.projectId);
+      if (project?.expenseAccountId) {
+        expenseAccount = project.expenseAccountId;
+      }
+    }
+    
+    expenseAccount = expenseAccount || await getDefaultAccount(expense.organizationId, "expense", "Operating Expenses", userId);
     const paymentAccount = expense.paymentAccountId || await getDefaultAccount(expense.organizationId, "asset", "Cash", userId);
 
-    // Save account IDs to expense if they weren't set
     if (!expense.expenseAccountId || !expense.paymentAccountId) {
       await Expense.findByIdAndUpdate(expenseId, {
         expenseAccountId: expenseAccount,
@@ -105,6 +113,13 @@ export async function postExpenseToGL(expenseId: string, userId: string) {
       });
 
       await updateAccountBalance(line.accountId, line.debit, line.credit);
+    }
+
+    if (expense.projectId) {
+      const Project = (await import("../models/project.model")).default;
+      await Project.findByIdAndUpdate(expense.projectId, {
+        $inc: { actualCost: expense.amount }
+      });
     }
 
     return { success: true, journalEntryId: journalEntry._id };

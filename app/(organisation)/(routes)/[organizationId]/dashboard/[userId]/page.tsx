@@ -28,6 +28,7 @@ const page = async ({ params }: { params: Props }) => {
     payrollRuns: [],
     monthlyRevenueExpenses: [],
     cashFlowData: [],
+    vatData: { outputVAT: 0, inputVAT: 0, netVAT: 0 },
   };
 
   const stats = {

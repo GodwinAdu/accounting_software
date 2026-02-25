@@ -37,7 +37,6 @@ async function _createExpense(
       del_flag: false
     })
 
-    // Only post to GL if status is paid
     if (data.status === "paid") {
       await postExpenseToGL(String(expense._id), String(user._id || user.id))
     }
@@ -52,6 +51,9 @@ async function _createExpense(
     })
 
     revalidatePath(path)
+    if (data.projectId) {
+      revalidatePath(`/projects/all/${data.projectId}`);
+    }
     return { success: true, data: JSON.parse(JSON.stringify(expense)) }
   } catch (error: any) {
     console.error("Create expense error:", error)

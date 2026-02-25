@@ -5,26 +5,42 @@ import PayrollRun from "../models/payroll-run.model";
 import JournalEntry from "../models/journal-entry.model";
 import Account from "../models/account.model";
 
-async function getDefaultAccount(organizationId: string, accountName: string) {
+async function getDefaultAccount(organizationId: string, accountName: string, accountType: string, accountCode: string) {
   await connectToDB();
-  const account = await Account.findOne({
+  let account = await Account.findOne({
     organizationId,
     name: { $regex: new RegExp(accountName, "i") },
     del_flag: false,
   });
-  return account?._id;
+  
+  if (!account) {
+    account = await Account.create({
+      organizationId,
+      code: accountCode,
+      name: accountName,
+      type: accountType,
+      category: accountType === "expense" ? "operating_expenses" : "current_liabilities",
+      balance: 0,
+      isActive: true,
+      del_flag: false,
+      mod_flag: 0,
+    });
+  }
+  
+  return account._id;
 }
 
 export async function postPayrollToGL(payrollRunId: string, userId: string) {
   try {
     await connectToDB();
 
-    const payrollRun = await PayrollRun.findById(payrollRunId);
+    const payrollRun = await PayrollRun.findById(payrollRunId).populate("organizationId");
     if (!payrollRun) throw new Error("Payroll run not found");
 
-    const salaryExpenseAccount = payrollRun.salaryExpenseAccountId || await getDefaultAccount(String(payrollRun.organizationId), "Salary Expense");
-    const salaryPayableAccount = payrollRun.salaryPayableAccountId || await getDefaultAccount(String(payrollRun.organizationId), "Salaries Payable");
-    const taxPayableAccount = payrollRun.taxPayableAccountId || await getDefaultAccount(String(payrollRun.organizationId), "Tax Payable");
+    const org = payrollRun.organizationId as any;
+    const salaryExpenseAccount = org?.payrollSettings?.salaryExpenseAccountId || await getDefaultAccount(String(payrollRun.organizationId), "Salary Expense", "expense", "6100");
+    const salaryPayableAccount = org?.payrollSettings?.salaryPayableAccountId || await getDefaultAccount(String(payrollRun.organizationId), "Salaries Payable", "liability", "2100");
+    const taxPayableAccount = org?.payrollSettings?.taxPayableAccountId || await getDefaultAccount(String(payrollRun.organizationId), "Tax Payable", "liability", "2200");
 
     if (!salaryExpenseAccount || !salaryPayableAccount || !taxPayableAccount) {
       throw new Error("Required accounts not found");

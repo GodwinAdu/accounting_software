@@ -5,10 +5,15 @@ import { Separator } from "@/components/ui/separator";
 import { checkPermission } from "@/lib/helpers/check-permission";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, TrendingUp, TrendingDown, BarChart3 } from "lucide-react";
-import { getBudgetVariance } from "@/lib/actions/budget.action";
+import { AlertCircle, TrendingUp, TrendingDown, BarChart3, Info, ChevronDown, ChevronUp } from "lucide-react";
+import { getAllBudgets } from "@/lib/actions/budget.action";
+import { getBudgetVsActual } from "@/lib/helpers/budget-analysis";
+import BudgetVarianceClient from "./_components/budget-variance-client";
 
 type Props = Promise<{ organizationId: string; userId: string }>;
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function BudgetVariancePage({ params }: { params: Props }) {
   const user = await currentUser();
@@ -16,16 +21,46 @@ export default async function BudgetVariancePage({ params }: { params: Props }) 
 
   const { organizationId, userId } = await params;
 
-  const hasViewPermission = await checkPermission("budgetVariance_view");
+  const hasViewPermission = await checkPermission("budgeting_view");
   if (!hasViewPermission) redirect(`/${organizationId}/dashboard/${userId}`);
 
-  const { budgets, summary } = await getBudgetVariance();
-  const { totalVariance, favorable, unfavorable, variancePercent } = summary;
+  const result = await getAllBudgets();
+  const budgets = result.success ? (result.budgets || []) : [];
+  const activeBudgets = budgets.filter(b => b.status === "active");
+
+  const budgetAnalysis = await Promise.all(
+    activeBudgets.map(async (budget) => {
+      const analysis = await getBudgetVsActual(budget._id);
+      return analysis.success ? analysis.data : null;
+    })
+  );
+
+  const validAnalysis = budgetAnalysis.filter(a => a !== null);
+  
+  const totalVariance = validAnalysis.reduce((sum, a) => sum + (a?.summary.totalVariance || 0), 0);
+  const favorable = validAnalysis.reduce((sum, a) => {
+    const variance = a?.summary.totalVariance || 0;
+    return sum + (variance > 0 ? variance : 0);
+  }, 0);
+  const unfavorable = validAnalysis.reduce((sum, a) => {
+    const variance = a?.summary.totalVariance || 0;
+    return sum + (variance < 0 ? Math.abs(variance) : 0);
+  }, 0);
+  const totalBudgeted = validAnalysis.reduce((sum, a) => sum + (a?.summary.totalBudgeted || 0), 0);
+  const variancePercent = totalBudgeted > 0 ? ((totalVariance / totalBudgeted) * 100).toFixed(1) : "0.0";
 
   return (
     <div className="space-y-6">
       <Heading title="Budget vs Actual" description="Compare budget to actual performance" />
       <Separator />
+      
+      <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <Info className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+        <div className="text-sm text-blue-900">
+          <p className="font-medium mb-1">How variance works</p>
+          <p className="text-blue-700">Variance compares your budgeted amounts to actual spending from journal entries. Favorable (green) means under budget, unfavorable (red) means over budget. Click on any budget to see account-level details.</p>
+        </div>
+      </div>
       
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
@@ -77,63 +112,7 @@ export default async function BudgetVariancePage({ params }: { params: Props }) 
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Variance Analysis</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {budgets.length === 0 ? (
-            <div className="text-center py-12">
-              <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No active budgets to analyze</p>
-              <p className="text-sm text-muted-foreground mt-2">Create budgets to track variance</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {budgets.map((budget: any) => {
-                const variance = budget.totalBudgeted - budget.totalActual;
-                const varPercent = budget.totalBudgeted > 0 ? ((variance / budget.totalBudgeted) * 100).toFixed(1) : "0.0";
-                const isFavorable = variance >= 0;
-                return (
-                  <div key={budget._id} className="p-4 border rounded-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h3 className="font-semibold">{budget.name}</h3>
-                        <p className="text-sm text-muted-foreground">{budget.type} budget</p>
-                      </div>
-                      <Badge variant={isFavorable ? "default" : "destructive"}>
-                        {isFavorable ? 'Favorable' : 'Unfavorable'}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-4 gap-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Budgeted</p>
-                        <p className="font-medium">GHS {budget.totalBudgeted.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Actual</p>
-                        <p className="font-medium">GHS {budget.totalActual.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Variance</p>
-                        <p className={`font-medium ${isFavorable ? 'text-emerald-600' : 'text-red-600'}`}>
-                          GHS {Math.abs(variance).toLocaleString()}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Variance %</p>
-                        <p className={`font-medium ${isFavorable ? 'text-emerald-600' : 'text-red-600'}`}>
-                          {varPercent}%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <BudgetVarianceClient budgets={validAnalysis} />
     </div>
   );
 }

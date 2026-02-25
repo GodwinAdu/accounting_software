@@ -12,16 +12,16 @@ interface PipelineBoardProps {
   opportunities: any[];
 }
 
-const stages = [
+  const stages = [
   { id: "prospecting", label: "Prospecting", color: "bg-blue-100 border-blue-300" },
   { id: "qualification", label: "Qualification", color: "bg-yellow-100 border-yellow-300" },
   { id: "proposal", label: "Proposal", color: "bg-orange-100 border-orange-300" },
   { id: "negotiation", label: "Negotiation", color: "bg-purple-100 border-purple-300" },
-  { id: "closed-won", label: "Closed Won", color: "bg-green-100 border-green-300" },
-  { id: "closed-lost", label: "Closed Lost", color: "bg-red-100 border-red-300" },
+  { id: "closed_won", label: "Closed Won", color: "bg-green-100 border-green-300" },
+  { id: "closed_lost", label: "Closed Lost", color: "bg-red-100 border-red-300" },
 ];
 
-export default function PipelineBoard({ opportunities }: PipelineBoardProps) {
+export default function PipelineBoard({ opportunities = [] }: PipelineBoardProps) {
   const [selectedOpp, setSelectedOpp] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const pathname = usePathname();
@@ -39,10 +39,10 @@ export default function PipelineBoard({ opportunities }: PipelineBoardProps) {
   };
 
   const getStageValue = (stageId: string) => {
-    return getStageOpportunities(stageId).reduce((sum, o) => sum + (o.value || 0), 0);
+    return getStageOpportunities(stageId).reduce((sum, o) => sum + (o.amount || 0), 0);
   };
 
-  const totalValue = opportunities.reduce((sum, o) => sum + (o.value || 0), 0);
+  const totalValue = opportunities.reduce((sum, o) => sum + (o.amount || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -84,7 +84,7 @@ export default function PipelineBoard({ opportunities }: PipelineBoardProps) {
                   <CardContent className="p-3 space-y-2">
                     <div className="font-medium text-sm truncate">{opp.name}</div>
                     <div className="text-xs font-semibold text-emerald-600">
-                      GHS {opp.value.toLocaleString()}
+                      GHS {opp.amount.toLocaleString()}
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs">

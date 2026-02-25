@@ -2,6 +2,11 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Check, X } from "lucide-react";
+import { approveTimeEntry, rejectTimeEntry } from "@/lib/actions/time-entry.action";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export type TimeEntry = {
   _id: string;
@@ -68,6 +73,48 @@ export const columns: ColumnDef<TimeEntry>[] = [
       };
       const config = statusConfig[status as keyof typeof statusConfig];
       return <Badge className={config.className}>{config.label}</Badge>;
+    },
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    cell: ({ row }) => {
+      const router = useRouter();
+      const status = row.getValue("status") as string;
+      const entryId = row.original._id;
+
+      if (status !== "pending") return null;
+
+      const handleApprove = async () => {
+        const result = await approveTimeEntry(entryId);
+        if (result.error) {
+          toast.error(result.error);
+        } else {
+          toast.success("Time entry approved");
+          router.refresh();
+        }
+      };
+
+      const handleReject = async () => {
+        const result = await rejectTimeEntry(entryId);
+        if (result.error) {
+          toast.error(result.error);
+        } else {
+          toast.success("Time entry rejected");
+          router.refresh();
+        }
+      };
+
+      return (
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={handleApprove}>
+            <Check className="h-4 w-4 text-emerald-600" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handleReject}>
+            <X className="h-4 w-4 text-red-600" />
+          </Button>
+        </div>
+      );
     },
   },
 ];

@@ -5,6 +5,7 @@ import JournalEntry from "../models/journal-entry.model";
 import GeneralLedger from "../models/general-ledger.model";
 import Account from "../models/account.model";
 import Invoice from "../models/invoice.model";
+import Project from "../models/project.model";
 
 export async function postInvoiceToGL(invoiceId: string, userId: string) {
   try {
@@ -15,7 +16,17 @@ export async function postInvoiceToGL(invoiceId: string, userId: string) {
 
     console.log("Posting invoice to GL:", invoiceId);
 
-    const revenueAccount = invoice.revenueAccountId || await getDefaultAccount(invoice.organizationId, "revenue", "Sales Revenue", userId);
+    let revenueAccount = invoice.revenueAccountId;
+    
+    if (invoice.projectId) {
+    
+      const project = await Project.findById(invoice.projectId);
+      if (project?.revenueAccountId) {
+        revenueAccount = project.revenueAccountId;
+      }
+    }
+    
+    revenueAccount = revenueAccount || await getDefaultAccount(invoice.organizationId, "revenue", "Sales Revenue", userId);
     const receivableAccount = invoice.receivableAccountId || await getDefaultAccount(invoice.organizationId, "asset", "Accounts Receivable", userId);
     const taxAccount = invoice.taxAccountId || await getDefaultAccount(invoice.organizationId, "liability", "VAT Payable", userId);
 
@@ -23,7 +34,6 @@ export async function postInvoiceToGL(invoiceId: string, userId: string) {
 
     const lineItems = [];
 
-    // Debit: Accounts Receivable (Asset increases)
     lineItems.push({
       accountId: receivableAccount,
       description: `Invoice ${invoice.invoiceNumber}`,
@@ -31,7 +41,6 @@ export async function postInvoiceToGL(invoiceId: string, userId: string) {
       credit: 0
     });
 
-    // Credit: Revenue (Revenue increases)
     lineItems.push({
       accountId: revenueAccount,
       description: `Invoice ${invoice.invoiceNumber}`,
@@ -39,7 +48,6 @@ export async function postInvoiceToGL(invoiceId: string, userId: string) {
       credit: invoice.subtotal
     });
 
-    // Credit: Tax Payable (if tax exists)
     if (invoice.taxAmount > 0) {
       lineItems.push({
         accountId: taxAccount,
@@ -49,7 +57,6 @@ export async function postInvoiceToGL(invoiceId: string, userId: string) {
       });
     }
 
-    // Create Journal Entry
     const journalEntry = await JournalEntry.create({
       organizationId: invoice.organizationId,
       entryNumber: `JE-INV-${invoice.invoiceNumber}`,
@@ -71,7 +78,6 @@ export async function postInvoiceToGL(invoiceId: string, userId: string) {
       mod_flag: 0
     });
 
-    // Post to General Ledger with running balance calculation
     const fiscalYear = new Date(invoice.invoiceDate).getFullYear();
     const fiscalPeriod = new Date(invoice.invoiceDate).getMonth() + 1;
 
@@ -104,6 +110,13 @@ export async function postInvoiceToGL(invoiceId: string, userId: string) {
       });
 
       await updateAccountBalance(line.accountId, line.debit, line.credit);
+    }
+
+    if (invoice.projectId) {
+      const Project = (await import("../models/project.model")).default;
+      await Project.findByIdAndUpdate(invoice.projectId, {
+        $inc: { revenue: invoice.subtotal }
+      });
     }
 
     console.log("Invoice posted to GL successfully:", journalEntry._id);

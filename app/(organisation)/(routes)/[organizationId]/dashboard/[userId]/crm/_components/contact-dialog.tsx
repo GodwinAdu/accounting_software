@@ -5,81 +5,192 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { createContact, updateContact } from "@/lib/actions/contact.action";
-import { usePathname } from "next/navigation";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
+import CustomerSelector from "@/components/selectors/customer-selector";
 
 export default function ContactDialog({ open, onOpenChange, contact, onSuccess }: any) {
-  const [formData, setFormData] = useState({ firstName: "", lastName: "", email: "", phone: "", company: "", title: "", type: "customer", notes: "" });
-  const pathname = usePathname();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    customerId: "",
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    mobile: "",
+    jobTitle: "",
+    department: "",
+    isPrimary: false,
+    notes: "",
+  });
 
   useEffect(() => {
-    if (contact) setFormData(contact);
-    else setFormData({ firstName: "", lastName: "", email: "", phone: "", company: "", title: "", type: "customer", notes: "" });
-  }, [contact]);
+    if (contact) {
+      setFormData({
+        customerId: contact.customerId?._id || contact.customerId || "",
+        firstName: contact.firstName || "",
+        lastName: contact.lastName || "",
+        email: contact.email || "",
+        phone: contact.phone || "",
+        mobile: contact.mobile || "",
+        jobTitle: contact.jobTitle || "",
+        department: contact.department || "",
+        isPrimary: contact.isPrimary || false,
+        notes: contact.notes || "",
+      });
+    } else {
+      setFormData({
+        customerId: "",
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        mobile: "",
+        jobTitle: "",
+        department: "",
+        isPrimary: false,
+        notes: "",
+      });
+    }
+  }, [contact, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const result = contact ? await updateContact(contact._id, formData, pathname) : await createContact(formData, pathname);
+    setLoading(true);
+
+    const result = contact
+      ? await updateContact(contact._id, formData)
+      : await createContact(formData);
+
+    setLoading(false);
+
     if (result.success) {
+      toast.success(contact ? "Contact updated successfully" : "Contact created successfully");
       onSuccess();
       onOpenChange(false);
+    } else {
+      toast.error(result.error || "Failed to save contact");
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{contact ? "Edit Contact" : "New Contact"}</DialogTitle>
+          <DialogTitle>{contact ? "Edit Contact" : "Create New Contact"}</DialogTitle>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="customerId">Customer *</Label>
+            <CustomerSelector
+              value={formData.customerId}
+              onChange={(value) => setFormData({ ...formData, customerId: value })}
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>First Name *</Label>
-              <Input value={formData.firstName} onChange={(e) => setFormData({ ...formData, firstName: e.target.value })} required />
+              <Label htmlFor="firstName">First Name *</Label>
+              <Input
+                id="firstName"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                required
+              />
             </div>
             <div>
-              <Label>Last Name *</Label>
-              <Input value={formData.lastName} onChange={(e) => setFormData({ ...formData, lastName: e.target.value })} required />
-            </div>
-            <div>
-              <Label>Email *</Label>
-              <Input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required />
-            </div>
-            <div>
-              <Label>Phone</Label>
-              <Input value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
-            </div>
-            <div>
-              <Label>Company</Label>
-              <Input value={formData.company} onChange={(e) => setFormData({ ...formData, company: e.target.value })} />
-            </div>
-            <div>
-              <Label>Title</Label>
-              <Input value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
-            </div>
-            <div>
-              <Label>Type</Label>
-              <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="customer">Customer</SelectItem>
-                  <SelectItem value="vendor">Vendor</SelectItem>
-                  <SelectItem value="partner">Partner</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="lastName">Last Name *</Label>
+              <Input
+                id="lastName"
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                required
+              />
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="phone">Phone</Label>
+              <Input
+                id="phone"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="mobile">Mobile</Label>
+              <Input
+                id="mobile"
+                value={formData.mobile}
+                onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="jobTitle">Job Title</Label>
+              <Input
+                id="jobTitle"
+                value={formData.jobTitle}
+                onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
+              />
+            </div>
+          </div>
+
           <div>
-            <Label>Notes</Label>
-            <Textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} />
+            <Label htmlFor="department">Department</Label>
+            <Input
+              id="department"
+              value={formData.department}
+              onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+            />
           </div>
-          <div className="flex justify-end space-x-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit">Save</Button>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="isPrimary"
+              checked={formData.isPrimary}
+              onCheckedChange={(checked) => setFormData({ ...formData, isPrimary: checked as boolean })}
+            />
+            <Label htmlFor="isPrimary" className="cursor-pointer">
+              Set as primary contact
+            </Label>
+          </div>
+
+          <div>
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              rows={3}
+              value={formData.notes}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading} className="bg-gradient-to-r from-emerald-600 to-teal-600">
+              {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {contact ? "Update" : "Create"} Contact
+            </Button>
           </div>
         </form>
       </DialogContent>

@@ -4,11 +4,12 @@ import { connectToDB } from "@/lib/connection/mongoose";
 import Project from "@/lib/models/project.model";
 import ProjectTime from "@/lib/models/project-time.model";
 import Expense from "@/lib/models/expense.model";
+import Invoice from "@/lib/models/invoice.model";
 import { withAuth } from "@/lib/helpers/auth";
 import { checkPermission } from "@/lib/helpers/check-permission";
 
 async function _getAllProjects(user: any) {
-  const hasPermission = await checkPermission("projectsAll_view");
+  const hasPermission = await checkPermission("projects_view");
   if (!hasPermission) throw new Error("Permission denied");
 
   await connectToDB();
@@ -18,9 +19,21 @@ async function _getAllProjects(user: any) {
     del_flag: false
   }).populate("managerId", "name").populate("clientId", "name").sort({ createdAt: -1 }).lean();
 
+  const allExpenses = await Expense.find({
+    organizationId: user.organizationId,
+    projectId: { $in: projects.map(p => p._id) },
+    del_flag: false
+  }).lean();
+
+  const allInvoices = await Invoice.find({
+    organizationId: user.organizationId,
+    projectId: { $in: projects.map(p => p._id) },
+    del_flag: false
+  }).lean();
+
   const totalBudget = projects.reduce((sum: number, p: any) => sum + p.budget, 0);
-  const totalCost = projects.reduce((sum: number, p: any) => sum + p.actualCost, 0);
-  const totalRevenue = projects.reduce((sum: number, p: any) => sum + p.revenue, 0);
+  const totalCost = allExpenses.reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
+  const totalRevenue = allInvoices.reduce((sum: number, i: any) => sum + (i.totalAmount || 0), 0);
   const activeProjects = projects.filter((p: any) => p.status === "active").length;
 
   return JSON.parse(JSON.stringify({
@@ -91,15 +104,31 @@ async function _getProjectProfitability(user: any) {
     del_flag: false
   }).populate("managerId", "name").sort({ createdAt: -1 }).lean();
 
-  const totalRevenue = projects.reduce((sum: number, p: any) => sum + p.revenue, 0);
-  const totalCost = projects.reduce((sum: number, p: any) => sum + p.actualCost, 0);
+  const allExpenses = await Expense.find({
+    organizationId: user.organizationId,
+    projectId: { $in: projects.map(p => p._id) },
+    del_flag: false
+  }).lean();
+
+  const allInvoices = await Invoice.find({
+    organizationId: user.organizationId,
+    projectId: { $in: projects.map(p => p._id) },
+    del_flag: false
+  }).lean();
+
+  const totalRevenue = allInvoices.reduce((sum: number, i: any) => sum + (i.totalAmount || 0), 0);
+  const totalCost = allExpenses.reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
   const totalProfit = totalRevenue - totalCost;
   const avgMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : "0.0";
 
   const projectsWithMetrics = projects.map((p: any) => {
-    const profit = p.revenue - p.actualCost;
-    const margin = p.revenue > 0 ? ((profit / p.revenue) * 100).toFixed(1) : "0.0";
-    return { ...p, profit, margin };
+    const projectExpenses = allExpenses.filter((e: any) => String(e.projectId) === String(p._id));
+    const projectInvoices = allInvoices.filter((i: any) => String(i.projectId) === String(p._id));
+    const revenue = projectInvoices.reduce((sum: number, i: any) => sum + (i.totalAmount || 0), 0);
+    const cost = projectExpenses.reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
+    const profit = revenue - cost;
+    const margin = revenue > 0 ? ((profit / revenue) * 100).toFixed(1) : "0.0";
+    return { ...p, profit, margin, revenue, actualCost: cost };
   });
 
   return JSON.parse(JSON.stringify({

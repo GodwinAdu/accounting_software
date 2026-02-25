@@ -4,6 +4,7 @@ import { compare, hash } from "bcryptjs";
 import crypto from "crypto";
 import { cookies } from "next/headers";
 import * as jwt from 'jsonwebtoken';
+import * as speakeasy from "speakeasy";
 import { connectToDB } from "../connection/mongoose";
 import { issueRefreshToken, signAccessToken } from "../helpers/jwt";
 import { smsConfig } from "@/services/sms-config";
@@ -109,7 +110,8 @@ export async function loginUser(data: LoginParams) {
 
         await connectToDB();
 
-        const user = await User.findOne({ email });
+        const user = await User.findOne({ email }).populate('organizationId');
+      
         if (!user || !user.password) {
             return { success: false, error: "Invalid credentials" };
         }
@@ -119,6 +121,7 @@ export async function loginUser(data: LoginParams) {
         }
 
         const ok = await compare(password, user.password);
+       
         if (!ok) {
             user.loginAttempts += 1;
             if (user.loginAttempts >= 5) {
@@ -128,21 +131,31 @@ export async function loginUser(data: LoginParams) {
             return { success: false, error: "Invalid credentials" };
         }
 
-        if (user.twoFactorAuthEnabled) {
-            if (!mfaToken) {
-                const tempToken = jwt.sign(
-                    { userId: user.id, type: 'mfa' },
-                    process.env.JWT_ACCESS_SECRET!,
-                    { expiresIn: '10m' }
-                );
-                
-                return {
-                    success: true,
-                    requiresMFA: true,
-                    mfaToken: tempToken,
-                    userId: user.id
-                };
-            }
+        // Check if organization requires 2FA but user hasn't enabled it yet
+        const organization = user.organizationId as any;
+        if (organization?.security?.twoFactorRequired && !user.twoFactorAuthEnabled) {
+            return { 
+                success: true,
+                requiresMFASetup: true,
+                userId: user.id,
+                email: user.email,
+                message: "Your organization requires two-factor authentication. Please set up 2FA to continue."
+            };
+        }
+
+        if (user.twoFactorAuthEnabled && !mfaToken) {
+            const tempToken = jwt.sign(
+                { userId: user.id, email: user.email, type: 'mfa' },
+                process.env.JWT_ACCESS_SECRET!,
+                { expiresIn: '10m' }
+            );
+            
+            return {
+                success: true,
+                requiresMFA: true,
+                mfaToken: tempToken,
+                userId: user.id
+            };
         }
 
         user.loginAttempts = 0;
@@ -152,7 +165,7 @@ export async function loginUser(data: LoginParams) {
 
         const accessToken = signAccessToken({ ...user.toObject(), roles: [user.role] } as any);
         const refreshToken = await issueRefreshToken(user._id.toString());
-        
+
         return {
             success: true,
             user: {
@@ -563,10 +576,8 @@ export async function getCurrentUser(): Promise<{ success: boolean; error?: stri
     }
 }
 
-export async function updateUserProfile(profileData: { name: string; email: string; phone: string; bio: string; avatar: string }): Promise<{ success: boolean; error?: string }> {
+export async function updateUserProfile(profileData: { fullName?: string; email?: string; phone?: string; imgUrl?: string }): Promise<{ success: boolean; error?: string }> {
     try {
-       
-
         const cookieStore = await cookies()
         const token = cookieStore.get("auth-token")?.value
 
@@ -578,25 +589,29 @@ export async function updateUserProfile(profileData: { name: string; email: stri
         
         await connectToDB()
         
-        // Check if email/phone already exists for other users
-        const existing = await User.findOne({
-            $or: [{ email: profileData.email }, { phone: profileData.phone }],
-            _id: { $ne: decoded.sub }
-        })
-        
-        if (existing) {
-            return { success: false, error: "Email or phone already in use" }
+        if (profileData.email || profileData.phone) {
+            const existing = await User.findOne({
+                $or: [
+                    ...(profileData.email ? [{ email: profileData.email }] : []),
+                    ...(profileData.phone ? [{ phone: profileData.phone }] : [])
+                ],
+                _id: { $ne: decoded.sub }
+            })
+            
+            if (existing) {
+                return { success: false, error: "Email or phone already in use" }
+            }
         }
+
+        const updateData: any = {}
+        if (profileData.fullName) updateData.fullName = profileData.fullName
+        if (profileData.email) updateData.email = profileData.email
+        if (profileData.phone) updateData.phone = profileData.phone
+        if (profileData.imgUrl) updateData.imgUrl = profileData.imgUrl
 
         const user = await User.findByIdAndUpdate(
             decoded.sub,
-            {
-                name: profileData.name,
-                email: profileData.email,
-                phone: profileData.phone,
-                bio: profileData.bio,
-                avatar: profileData.avatar
-            },
+            updateData,
             { new: true }
         )
 
@@ -689,13 +704,17 @@ export async function verifyMFACode(code: string, backupCode?: string, mfaToken?
             return { success: false, error: "Backup codes not supported" };
         } else {
             if (user.twoFactorSecret) {
-                // Note: authenticator library not imported, simplified validation
-                isValid = code.length === 6;
+                isValid = speakeasy.totp.verify({
+                    secret: user.twoFactorSecret,
+                    encoding: "base32",
+                    token: code,
+                    window: 2,
+                });
             }
         }
 
         if (!isValid) {
-            return { success: false, error: "Invalid code" };
+            return { success: false, error: "Invalid verification code" };
         }
 
         user.loginAttempts = 0;
@@ -778,6 +797,26 @@ async function _fetchOrganizationUsers(user: UserType) {
 }
 
 export const fetchOrganizationUsers = await withAuth(_fetchOrganizationUsers)
+
+async function _getUsers(user: UserType) {
+  try {
+    if (!user) throw new Error("User not authenticated")
+
+    await connectToDB()
+
+    const users = await User.find({ 
+      organizationId: user.organizationId,
+      isActive: true 
+    }).select("fullName email _id").sort({ fullName: 1 }).lean()
+
+    return { success: true, data: JSON.parse(JSON.stringify(users)) }
+  } catch (error) {
+    console.error("Get users error:", error)
+    return { success: false, error: "Failed to fetch users" }
+  }
+}
+
+export const getUsers = await withAuth(_getUsers)
 
 async function _createUser(
   user: UserType,

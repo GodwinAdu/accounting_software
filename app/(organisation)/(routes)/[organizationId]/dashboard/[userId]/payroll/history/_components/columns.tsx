@@ -4,6 +4,8 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Download, Eye } from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 
 export type PayrollHistory = {
   _id: string;
@@ -79,13 +81,28 @@ export const columns: ColumnDef<PayrollHistory>[] = [
   },
   {
     id: "actions",
-    cell: () => {
+    cell: ({ row }) => {
+      const params = useParams();
+      const { organizationId, userId } = params as { organizationId: string; userId: string };
+      const runId = row.original._id;
+      
       return (
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm">
-            <Eye className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm">
+          <Link href={`/${organizationId}/dashboard/${userId}/payroll/history/${runId}`}>
+            <Button variant="ghost" size="sm">
+              <Eye className="h-4 w-4" />
+            </Button>
+          </Link>
+          <Button variant="ghost" size="sm" onClick={() => {
+            const data = row.original;
+            const csv = `Run Number,Pay Period,Pay Date,Employees,Gross Pay,Deductions,Net Pay,Status\n${data.runNumber},${data.payPeriod},${data.payDate},${data.employees},${data.grossPay},${data.deductions},${data.netPay},${data.status}`;
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `payroll-${data.runNumber}.csv`;
+            a.click();
+          }}>
             <Download className="h-4 w-4" />
           </Button>
         </div>

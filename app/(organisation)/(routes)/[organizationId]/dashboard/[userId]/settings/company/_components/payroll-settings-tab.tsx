@@ -7,14 +7,16 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { fetchOrganizationUserById } from "@/lib/actions/organization.action"
-import { Loader2, Users } from "lucide-react"
+import { fetchOrganizationUserById, updatePayrollSettings } from "@/lib/actions/organization.action"
+import { getAccounts } from "@/lib/actions/account.action"
+import { Loader2, Users, DollarSign } from "lucide-react"
 import { toast } from "sonner"
 
 export default function PayrollSettingsTab() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [accounts, setAccounts] = useState<any[]>([])
   
   const [formData, setFormData] = useState({
     payrollFrequency: "monthly",
@@ -22,8 +24,14 @@ export default function PayrollSettingsTab() {
     enableTimeTracking: true,
     enableLeaveManagement: true,
     defaultWorkingHours: 8,
-    defaultWorkingDays: 5
+    defaultWorkingDays: 5,
+    salaryExpenseAccountId: "",
+    salaryPayableAccountId: "",
+    taxPayableAccountId: ""
   })
+
+  console.log(accounts,"accounts")
+  console.log(formData,"formData")
 
   useEffect(() => {
     loadOrganization()
@@ -31,14 +39,26 @@ export default function PayrollSettingsTab() {
 
   const loadOrganization = async () => {
     try {
-      const org = await fetchOrganizationUserById()
+      const [org, accountsResult] = await Promise.all([
+        fetchOrganizationUserById(),
+        getAccounts()
+      ]);
+      const allAccounts = accountsResult?.data || [];
+      setAccounts(allAccounts);
+      
+      const findAccount = (name: string, type: string) => 
+        allAccounts.find((a: any) => a.accountName.toLowerCase().includes(name.toLowerCase()) && a.accountType === type)?._id || "";
+      
       setFormData({
         payrollFrequency: org.payrollSettings?.payrollFrequency || "monthly",
         overtimeRate: org.payrollSettings?.overtimeRate || 1.5,
         enableTimeTracking: org.payrollSettings?.enableTimeTracking ?? true,
         enableLeaveManagement: org.payrollSettings?.enableLeaveManagement ?? true,
         defaultWorkingHours: org.payrollSettings?.defaultWorkingHours || 8,
-        defaultWorkingDays: org.payrollSettings?.defaultWorkingDays || 5
+        defaultWorkingDays: org.payrollSettings?.defaultWorkingDays || 5,
+        salaryExpenseAccountId: String(org.payrollSettings?.salaryExpenseAccountId || findAccount("salary expense", "expense")),
+        salaryPayableAccountId: String(org.payrollSettings?.salaryPayableAccountId || findAccount("salaries payable", "liability")),
+        taxPayableAccountId: String(org.payrollSettings?.taxPayableAccountId || findAccount("tax payable", "liability"))
       })
     } catch (error) {
       toast.error("Failed to load payroll settings")
@@ -50,8 +70,13 @@ export default function PayrollSettingsTab() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      toast.success("Payroll settings updated successfully")
-      setEditing(false)
+      const result = await updatePayrollSettings(formData);
+      if (result.success) {
+        toast.success("Payroll settings updated successfully")
+        setEditing(false)
+      } else {
+        toast.error(result.error || "Failed to update payroll settings")
+      }
     } catch (error) {
       toast.error("Failed to update payroll settings")
     } finally {
@@ -84,6 +109,89 @@ export default function PayrollSettingsTab() {
           </div>
         )}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <DollarSign className="h-5 w-5" />
+            Account Mapping
+          </CardTitle>
+          <CardDescription>Map payroll transactions to chart of accounts</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Salary Expense Account</Label>
+            <Select
+              value={formData.salaryExpenseAccountId}
+              onValueChange={(value) => setFormData({ ...formData, salaryExpenseAccountId: value })}
+              disabled={!editing}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select account">
+                  {formData.salaryExpenseAccountId && accounts.find(a => a._id === formData.salaryExpenseAccountId)
+                    ? `${accounts.find(a => a._id === formData.salaryExpenseAccountId)?.accountCode} - ${accounts.find(a => a._id === formData.salaryExpenseAccountId)?.accountName}`
+                    : "Select account"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.filter(a => a.accountType === "expense").map((account) => (
+                  <SelectItem key={account._id} value={String(account._id)}>
+                    {account.accountCode} - {account.accountName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Salary Payable Account</Label>
+            <Select
+              value={formData.salaryPayableAccountId}
+              onValueChange={(value) => setFormData({ ...formData, salaryPayableAccountId: value })}
+              disabled={!editing}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select account">
+                  {formData.salaryPayableAccountId && accounts.find(a => a._id === formData.salaryPayableAccountId)
+                    ? `${accounts.find(a => a._id === formData.salaryPayableAccountId)?.accountCode} - ${accounts.find(a => a._id === formData.salaryPayableAccountId)?.accountName}`
+                    : "Select account"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.filter(a => a.accountType === "liability").map((account) => (
+                  <SelectItem key={account._id} value={String(account._id)}>
+                    {account.accountCode} - {account.accountName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tax Payable Account</Label>
+            <Select
+              value={formData.taxPayableAccountId}
+              onValueChange={(value) => setFormData({ ...formData, taxPayableAccountId: value })}
+              disabled={!editing}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select account">
+                  {formData.taxPayableAccountId && accounts.find(a => a._id === formData.taxPayableAccountId)
+                    ? `${accounts.find(a => a._id === formData.taxPayableAccountId)?.accountCode} - ${accounts.find(a => a._id === formData.taxPayableAccountId)?.accountName}`
+                    : "Select account"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {accounts.filter(a => a.accountType === "liability").map((account) => (
+                  <SelectItem key={account._id} value={String(account._id)}>
+                    {account.accountCode} - {account.accountName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

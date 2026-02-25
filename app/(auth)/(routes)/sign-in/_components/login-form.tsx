@@ -48,6 +48,7 @@ const LoginForm = ({
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [requiresMfa, setRequiresMfa] = useState(false);
+  const [requiresMfaSetup, setRequiresMfaSetup] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
   const [rememberDevice, setRememberDevice] = useState(false);
   const router = useRouter();
@@ -69,11 +70,11 @@ const LoginForm = ({
         password: values.password,
       });
 
-      if (!result.success) {
-        toast.error("Login Failed", {
-          description: result.error || "Invalid credentials",
+      if (result.requiresMfaSetup) {
+        toast.info("2FA Setup Required", {
+          description: result.message || "Please set up two-factor authentication.",
         });
-        onError?.(result.error || "Invalid credentials");
+        router.push(`/setup-2fa?userId=${result.userId}&email=${result.email}`);
         return;
       }
 
@@ -82,6 +83,14 @@ const LoginForm = ({
         toast.info("Two-Factor Authentication Required", {
           description: "Please enter your authentication code.",
         });
+        return;
+      }
+
+      if (!result.success) {
+        toast.error("Login Failed", {
+          description: result.error || "Invalid credentials",
+        });
+        onError?.(result.error || "Invalid credentials");
         return;
       }
 
