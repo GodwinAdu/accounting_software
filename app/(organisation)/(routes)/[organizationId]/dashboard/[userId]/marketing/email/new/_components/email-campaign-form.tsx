@@ -15,6 +15,7 @@ import { createEmailCampaign } from "@/lib/actions/email-campaign.action";
 import { generateEmail } from "@/lib/actions/ai.action";
 import { toast } from "sonner";
 import { Sparkles, Loader2 } from "lucide-react";
+import { useModuleAccess } from "@/lib/hooks/use-module-access";
 
 const formSchema = z.object({
   name: z.string().min(1, "Campaign name is required"),
@@ -38,6 +39,7 @@ export default function EmailCampaignForm({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const { hasAccess: hasAIAccess } = useModuleAccess("ai");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -146,41 +148,43 @@ export default function EmailCampaignForm({
                 <FormItem>
                   <div className="flex items-center justify-between">
                     <FormLabel>Email Content</FormLabel>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleAIGenerate("payment_reminder")}
-                        disabled={isGenerating}
-                        className="text-xs"
-                      >
-                        {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                        <span className="ml-1">Payment Reminder</span>
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleAIGenerate("thank_you")}
-                        disabled={isGenerating}
-                        className="text-xs"
-                      >
-                        {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                        <span className="ml-1">Thank You</span>
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleAIGenerate("welcome")}
-                        disabled={isGenerating}
-                        className="text-xs"
-                      >
-                        {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                        <span className="ml-1">Welcome</span>
-                      </Button>
-                    </div>
+                    {hasAIAccess && (
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleAIGenerate("payment_reminder")}
+                          disabled={isGenerating}
+                          className="text-xs"
+                        >
+                          {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                          <span className="ml-1">Payment Reminder</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleAIGenerate("thank_you")}
+                          disabled={isGenerating}
+                          className="text-xs"
+                        >
+                          {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                          <span className="ml-1">Thank You</span>
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleAIGenerate("welcome")}
+                          disabled={isGenerating}
+                          className="text-xs"
+                        >
+                          {isGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                          <span className="ml-1">Welcome</span>
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   <FormControl>
                     <Textarea

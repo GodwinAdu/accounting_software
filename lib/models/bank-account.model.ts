@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from "mongoose";
+import { encryptApiKey, decryptApiKey } from "../encryption";
 
 export interface IBankAccount extends Document {
   organizationId: mongoose.Types.ObjectId;
@@ -77,6 +78,24 @@ const BankAccountSchema = new Schema<IBankAccount>(
 
 BankAccountSchema.index({ organizationId: 1, del_flag: 1 });
 BankAccountSchema.index({ organizationId: 1, accountNumber: 1 });
+
+// Encrypt sensitive bank data before saving
+BankAccountSchema.pre('save', function() {
+  // Encrypt account number
+  if (this.accountNumber && !this.accountNumber.includes(':')) {
+    this.accountNumber = encryptApiKey(this.accountNumber)
+  }
+
+  // Encrypt routing number
+  if (this.routingNumber && !this.routingNumber.includes(':')) {
+    this.routingNumber = encryptApiKey(this.routingNumber)
+  }
+
+  // Encrypt IBAN
+  if (this.iban && !this.iban.includes(':')) {
+    this.iban = encryptApiKey(this.iban)
+  }
+})
 
 const BankAccount = mongoose.models.BankAccount || mongoose.model<IBankAccount>("BankAccount", BankAccountSchema);
 

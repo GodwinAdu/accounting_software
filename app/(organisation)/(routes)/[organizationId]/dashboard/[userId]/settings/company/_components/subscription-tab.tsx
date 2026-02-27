@@ -31,18 +31,18 @@ const MODULES = [
   { key: "assets", name: "Fixed Assets", price: 20, description: "Asset management and depreciation" },
   { key: "loans", name: "Loans", price: 25, description: "Loan management and tracking" },
   { key: "equity", name: "Equity", price: 20, description: "Equity transactions and owner investments" },
-  { key: "ai", name: "AI Assistant", price: 50, description: "AI-powered insights and automation" },
+  { key: "ai", name: "AI Assistant", price: 150, description: "AI-powered insights and automation" },
 ]
 
 const PLAN_PRICING: Record<string, number> = {
   starter: 150,
-  professional: 400,
+  professional: 600,
   enterprise: 0,
 }
 
 const PLANS = [
   { key: "starter", name: "Starter", price: 150, description: "Perfect for small businesses" },
-  { key: "professional", name: "Professional", price: 400, description: "For growing companies" },
+  { key: "professional", name: "Professional", price: 600, description: "For growing companies" },
   { key: "enterprise", name: "Enterprise", price: 0, description: "Custom pricing for large organizations" },
 ]
 

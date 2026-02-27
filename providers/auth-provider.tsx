@@ -10,7 +10,6 @@ interface AuthContextType extends AuthState {
     login: (credentials: LoginCredentials | { phone: string; code?: string }) => Promise<{ success: boolean; requiresMfa?: boolean; requiresMfaSetup?: boolean; phoneCodeSent?: boolean; error?: string; mfaToken?: string; user?: any; userId?: string; email?: string; message?: string }>
     register: (data: RegisterData) => Promise<{ success: boolean; error?: string; requiresEmailVerification?: boolean; email?: string }>
     logout: () => Promise<void>
-    refreshToken: () => Promise<boolean>
     sendMagicLink: (email: string) => Promise<{ success: boolean; error?: string }>
     verifyMagicLink: (token: string) => Promise<{ success: boolean; error?: string }>
     forgotPassword: (email: string) => Promise<{ success: boolean; error?: string }>
@@ -114,7 +113,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 return { 
                     success: true, 
                     requiresMfaSetup: true, 
-                    userId: data.userId, 
+                    userId: data.userId?.toString(), 
                     email: data.email,
                     message: data.message 
                 }
@@ -209,45 +208,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
     }
 
-    const refreshToken = async (): Promise<boolean> => {
-        try {
-            const cookies = document.cookie.split(";")
-            const refreshCookie = cookies.find((cookie) => cookie.trim().startsWith(`${refreshTokenName}=`))
-            const refreshTokenValue = refreshCookie ? refreshCookie.split("=")[1] : null
 
-            if (!refreshTokenValue) return false
-
-            const response = await fetch(`/api/auth/refresh`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ refreshToken: refreshTokenValue }),
-            })
-
-            if (!response.ok) return false
-
-            const data = await response.json()
-            setToken(data.accessToken, data.refreshToken)
-
-            const decoded = jwtDecode<any>(data.accessToken)
-            setState({
-                user: {
-                    id: decoded.sub,
-                    email: decoded.email,
-                    name: decoded.name,
-                    roles: decoded.roles,
-                    emailVerified: decoded.emailVerified || false,
-                    phoneVerified: decoded.phoneVerified || false,
-                    mfaEnabled: decoded.mfaEnabled || false
-                },
-                isAuthenticated: true,
-                loading: false,
-            })
-
-            return true
-        } catch (error) {
-            return false
-        }
-    }
 
     const sendMagicLink = async (email: string) => {
         try {
@@ -419,13 +380,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                 console.log("decoded", decoded)
 
-                // Check if token is expired
+                // Check if token is expired - proxy handles refresh automatically
                 if (decoded.exp * 1000 < Date.now()) {
-                    const refreshed = await refreshToken()
-                    if (!refreshed) {
-                        removeTokens()
-                        setState({ user: null, isAuthenticated: false, loading: false })
-                    }
+                    removeTokens()
+                    setState({ user: null, isAuthenticated: false, loading: false })
                     return
                 }
 
@@ -442,16 +400,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     isAuthenticated: true,
                     loading: false,
                 })
-
-                // Auto-refresh token 2 minutes before expiry
-                const timeUntilExpiry = decoded.exp * 1000 - Date.now()
-                const refreshTime = timeUntilExpiry - 2 * 60 * 1000 // 2 minutes before expiry
-                
-                if (refreshTime > 0) {
-                    setTimeout(async () => {
-                        await refreshToken()
-                    }, refreshTime)
-                }
             } catch (error) {
                 removeTokens()
                 setState({ user: null, isAuthenticated: false, loading: false })
@@ -466,7 +414,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         login,
         register,
         logout,
-        refreshToken,
         sendMagicLink,
         verifyMagicLink,
         forgotPassword,

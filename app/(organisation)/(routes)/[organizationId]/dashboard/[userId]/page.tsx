@@ -6,6 +6,10 @@ import { FinancialInsights } from "@/components/ai";
 import { checkModuleAccess } from "@/lib/helpers/module-access";
 import { currentUser } from "@/lib/helpers/session";
 import DashboardClient from "./_components/dashboard-client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Lock } from "lucide-react";
+import Link from "next/link";
 
 type Props = Promise<{ organizationId: string; userId: string }>;
 
@@ -66,12 +70,8 @@ const page = async ({ params }: { params: Props }) => {
   return (
     <div className="space-y-6">
       <SubscriptionWarningBanner organizationId={organizationId} userId={userId} />
-      {hasAIAccess && (
-        <div className="grid gap-4">
-          <FinancialInsights />
-        </div>
-      )}
-      <DashboardClient initialStats={stats} />
+      
+      <DashboardClient initialStats={stats} hasAIAccess={hasAIAccess} />
     </div>
   );
 };

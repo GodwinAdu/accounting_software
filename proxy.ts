@@ -1,6 +1,21 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { jwtDecode } from 'jwt-decode'
+
+import { jwtVerify, SignJWT } from 'jose';
+
+const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET;
+const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET;
+
+if (!ACCESS_TOKEN_SECRET) {
+    throw new Error("Missing environment variable: JWT_ACCESS_SECRET");
+}
+
+if (!REFRESH_TOKEN_SECRET) {
+    throw new Error("Missing environment variable: JWT_REFRESH_SECRET");
+}
+
+const accessTokenEncoder = new TextEncoder().encode(ACCESS_TOKEN_SECRET);
+const refreshTokenEncoder = new TextEncoder().encode(REFRESH_TOKEN_SECRET);
 
 // Rate limiting store (in-memory for demo, use Redis in production)
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
@@ -128,7 +143,8 @@ const authConfig = {
         "/sms-payment-callback",
         "/api/*",
         "/setup-2fa",
-        "/shared/*"
+        "/shared/*",
+        "/terms"
     ],
     protectedRoutes: [] as string[],
     loginUrl: "/sign-in",
@@ -136,19 +152,41 @@ const authConfig = {
     cookieName: "auth-token",
     requireRoles: [] as string[],
 }
-export function proxy(request: NextRequest) {
-    const { pathname } = request.nextUrl
-    const token = request.cookies.get(authConfig.cookieName)?.value
 
-    // Create response with security headers
-    const response = NextResponse.next()
-   
+
+// Function to verify JWT and extract payload
+async function verifyToken(token: string, secretEncoder: Uint8Array): Promise<Record<string, unknown> | null> {
+    try {
+        const { payload } = await jwtVerify(token, secretEncoder);
+        return payload as Record<string, unknown>;
+    } catch (error) {
+        console.error('JWT Verification Error:', error);
+        return null;
+    }
+}
+
+// Function to create a new access token
+async function createNewAccessToken(payload: Record<string, unknown>): Promise<string> {
+    // Remove exp from the payload to avoid conflicts
+    const payloadWithoutExp = { ...payload };
+    delete (payloadWithoutExp as Record<string, unknown>)['exp'];
+
+    // Create a new access token with a 1-hour expiration
+    return new SignJWT(payloadWithoutExp)
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('1h')
+        .sign(accessTokenEncoder);
+}
+
+export async function proxy(request: NextRequest) {
+    const { pathname } = request.nextUrl
 
     // Skip security checks for static assets and Next.js internals
     if (pathname.startsWith('/_next/') ||
         pathname.startsWith('/api/') ||
         pathname.match(/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/)) {
-        return response
+        return NextResponse.next()
     }
 
     // Only apply security checks in production
@@ -175,16 +213,6 @@ export function proxy(request: NextRequest) {
     //     }
     // }
 
-    // ✅ Make all API routes public (no auth check)
-    if (pathname.startsWith("/api")) {
-        return NextResponse.next()
-    }
-
-    // ✅ Allow chat route prefix
-    if (pathname.startsWith("/chat")) {
-        return NextResponse.next();
-    }
-
     // Check if route is public
     const isPublicRoute = authConfig.publicRoutes.some((route: string) => {
         if (route.endsWith("*")) {
@@ -193,91 +221,110 @@ export function proxy(request: NextRequest) {
         return pathname === route || pathname.startsWith(route + "/")
     })
 
-    // Check if route is protected
-    const isProtectedRoute =
-        authConfig.protectedRoutes.length > 0
-            ? authConfig.protectedRoutes.some((route: string) => {
-                if (route.endsWith("*")) {
-                    return pathname.startsWith(route.slice(0, -1))
-                }
-                return pathname === route || pathname.startsWith(route + "/")
-            })
-            : !isPublicRoute
+    if (isPublicRoute) {
+        return NextResponse.next()
+    }
 
+    // Get tokens
+    const accessToken = request.cookies.get('auth-token')?.value
+    const refreshToken = request.cookies.get('refresh-token')?.value
 
-
-    // If accessing public route and authenticated, redirect to dashboard
-    if (isPublicRoute && token && (pathname === authConfig.loginUrl || pathname === "/sign-up")) {
-        try {
-            const decoded = jwtDecode<JWTPayload>(token)
-            if (decoded.exp * 1000 > Date.now()) {
-                return NextResponse.redirect(new URL(authConfig.afterAuthUrl, request.url))
-            }
-        } catch (error) {
-            // Invalid token, continue to public route
+    // No access token, try refresh token
+    if (!accessToken) {
+        if (!refreshToken) {
+            const loginUrl = new URL(authConfig.loginUrl, request.url)
+            loginUrl.searchParams.set("redirect", pathname)
+            return NextResponse.redirect(loginUrl)
         }
+
+        // Verify refresh token
+        const refreshPayload = await verifyToken(refreshToken, refreshTokenEncoder)
+        if (!refreshPayload || (typeof refreshPayload.exp === 'number' && refreshPayload.exp < Math.floor(Date.now() / 1000))) {
+            const loginUrl = new URL(authConfig.loginUrl, request.url)
+            loginUrl.searchParams.set("redirect", pathname)
+            const response = NextResponse.redirect(loginUrl)
+            response.cookies.delete('auth-token')
+            response.cookies.delete('refresh-token')
+            return response
+        }
+
+        // Create new access token
+        const newAccessToken = await createNewAccessToken(refreshPayload)
+        const response = NextResponse.next()
+        response.cookies.set({
+            name: 'auth-token',
+            value: newAccessToken,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 60 * 60,
+            path: '/',
+            sameSite: 'strict'
+        })
+        return response
     }
 
-    // If accessing protected route without token, redirect to login
-    if (isProtectedRoute && !token) {
-        // logSecurityEvent(request, 'UNAUTHORIZED_ACCESS_ATTEMPT')
-        const loginUrlWithRedirect = new URL(authConfig.loginUrl, request.url)
-        loginUrlWithRedirect.searchParams.set("redirect", pathname)
-        return NextResponse.redirect(loginUrlWithRedirect)
+    // Verify access token
+    const payload = await verifyToken(accessToken, accessTokenEncoder)
+
+    // Access token invalid/expired, try refresh token
+    if (!payload || (typeof payload.exp === 'number' && payload.exp < Math.floor(Date.now() / 1000))) {
+        if (!refreshToken) {
+            const loginUrl = new URL(authConfig.loginUrl, request.url)
+            loginUrl.searchParams.set("redirect", pathname)
+            const response = NextResponse.redirect(loginUrl)
+            response.cookies.delete('auth-token')
+            return response
+        }
+
+        // Verify refresh token
+        const refreshPayload = await verifyToken(refreshToken, refreshTokenEncoder)
+        if (!refreshPayload || (typeof refreshPayload.exp === 'number' && refreshPayload.exp < Math.floor(Date.now() / 1000))) {
+            const loginUrl = new URL(authConfig.loginUrl, request.url)
+            loginUrl.searchParams.set("redirect", pathname)
+            const response = NextResponse.redirect(loginUrl)
+            response.cookies.delete('auth-token')
+            response.cookies.delete('refresh-token')
+            return response
+        }
+
+        // Create new access token
+        const newAccessToken = await createNewAccessToken(refreshPayload)
+        const response = NextResponse.next()
+        response.cookies.set({
+            name: 'auth-token',
+            value: newAccessToken,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            maxAge: 60 * 60,
+            path: '/',
+            sameSite: 'strict'
+        })
+        return response
     }
 
-    // If token exists, verify it
-    if (token && isProtectedRoute) {
-        try {
-            const decoded = jwtDecode<JWTPayload>(token)
+    // Token valid, check if about to expire (within 5 minutes)
+    const tokenExpiresIn = typeof payload.exp === 'number' ? payload.exp * 1000 - Date.now() : 0
+    const isAboutToExpire = tokenExpiresIn > 0 && tokenExpiresIn < 5 * 60 * 1000
 
-            // Check if token is expired or expiring soon (within 1 minute)
-            const expiresAt = decoded.exp * 1000
-            const now = Date.now()
-            const oneMinute = 60 * 1000
-
-            if (expiresAt <= now) {
-                // Token expired - check if refresh token exists
-                const refreshToken = request.cookies.get('refresh-token')?.value
-                
-                if (refreshToken) {
-                    // Let the client-side auth provider handle refresh
-                    return response
-                }
-                
-                // No refresh token, redirect to login
-                const loginUrlWithRedirect = new URL(authConfig.loginUrl, request.url)
-                loginUrlWithRedirect.searchParams.set("redirect", pathname)
-                const redirectResponse = NextResponse.redirect(loginUrlWithRedirect)
-                redirectResponse.cookies.delete(authConfig.cookieName)
-                redirectResponse.cookies.delete('refresh-token')
-                return redirectResponse
-            }
-
-            // Check roles if required
-            if (authConfig.requireRoles.length > 0) {
-                const userRoles = decoded.user?.roles || []
-                const hasRequiredRole = authConfig.requireRoles.some((role) => userRoles.includes(role))
-
-                if (!hasRequiredRole) {
-                    // logSecurityEvent(request, 'INSUFFICIENT_PERMISSIONS', { userRoles, requiredRoles: authConfig.requireRoles })
-                    return NextResponse.redirect(new URL("/unauthorized", request.url))
-                }
-            }
-
-            // logSecurityEvent(request, 'AUTHENTICATED_ACCESS')
-        } catch (error) {
-            // Invalid token, redirect to login
-            // logSecurityEvent(request, 'INVALID_TOKEN_ACCESS')
-            const loginUrlWithRedirect = new URL(authConfig.loginUrl, request.url)
-            loginUrlWithRedirect.searchParams.set("redirect", pathname)
-            const response = NextResponse.redirect(loginUrlWithRedirect)
-            response.cookies.delete(authConfig.cookieName)
+    if (isAboutToExpire && refreshToken) {
+        const refreshPayload = await verifyToken(refreshToken, refreshTokenEncoder)
+        if (refreshPayload && (typeof refreshPayload.exp !== 'number' || refreshPayload.exp >= Math.floor(Date.now() / 1000))) {
+            const newAccessToken = await createNewAccessToken(refreshPayload)
+            const response = NextResponse.next()
+            response.cookies.set({
+                name: 'auth-token',
+                value: newAccessToken,
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                maxAge: 60 * 60,
+                path: '/',
+                sameSite: 'strict'
+            })
             return response
         }
     }
 
-    return response
+    return NextResponse.next()
 }
 
 

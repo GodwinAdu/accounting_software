@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowUpIcon, CreditCard, DollarSign, TrendingUp, Users, FileText, Receipt, Wallet, Sparkles, Zap, Brain } from "lucide-react";
+import { ArrowUpIcon, CreditCard, DollarSign, TrendingUp, Users, FileText, Receipt, Wallet, Sparkles, Zap, Brain, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -18,15 +18,16 @@ import ActivityFeed from "./activity-feed";
 import { TaxWidget } from "@/components/dashboard/tax-widget";
 import { DateRange } from "react-day-picker";
 import { getDashboardStats } from "@/lib/actions/dashboard.action";
+import { FinancialInsights } from "@/components/ai";
 
-export default function DashboardClient({ initialStats }: { initialStats: any }) {
+export default function DashboardClient({ initialStats, hasAIAccess }: { initialStats: any, hasAiAccess: boolean }) {
   const [stats, setStats] = useState(initialStats);
   const [isPending, startTransition] = useTransition();
   const params = useParams();
 
   const handleDateChange = async (dateRange: DateRange | undefined) => {
     if (!dateRange?.from || !dateRange?.to) return;
-    
+
     startTransition(async () => {
       const result = await getDashboardStats(dateRange.from, dateRange.to);
       if (result.data) setStats(result.data);
@@ -43,65 +44,52 @@ export default function DashboardClient({ initialStats }: { initialStats: any })
         <DateRangeFilter onDateChange={handleDateChange} />
       </div>
 
-      <Card className="border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50">
-        <CardContent className="pt-6">
-          <div className="flex items-start justify-between">
-            <div className="space-y-3 flex-1">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-purple-600 rounded-lg">
-                  <Sparkles className="h-5 w-5 text-white" />
-                </div>
-                <Badge className="bg-purple-600 hover:bg-purple-700">AI-Powered</Badge>
-              </div>
-              <h3 className="text-2xl font-bold text-gray-900">Advanced AI Features Available</h3>
-              <p className="text-gray-600 max-w-2xl">
-                Supercharge your accounting workflow with AI-powered tools. Get instant insights, automate data entry, 
-                detect anomalies, and make smarter financial decisions faster than ever.
+
+      <div className="grid gap-4">
+        {hasAIAccess ? (
+          <FinancialInsights />
+        ) : (
+          <Card className="border-2 border-dashed border-purple-200 bg-gradient-to-br from-purple-50/50 to-pink-50/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Lock className="h-5 w-5 text-purple-600" />
+                Advanced AI Features Available
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Unlock AI-powered insights and automation across all modules including:
               </p>
-              <div className="flex flex-wrap gap-3 pt-2">
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <Zap className="h-4 w-4 text-purple-600" />
-                  <span>Invoice OCR Extraction</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <Brain className="h-4 w-4 text-purple-600" />
-                  <span>Smart Categorization</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-700">
+              <ul className="text-sm space-y-2 text-muted-foreground">
+                <li className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-purple-600" />
-                  <span>Predictive Analytics</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-700">
-                  <TrendingUp className="h-4 w-4 text-purple-600" />
-                  <span>Financial Insights</span>
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <Link href={`/${params.organizationId}/dashboard/${params.userId}/ai`}>
-                  <Button className="bg-purple-600 hover:bg-purple-700">
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    Try AI Chat
-                  </Button>
-                </Link>
-                <Link href={`/${params.organizationId}/dashboard/${params.userId}/ai/tools`}>
-                  <Button variant="outline" className="border-purple-600 text-purple-600 hover:bg-purple-50">
-                    <Zap className="h-4 w-4 mr-2" />
-                    Explore AI Tools
-                  </Button>
-                </Link>
-              </div>
-            </div>
-            <div className="hidden lg:block">
-              <div className="relative">
-                <div className="absolute inset-0 bg-purple-600 rounded-full blur-2xl opacity-20 animate-pulse"></div>
-                <div className="relative p-8 bg-white rounded-2xl shadow-lg">
-                  <Brain className="h-20 w-20 text-purple-600" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+                  Financial insights and recommendations
+                </li>
+                <li className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-purple-600" />
+                  AI-generated emails for invoices and campaigns
+                </li>
+                <li className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-purple-600" />
+                  Smart expense categorization
+                </li>
+                <li className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-purple-600" />
+                  Automated reconciliation and anomaly detection
+                </li>
+              </ul>
+              <Link href={`/${params?.organizationId}/dashboard/${params?.userId}/settings/company?tab=subscription`}>
+                <Button className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Activate AI Module
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/*  */}
 
       <QuickActions />
 
@@ -167,7 +155,7 @@ export default function DashboardClient({ initialStats }: { initialStats: any })
         </Card>
       </div>
 
-      <DashboardCharts 
+      <DashboardCharts
         recentTransactions={stats.recentTransactions}
         payrollRuns={stats.payrollRuns}
         monthlyRevenueExpenses={stats.monthlyRevenueExpenses || []}
@@ -180,7 +168,7 @@ export default function DashboardClient({ initialStats }: { initialStats: any })
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <TopCustomersVendors 
+        <TopCustomersVendors
           topCustomers={stats.topCustomers}
           topVendors={stats.topVendors}
         />

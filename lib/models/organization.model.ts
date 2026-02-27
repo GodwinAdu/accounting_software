@@ -1,4 +1,5 @@
 import { Model, model, models, Schema } from "mongoose"
+import { encryptApiKey, decryptApiKey } from "../encryption"
 
 interface IOrganization {
   owner?: Schema.Types.ObjectId
@@ -321,6 +322,70 @@ const OrganizationSchema: Schema<IOrganization> = new Schema({
 })
 
 OrganizationSchema.index({ organizationCode: 1 })
+
+// Encrypt sensitive data before saving
+OrganizationSchema.pre('save', function() {
+  // Encrypt payment processor API keys
+  if (this.paymentSettings?.paymentProcessors) {
+    this.paymentSettings.paymentProcessors = this.paymentSettings.paymentProcessors.map(processor => {
+      if (processor.apiKey && !processor.apiKey.includes(':')) {
+        return { ...processor, apiKey: encryptApiKey(processor.apiKey) }
+      }
+      return processor
+    })
+  }
+
+  // Encrypt bank account number
+  if (this.paymentSettings?.bankDetails?.accountNumber && !this.paymentSettings.bankDetails.accountNumber.includes(':')) {
+    this.paymentSettings.bankDetails.accountNumber = encryptApiKey(this.paymentSettings.bankDetails.accountNumber)
+  }
+
+  // Encrypt SMTP password
+  if (this.emailSettings?.smtpPassword && !this.emailSettings.smtpPassword.includes(':')) {
+    this.emailSettings.smtpPassword = encryptApiKey(this.emailSettings.smtpPassword)
+  }
+
+  // Encrypt tax number
+  if (this.taxSettings?.taxNumber && !this.taxSettings.taxNumber.includes(':')) {
+    this.taxSettings.taxNumber = encryptApiKey(this.taxSettings.taxNumber)
+  }
+})
+
+// Add method to decrypt sensitive data
+OrganizationSchema.methods.decryptSensitiveData = function() {
+  const org = this.toObject()
+  
+  try {
+    // Decrypt payment processor API keys
+    if (org.paymentSettings?.paymentProcessors) {
+      org.paymentSettings.paymentProcessors = org.paymentSettings.paymentProcessors.map((processor: any) => {
+        if (processor.apiKey?.includes(':')) {
+          return { ...processor, apiKey: decryptApiKey(processor.apiKey) }
+        }
+        return processor
+      })
+    }
+
+    // Decrypt bank account number
+    if (org.paymentSettings?.bankDetails?.accountNumber?.includes(':')) {
+      org.paymentSettings.bankDetails.accountNumber = decryptApiKey(org.paymentSettings.bankDetails.accountNumber)
+    }
+
+    // Decrypt SMTP password
+    if (org.emailSettings?.smtpPassword?.includes(':')) {
+      org.emailSettings.smtpPassword = decryptApiKey(org.emailSettings.smtpPassword)
+    }
+
+    // Decrypt tax number
+    if (org.taxSettings?.taxNumber?.includes(':')) {
+      org.taxSettings.taxNumber = decryptApiKey(org.taxSettings.taxNumber)
+    }
+  } catch (error) {
+    console.error('Decryption error:', error)
+  }
+
+  return org
+}
 
 type OrganizationModel = Model<IOrganization>
 

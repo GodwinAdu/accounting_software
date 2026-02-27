@@ -399,7 +399,6 @@ export default function ProjectForm({ initialData }: ProjectFormProps) {
                 />
               </CardContent>
             </Card>
-          </Card>
 
           <Card className="sticky top-6">
             <CardHeader>

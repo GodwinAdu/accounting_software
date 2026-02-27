@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
+import { encryptApiKey, decryptApiKey } from "../encryption";
 
 export interface IEmployee extends Document {
   organizationId: mongoose.Types.ObjectId;
@@ -78,6 +79,24 @@ const EmployeeSchema: Schema = new Schema(
 EmployeeSchema.index({ organizationId: 1, employeeNumber: 1 }, { unique: true });
 EmployeeSchema.index({ organizationId: 1, del_flag: 1, status: 1 });
 EmployeeSchema.index({ userId: 1 }, { unique: true });
+
+// Encrypt sensitive employee data before saving
+EmployeeSchema.pre<IEmployee>('save', function() {
+  // Encrypt bank account number
+  if (this.bankDetails?.accountNumber && !this.bankDetails.accountNumber.includes(':')) {
+    this.bankDetails.accountNumber = encryptApiKey(this.bankDetails.accountNumber)
+  }
+
+  // Encrypt TIN number
+  if (this.taxInfo?.tinNumber && !this.taxInfo.tinNumber.includes(':')) {
+    this.taxInfo.tinNumber = encryptApiKey(this.taxInfo.tinNumber)
+  }
+
+  // Encrypt SSNIT number
+  if (this.taxInfo?.ssnitNumber && !this.taxInfo.ssnitNumber.includes(':')) {
+    this.taxInfo.ssnitNumber = encryptApiKey(this.taxInfo.ssnitNumber)
+  }
+})
 
 const Employee: Model<IEmployee> = mongoose.models.Employee || mongoose.model<IEmployee>("Employee", EmployeeSchema);
 

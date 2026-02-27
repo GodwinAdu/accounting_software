@@ -79,11 +79,18 @@ const MODULE_PRICING = {
     payroll: 50,
     tax: 35,
     products: 20,
+    projects: 25,
+    crm: 30,
+    budgeting: 40,
+    assets: 20,
+    loans: 25,
+    equity: 20,
+    ai: 150,
 }
 
 const BASE_PRICING = {
     starter: 150,
-    professional: 400,
+    professional: 600,
     enterprise: 0, // Custom
 }
 
@@ -98,8 +105,8 @@ export default function RegistrationForm() {
         modules: {
             dashboard: true,
             banking: true,
-            sales: false,
-            expenses: false,
+            sales: true,
+            expenses: true,
             payroll: false,
             accounting: true,
             tax: false,
@@ -283,12 +290,18 @@ export default function RegistrationForm() {
                             <form onSubmit={planForm.handleSubmit(onPlanSubmit)} className="space-y-6">
                                 <FormField control={planForm.control} name="plan" render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-lg font-semibold">Select Base Plan</FormLabel>
+                                        <div className="flex items-center justify-between mb-2">
+                                            <FormLabel className="text-lg font-semibold">Select Base Plan</FormLabel>
+                                            <Link href="/pricing" target="_blank" className="text-sm text-emerald-600 hover:underline flex items-center gap-1">
+                                                View detailed pricing
+                                                <ChevronRight className="h-3 w-3" />
+                                            </Link>
+                                        </div>
                                         <FormControl>
                                             <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="grid md:grid-cols-3 gap-4">
                                                 {[
                                                     { value: "starter", label: "Starter", price: "GHS 150/mo", desc: "Up to 10 employees" },
-                                                    { value: "professional", label: "Professional", price: "GHS 400/mo", desc: "Up to 100 employees" },
+                                                    { value: "professional", label: "Professional", price: "GHS 600/mo", desc: "Up to 100 employees" },
                                                     { value: "enterprise", label: "Enterprise", price: "Custom", desc: "Unlimited employees" },
                                                 ].map((plan) => (
                                                     <FormItem key={plan.value} className="flex items-center space-x-3 space-y-0">
@@ -318,8 +331,8 @@ export default function RegistrationForm() {
                                             { key: "accounting", label: "Accounting", price: 0, core: true },
                                             { key: "reports", label: "Reports", price: 0, core: true },
                                             { key: "settings", label: "Settings", price: 0, core: true },
-                                            { key: "sales", label: "Sales & Invoicing", price: 30 },
-                                            { key: "expenses", label: "Expenses & Bills", price: 25 },
+                                            { key: "sales", label: "Sales & Invoicing", price: 30, core: true },
+                                            { key: "expenses", label: "Expenses & Bills", price: 25, core: true },
                                             { key: "payroll", label: "Payroll", price: 50 },
                                             { key: "tax", label: "Tax Management", price: 35 },
                                             { key: "products", label: "Products & Services", price: 20 },
@@ -329,13 +342,13 @@ export default function RegistrationForm() {
                                             { key: "assets", label: "Fixed Assets", price: 20 },
                                             { key: "loans", label: "Loans", price: 25 },
                                             { key: "equity", label: "Equity", price: 20 },
-                                            { key: "ai", label: "AI Assistant", price: 50 },
+                                            { key: "ai", label: "AI Assistant", price: 150 },
                                         ].map((module) => (
                                             <FormField key={module.key} control={planForm.control} name={`modules.${module.key}` as any} render={({ field }) => (
                                                 <FormItem className={`flex items-center space-x-3 space-y-0 border rounded-lg p-4 ${module.core ? 'bg-emerald-50/50 border-emerald-200' : 'hover:border-emerald-300'}`}>
                                                     <FormControl>
-                                                        <Checkbox 
-                                                            checked={field.value} 
+                                                        <Checkbox
+                                                            checked={field.value}
                                                             onCheckedChange={field.onChange}
                                                             disabled={module.core}
                                                         />

@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sparkles, Loader2, Copy, Send, Mail } from "lucide-react";
+import { Sparkles, Loader2, Copy, Send, Mail, AlertCircle } from "lucide-react";
 import { generateEmail, sendEmail } from "@/lib/actions/ai.action";
 import { toast } from "sonner";
+import { useModuleAccess } from "@/lib/hooks/use-module-access";
 
 interface AIEmailModalProps {
   open: boolean;
@@ -35,13 +36,14 @@ export function AIEmailModal({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [toEmail, setToEmail] = useState(recipientEmail || "");
+  const { hasAccess: hasAIAccess, loading: checkingAccess } = useModuleAccess("ai");
 
   useEffect(() => {
-    if (open) {
+    if (open && hasAIAccess) {
       generateEmailContent();
       setToEmail(recipientEmail || "");
     }
-  }, [open, type]);
+  }, [open, type, hasAIAccess]);
 
   const generateEmailContent = async () => {
     setIsGenerating(true);
@@ -121,7 +123,20 @@ export function AIEmailModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          {isGenerating ? (
+          {checkingAccess ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+            </div>
+          ) : !hasAIAccess ? (
+            <div className="flex flex-col items-center justify-center py-12 space-y-3">
+              <AlertCircle className="h-12 w-12 text-amber-500" />
+              <div className="text-center space-y-2">
+                <p className="font-semibold">AI Module Not Enabled</p>
+                <p className="text-sm text-muted-foreground">The AI Assistant module is not enabled for your organization.</p>
+                <p className="text-sm text-muted-foreground">Please contact your administrator to enable this feature.</p>
+              </div>
+            </div>
+          ) : isGenerating ? (
             <div className="flex items-center justify-center py-12">
               <div className="text-center space-y-3">
                 <Loader2 className="h-8 w-8 animate-spin mx-auto text-emerald-600" />
