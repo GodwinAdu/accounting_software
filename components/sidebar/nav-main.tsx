@@ -55,6 +55,7 @@ import {
   Landmark,
   PiggyBank,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import {
   Collapsible,
@@ -102,9 +103,10 @@ interface NavItem {
 interface NavMainProps {
   role: IRole | undefined;
   organization: IOrganization;
+  userRole: string;
 }
 
-export function NavMain({ role, organization }: NavMainProps) {
+export function NavMain({ role, organization, userRole }: NavMainProps) {
   const params = useParams();
   const pathname = usePathname();
   const [openGroup, setOpenGroup] = useState<string | null>(null);
@@ -765,6 +767,12 @@ export function NavMain({ role, organization }: NavMainProps) {
           roleField: "userManagement_view",
         },
         {
+          title: "Departments",
+          url: `/${organizationId}/dashboard/${userId}/users/departments`,
+          icon: Building2,
+          roleField: "userManagement_view",
+        },
+        {
           title: "Roles",
           url: `/${organizationId}/dashboard/${userId}/settings/roles`,
           icon: Users,
@@ -794,6 +802,13 @@ export function NavMain({ role, organization }: NavMainProps) {
           icon: Shield,
           roleField: "auditLogs_view",
         },
+        {
+          title: "Deleted Items",
+          url: `/${organizationId}/dashboard/${userId}/settings/deleted-items`,
+          icon: Trash2,
+          roleField: "isAdmin",
+          isNew: true,
+        },
       ],
     },
   ];
@@ -814,8 +829,11 @@ export function NavMain({ role, organization }: NavMainProps) {
     return navMain
       .filter((item): item is NavItem => item !== false)
       .filter(
-        (item) =>
-          !item.roleField || (role && role[item.roleField as keyof IRole]),
+        (item) => {
+          if (!item.roleField) return true;
+          if (item.roleField === "isAdmin") return userRole === "admin";
+          return role && role[item.roleField as keyof IRole];
+        }
       )
       .filter((item) => {
         if (!searchQuery) return true;
@@ -830,7 +848,7 @@ export function NavMain({ role, organization }: NavMainProps) {
         );
         return matchesTitle || matchesDescription || matchesSubItems;
       });
-  }, [role, searchQuery]);
+  }, [role, searchQuery, userRole]);
 
   // Handle accordion behavior - only one section open at a time
   const handleGroupToggle = useCallback((groupTitle: string) => {
@@ -865,9 +883,11 @@ export function NavMain({ role, organization }: NavMainProps) {
   // Render dropdown menu for collapsed sidebar
   const renderDropdownMenu = (item: NavItem) => {
     const filteredSubItems = item.items?.filter(
-      (subItem) =>
-        !subItem?.roleField ||
-        (role && role[subItem?.roleField as keyof IRole]),
+      (subItem) => {
+        if (!subItem?.roleField) return true;
+        if (subItem.roleField === "isAdmin") return userRole === "admin";
+        return role && role[subItem?.roleField as keyof IRole];
+      }
     );
 
     if (!filteredSubItems || filteredSubItems.length === 0) return null;
@@ -1039,9 +1059,11 @@ export function NavMain({ role, organization }: NavMainProps) {
                     <SidebarMenuSub className="ml-4 border-l border-border/50 pl-4 space-y-1 mt-1">
                       {item.items
                         ?.filter(
-                          (subItem) =>
-                            !subItem?.roleField ||
-                            (role && role[subItem?.roleField as keyof IRole]),
+                          (subItem) => {
+                            if (!subItem?.roleField) return true;
+                            if (subItem.roleField === "isAdmin") return userRole === "admin";
+                            return role && role[subItem?.roleField as keyof IRole];
+                          }
                         )
                         .map((subItem) => (
                           <SidebarMenuSubItem key={subItem.title}>

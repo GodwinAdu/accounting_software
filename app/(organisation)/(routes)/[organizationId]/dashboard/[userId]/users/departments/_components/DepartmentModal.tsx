@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,12 +22,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Edit } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createDepartment } from "@/lib/actions/department.action";
-
-
+import { createDepartment, updateDepartment } from "@/lib/actions/department.action";
+import { useState, useEffect } from "react";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -36,43 +34,65 @@ const formSchema = z.object({
   }),
 });
 
-export function DepartmentModal() {
+interface DepartmentModalProps {
+  department?: { _id: string; name: string } | null;
+  trigger?: React.ReactNode;
+}
+
+export function DepartmentModal({ department, trigger }: DepartmentModalProps) {
   const router = useRouter();
-  // 1. Define your form.
+  const [open, setOpen] = useState(false);
+  const isEdit = !!department;
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
+      name: department?.name || "",
     },
   });
 
+  useEffect(() => {
+    if (department) {
+      form.reset({ name: department.name });
+    }
+  }, [department, form]);
+
   const { isSubmitting } = form.formState;
 
-  // 2. Define a submit handler.
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      await createDepartment(values);
+      if (isEdit && department) {
+        await updateDepartment(department._id, values);
+        toast.success("Department updated successfully!");
+      } else {
+        await createDepartment(values);
+        toast.success("Department created successfully!");
+      }
       router.refresh();
       form.reset();
-      toast.success("Department created successfully!");
+      setOpen(false);
     } catch (error) {
-      console.log("error happened while creating house", error);
-      toast.error("Failed to create department. Please try again.");
+      console.log("error happened", error);
+      toast.error(`Failed to ${isEdit ? "update" : "create"} department. Please try again.`);
     }
   }
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className={cn(buttonVariants())}>
-          <PlusCircle className="w-4 h-4 mr-2" />
-          Add
-        </Button>
+        {trigger || (
+          <Button className={cn(buttonVariants())}>
+            <PlusCircle className="w-4 h-4 mr-2" />
+            Add
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px] w-[96%]">
         <DialogHeader>
-          <DialogTitle>Create School Department</DialogTitle>
-          <DialogDescription>New School Department .</DialogDescription>
+          <DialogTitle>{isEdit ? "Edit" : "Create"} Department</DialogTitle>
+          <DialogDescription>
+            {isEdit ? "Update department information" : "Add a new department to your organization"}
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <Form {...form}>
@@ -82,10 +102,10 @@ export function DepartmentModal() {
                 name="name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Enter Department Name</FormLabel>
+                    <FormLabel>Department Name</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Eg. Administration Department"
+                        placeholder="e.g. Finance, HR, Sales, IT"
                         {...field}
                       />
                     </FormControl>
@@ -94,7 +114,7 @@ export function DepartmentModal() {
                 )}
               />
               <Button disabled={isSubmitting} type="submit">
-                {isSubmitting ? "Creating..." : "Submit"}
+                {isSubmitting ? (isEdit ? "Updating..." : "Creating...") : (isEdit ? "Update" : "Create")}
               </Button>
             </form>
           </Form>

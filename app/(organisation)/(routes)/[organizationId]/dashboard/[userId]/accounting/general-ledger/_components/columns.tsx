@@ -1,6 +1,8 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
+import { Button } from "@/components/ui/button";
+import { Eye } from "lucide-react";
 
 export type Transaction = {
   id: string;
@@ -11,9 +13,15 @@ export type Transaction = {
   debit: number;
   credit: number;
   balance: number;
+  createdBy?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  createdAt?: string;
 };
 
-export const columns: ColumnDef<Transaction>[] = [
+export const createColumns = (onViewDetails: (transaction: Transaction) => void): ColumnDef<Transaction>[] => [
   {
     accessorKey: "date",
     header: "Date",
@@ -60,6 +68,22 @@ export const columns: ColumnDef<Transaction>[] = [
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("balance"));
       return <span className="font-medium">GHS {amount.toLocaleString()}</span>;
+    },
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    cell: ({ row }) => {
+      return (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => onViewDetails(row.original)}
+        >
+          <Eye className="h-4 w-4 mr-2" />
+          View
+        </Button>
+      );
     },
   },
 ];

@@ -20,7 +20,7 @@ export default async function HelpPage({ params }: { params: Props }) {
     {
       title: "Getting Started",
       icon: Book,
-      description: "Learn the basics of FindIT",
+      description: "Learn the basics of SyncBooks",
       articles: [
         "Setting up your organization",
         "Creating your first invoice",
@@ -100,7 +100,7 @@ export default async function HelpPage({ params }: { params: Props }) {
 
   return (
     <div className="space-y-6">
-      <Heading title="Help & Support" description="Get help and learn how to use FindIT" />
+      <Heading title="Help & Support" description="Get help and learn how to use SyncBooks" />
       <Separator />
 
       <Card className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-200 dark:border-emerald-800">

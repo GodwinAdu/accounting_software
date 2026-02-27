@@ -22,13 +22,21 @@ async function _getGeneralLedger(user: any, filters: any) {
     if (filters.fiscalYear) query.fiscalYear = filters.fiscalYear;
     if (filters.fiscalPeriod) query.fiscalPeriod = filters.fiscalPeriod;
 
+    console.log('GL Query:', JSON.stringify(query));
+    console.log('User orgId:', user.organizationId);
+
     const entries = await GeneralLedger.find(query)
       .populate("accountId", "accountName accountCode accountType")
       .populate("journalEntryId", "entryNumber description")
-      .sort({ transactionDate: -1, createdAt: -1 });
+      .populate("createdBy", "firstName lastName email")
+      .sort({ transactionDate: -1, createdAt: -1 })
+      .lean();
 
-    return { success: true, data: JSON.parse(JSON.stringify(entries)) };
+    console.log('GL Entries found:', entries.length);
+
+    return { success: true, data: entries };
   } catch (error: any) {
+    console.error('GL Error:', error);
     return { error: error.message };
   }
 }
@@ -50,7 +58,9 @@ async function _getAccountLedger(user: any, accountId: string, startDate?: strin
 
     const entries = await GeneralLedger.find(query)
       .populate("journalEntryId", "entryNumber description entryType")
-      .sort({ transactionDate: 1, createdAt: 1 });
+      .populate("createdBy", "firstName lastName email")
+      .sort({ transactionDate: 1, createdAt: 1 })
+      .lean();
 
     // Calculate running balance
     let runningBalance = 0;
@@ -64,12 +74,12 @@ async function _getAccountLedger(user: any, accountId: string, startDate?: strin
       }
       
       return {
-        ...entry.toObject(),
+        ...entry,
         runningBalance,
       };
     });
 
-    return { success: true, data: JSON.parse(JSON.stringify(entriesWithBalance)) };
+    return { success: true, data: entriesWithBalance };
   } catch (error: any) {
     return { error: error.message };
   }

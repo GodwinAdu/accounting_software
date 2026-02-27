@@ -1,7 +1,5 @@
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DataTable } from "@/components/table/data-table";
-import { columns } from "./_components/columns";
 import { LedgerFilters } from "./_components/ledger-filters";
 import Heading from "@/components/commons/Header";
 import { Separator } from "@/components/ui/separator";
@@ -9,6 +7,7 @@ import { getGeneralLedger } from "@/lib/actions/general-ledger.action";
 import { getAccounts } from "@/lib/actions/account.action";
 import { checkPermission } from "@/lib/helpers/check-permission";
 import { redirect } from "next/navigation";
+import GeneralLedgerTable from "./_components/general-ledger-table";
 
 export default async function GeneralLedgerPage({
   params,
@@ -42,10 +41,15 @@ export default async function GeneralLedgerPage({
     reference: txn.journalEntryId?.entryNumber || "N/A",
     description: txn.description || txn.journalEntryId?.description || "",
     account: txn.accountId?.accountName || "Unknown",
-    debit: txn.debit,
-    credit: txn.credit,
-    balance: txn.runningBalance,
+    debit: txn.debit || 0,
+    credit: txn.credit || 0,
+    balance: txn.runningBalance || 0,
+    createdBy: txn.createdBy || null,
+    createdAt: txn.createdAt || null,
   }));
+
+  console.log('Transactions count:', transactions.length);
+  console.log('Formatted transactions:', formattedTransactions.length);
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
@@ -86,7 +90,7 @@ export default async function GeneralLedgerPage({
         </div>
       </div>
 
-      <DataTable columns={columns} data={formattedTransactions} searchKey="description" />
+      <GeneralLedgerTable transactions={formattedTransactions} />
     </div>
   );
 }

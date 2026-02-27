@@ -44,4 +44,6 @@ const AIConversationSchema = new Schema<IAIConversation>(
 AIConversationSchema.index({ userId: 1, organizationId: 1, del_flag: 1 });
 AIConversationSchema.index({ lastMessageAt: -1 });
 
-export default mongoose.models.AIConversation || mongoose.model<IAIConversation>("AIConversation", AIConversationSchema);
+const AIConversation = mongoose.models.AIConversation || mongoose.model<IAIConversation>("AIConversation", AIConversationSchema);
+
+export default AIConversation;

@@ -8,10 +8,16 @@ import GeneralLedger from "../models/general-ledger.model";
 import { withAuth } from "../helpers/auth";
 import { logAudit } from "../helpers/audit";
 import { checkWriteAccess } from "../helpers/check-write-access";
+import { checkPermission } from "../helpers/check-permission";
 
 async function _createJournalEntry(data: any, user: any) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("journalEntries_create")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const lastEntry = await JournalEntry.findOne({ organizationId: user.organizationId })
@@ -45,7 +51,7 @@ async function _createJournalEntry(data: any, user: any) {
       action: "create",
       resource: "journal_entry",
       resourceId: String(journalEntry._id),
-      details: { after: journalEntry },
+      details: { after: { entryNumber, totalDebit, totalCredit } },
     });
 
     revalidatePath("/");
@@ -58,6 +64,11 @@ async function _createJournalEntry(data: any, user: any) {
 async function _postJournalEntry(user: any, id: string) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("journalEntries_update")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const journalEntry = await JournalEntry.findOne({
@@ -109,6 +120,7 @@ async function _postJournalEntry(user: any, id: string) {
               referenceNumber: journalEntry.referenceNumber,
               fiscalYear,
               fiscalPeriod,
+              createdBy: user._id,
             },
           ],
           { session }
@@ -190,6 +202,11 @@ async function _getJournalEntryById(user: any, id: string) {
 async function _updateJournalEntry(user: any, id: string, data: any) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("journalEntries_update")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const oldEntry = await JournalEntry.findOne({
@@ -224,7 +241,7 @@ async function _updateJournalEntry(user: any, id: string, data: any) {
       action: "update",
       resource: "journal_entry",
       resourceId: String(id),
-      details: { before: oldEntry, after: oldEntry },
+      details: { before: { entryNumber: oldEntry.entryNumber }, after: { entryNumber: oldEntry.entryNumber } },
     });
 
     revalidatePath("/");
@@ -237,6 +254,11 @@ async function _updateJournalEntry(user: any, id: string, data: any) {
 async function _voidJournalEntry(user: any, id: string, reason: string) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("journalEntries_delete")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const journalEntry = await JournalEntry.findOne({
@@ -303,6 +325,11 @@ async function _voidJournalEntry(user: any, id: string, reason: string) {
 async function _deleteJournalEntry(user: any, id: string, pathname: string) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("journalEntries_delete")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const entry = await JournalEntry.findOneAndUpdate(
@@ -321,7 +348,7 @@ async function _deleteJournalEntry(user: any, id: string, pathname: string) {
       action: "delete",
       resource: "journal_entry",
       resourceId: String(id),
-      details: { before: entry },
+      details: { before: { entryNumber: entry.entryNumber } },
     });
 
     revalidatePath(pathname);

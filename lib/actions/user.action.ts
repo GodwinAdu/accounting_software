@@ -10,17 +10,20 @@ import { issueRefreshToken, signAccessToken } from "../helpers/jwt";
 import { smsConfig } from "@/services/sms-config";
 import User from "../models/user.model";
 import { withAuth, type User as UserType } from "../helpers/auth"
-import { logAudit } from "../helpers/audit"
+import { logAudit, logSecurityEvent } from "../helpers/audit"
 import { checkWriteAccess } from "../helpers/check-write-access"
 import Department from "../models/deparment.model"
 import mongoose from "mongoose"
+import { validatePassword } from "../helpers/password-validator"
+import { getRequestMetadata } from "../helpers/request-metadata"
+import Organization from "../models/organization.model"
 
 
 interface RegisterData {
-    email: string;
-    password: string;
-    name: string;
-    phone: string;
+  email: string;
+  password: string;
+  name: string;
+  phone: string;
 }
 
 // export async function registerUser(
@@ -96,678 +99,742 @@ interface RegisterData {
 
 
 interface LoginParams {
-    email: string;
-    password: string;
-    mfaToken?: string;
-    isBackupCode?: boolean;
-    ip?: string;
-    userAgent?: string;
+  email: string;
+  password: string;
+  mfaToken?: string;
+  isBackupCode?: boolean;
+  ip?: string;
+  userAgent?: string;
 }
 
 export async function loginUser(data: LoginParams) {
-    try {
-        const { email, password, mfaToken } = data;
+  try {
+    const { email, password, mfaToken } = data;
+    const { ipAddress, userAgent } = await getRequestMetadata();
 
-        await connectToDB();
+    await connectToDB();
 
-        const user = await User.findOne({ email }).populate('organizationId');
-      
-        if (!user || !user.password) {
-            return { success: false, error: "Invalid credentials" };
-        }
+    const user = await User.findOne({ email });
 
-        if (user.suspended) {
-            return { success: false, error: "Account is suspended" };
-        }
-
-        const ok = await compare(password, user.password);
-       
-        if (!ok) {
-            user.loginAttempts += 1;
-            if (user.loginAttempts >= 5) {
-                user.lockoutUntil = new Date(Date.now() + 30 * 60 * 1000);
-            }
-            await user.save();
-            return { success: false, error: "Invalid credentials" };
-        }
-
-        // Check if organization requires 2FA but user hasn't enabled it yet
-        const organization = user.organizationId as any;
-        if (organization?.security?.twoFactorRequired && !user.twoFactorAuthEnabled) {
-            return { 
-                success: true,
-                requiresMFASetup: true,
-                userId: user.id,
-                email: user.email,
-                message: "Your organization requires two-factor authentication. Please set up 2FA to continue."
-            };
-        }
-
-        if (user.twoFactorAuthEnabled && !mfaToken) {
-            const tempToken = jwt.sign(
-                { userId: user.id, email: user.email, type: 'mfa' },
-                process.env.JWT_ACCESS_SECRET!,
-                { expiresIn: '10m' }
-            );
-            
-            return {
-                success: true,
-                requiresMFA: true,
-                mfaToken: tempToken,
-                userId: user.id
-            };
-        }
-
-        user.loginAttempts = 0;
-        user.lockoutUntil = undefined;
-        user.lastLogin = new Date();
-        await user.save();
-
-        const accessToken = signAccessToken({ ...user.toObject(), roles: [user.role] } as any);
-        const refreshToken = await issueRefreshToken(user._id.toString());
-
-        return {
-            success: true,
-            user: {
-                id: user.id,
-                email: user.email,
-                fullName: user.fullName,
-                role: user.role,
-                organizationId: user.organizationId,
-                mfaEnabled: user.twoFactorAuthEnabled,
-            },
-            accessToken,
-            refreshToken,
-        };
-    } catch (error) {
-        console.error("Login error:", error);
-        return { success: false, error: "Internal server error" };
+    if (!user || !user.password) {
+      await logSecurityEvent(
+        "login_failed",
+        "000000000000000000000000",
+        "000000000000000000000000",
+        { email, reason: "Invalid credentials", ipAddress, userAgent }
+      );
+      return { success: false, error: "Invalid credentials" };
     }
+
+    if (user.suspended) {
+      await logSecurityEvent(
+        "login_failed",
+        String(user._id),
+        String(user.organizationId),
+        { email, reason: "Account suspended", ipAddress, userAgent }
+      );
+      return { success: false, error: "Account is suspended" };
+    }
+
+    const ok = await compare(password, user.password);
+
+    if (!ok) {
+      user.loginAttempts += 1;
+      if (user.loginAttempts >= 5) {
+        user.lockoutUntil = new Date(Date.now() + 30 * 60 * 1000);
+        await logSecurityEvent(
+          "account_locked",
+          String(user._id),
+          String(user.organizationId),
+          { email, reason: "Too many failed attempts", ipAddress, userAgent }
+        );
+      }
+      await user.save();
+      await logSecurityEvent(
+        "login_failed",
+        String(user._id),
+        String(user.organizationId),
+        { email, reason: "Invalid password", ipAddress, userAgent }
+      );
+      return { success: false, error: "Invalid credentials" };
+    }
+
+    // Check if organization requires 2FA but user hasn't enabled it yet
+    const organization = user.organizationId as any;
+    if (organization?.security?.twoFactorRequired && !user.twoFactorAuthEnabled) {
+      return {
+        success: true,
+        requiresMFASetup: true,
+        userId: user._id,
+        email: user.email,
+        message: "Your organization requires two-factor authentication. Please set up 2FA to continue."
+      };
+    }
+
+    if (user.twoFactorAuthEnabled && !mfaToken) {
+      const tempToken = jwt.sign(
+        { userId: user.id, email: user.email, type: 'mfa' },
+        process.env.JWT_ACCESS_SECRET!,
+        { expiresIn: '10m' }
+      );
+
+      return {
+        success: true,
+        requiresMFA: true,
+        mfaToken: tempToken,
+        userId: user.id
+      };
+    }
+
+    user.loginAttempts = 0;
+    user.lockoutUntil = undefined;
+    user.lastLogin = new Date();
+    await user.save();
+
+    await logSecurityEvent(
+      "login_success",
+      String(user._id),
+      String(user.organizationId),
+      { email, ipAddress, userAgent }
+    );
+
+    const accessToken = signAccessToken({
+      _id: user._id,
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      organizationId: String(user.organizationId),
+      roles: [user.role]
+    } as any);
+    const refreshToken = await issueRefreshToken(user._id.toString());
+
+    return {
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        organizationId: String(user.organizationId),
+        mfaEnabled: user.twoFactorAuthEnabled,
+      },
+      accessToken,
+      refreshToken,
+    };
+  } catch (error) {
+    console.error("Login error:", error);
+    return { success: false, error: "Internal server error" };
+  }
 }
 
 
 export async function verifyEmailCode(code: string, email?: string): Promise<{ success: boolean; error?: string }> {
-    try {
-        if (!code || code.length !== 6) {
-            return { success: false, error: "Invalid verification code" };
-        }
-
-        await connectToDB();
-
-        let user;
-        
-        if (email) {
-            // Email-based verification (for new registrations)
-            user = await User.findOne({
-                email,
-                emailVerificationToken: code,
-                emailVerificationExpiry: { $gt: new Date() }
-            });
-        } else {
-            // Token-based verification (for logged-in users)
-            const cookieStore = await cookies()
-            const token = cookieStore.get("auth-token")?.value
-
-            if (!token) {
-                return { success: false, error: "Unauthorized" }
-            }
-
-            const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
-
-            user = await User.findOne({
-                _id: decoded.sub,
-                emailVerificationToken: code,
-                emailVerificationExpiry: { $gt: new Date() }
-            });
-        }
-
-        if (!user) {
-            return { success: false, error: "Invalid or expired verification code" };
-        }
-
-        user.emailVerified = true;
-        user.emailVerificationToken = undefined;
-        user.emailVerificationExpiry = undefined;
-        await user.save();
-
-        return { success: true };
-    } catch (error) {
-        console.error("Email verification error:", error);
-        return { success: false, error: "Internal server error" };
+  try {
+    if (!code || code.length !== 6) {
+      return { success: false, error: "Invalid verification code" };
     }
+
+    await connectToDB();
+
+    let user;
+
+    if (email) {
+      // Email-based verification (for new registrations)
+      user = await User.findOne({
+        email,
+        emailVerificationToken: code,
+        emailVerificationExpiry: { $gt: new Date() }
+      });
+    } else {
+      // Token-based verification (for logged-in users)
+      const cookieStore = await cookies()
+      const token = cookieStore.get("auth-token")?.value
+
+      if (!token) {
+        return { success: false, error: "Unauthorized" }
+      }
+
+      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
+
+      user = await User.findOne({
+        _id: decoded.sub,
+        emailVerificationToken: code,
+        emailVerificationExpiry: { $gt: new Date() }
+      });
+    }
+
+    if (!user) {
+      return { success: false, error: "Invalid or expired verification code" };
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpiry = undefined;
+    await user.save();
+
+    return { success: true };
+  } catch (error) {
+    console.error("Email verification error:", error);
+    return { success: false, error: "Internal server error" };
+  }
 }
 
 export async function resendVerificationEmail(): Promise<{ success: boolean; error?: string }> {
-    try {
-        const cookieStore = await cookies()
-        const token = cookieStore.get("auth-token")?.value
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get("auth-token")?.value
 
-        if (!token) {
-            return { success: false, error: "Unauthorized" }
-        }
-
-        const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
-
-        await connectToDB();
-
-        const user = await User.findById(decoded.sub);
-        if (!user) {
-            return { success: false, error: "User not found" };
-        }
-
-        if (user.emailVerified) {
-            return { success: false, error: "Email already verified" };
-        }
-
-        // Generate new verification code
-        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const verificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-        user.emailVerificationToken = verificationCode;
-        user.emailVerificationExpiry = verificationExpires;
-        await user.save();
-
-        return { success: true };
-    } catch (error) {
-        console.error("Resend verification error:", error);
-        return { success: false, error: "Internal server error" };
+    if (!token) {
+      return { success: false, error: "Unauthorized" }
     }
+
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
+
+    await connectToDB();
+
+    const user = await User.findById(decoded.sub);
+    if (!user) {
+      return { success: false, error: "User not found" };
+    }
+
+    if (user.emailVerified) {
+      return { success: false, error: "Email already verified" };
+    }
+
+    // Generate new verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    user.emailVerificationToken = verificationCode;
+    user.emailVerificationExpiry = verificationExpires;
+    await user.save();
+
+    return { success: true };
+  } catch (error) {
+    console.error("Resend verification error:", error);
+    return { success: false, error: "Internal server error" };
+  }
 }
 
 export async function resendVerificationEmailForRegistration(email: string): Promise<{ success: boolean; error?: string }> {
-    try {
-        await connectToDB();
+  try {
+    await connectToDB();
 
-        const user = await User.findOne({ email, emailVerified: false });
-        if (!user) {
-            return { success: false, error: "User not found or already verified" };
-        }
-
-        // Generate new verification code
-        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const verificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-        user.emailVerificationToken = verificationCode;
-        user.emailVerificationExpiry = verificationExpires;
-        await user.save();
-
-        return { success: true };
-    } catch (error) {
-        console.error("Resend verification error:", error);
-        return { success: false, error: "Internal server error" };
+    const user = await User.findOne({ email, emailVerified: false });
+    if (!user) {
+      return { success: false, error: "User not found or already verified" };
     }
+
+    // Generate new verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    user.emailVerificationToken = verificationCode;
+    user.emailVerificationExpiry = verificationExpires;
+    await user.save();
+
+    return { success: true };
+  } catch (error) {
+    console.error("Resend verification error:", error);
+    return { success: false, error: "Internal server error" };
+  }
 }
 
 export async function resendVerificationEmailOld(email: string): Promise<{ success: boolean; error?: string }> {
-    try {
-        await connectToDB();
+  try {
+    await connectToDB();
 
-        const user = await User.findOne({ email, emailVerified: false });
-        if (!user) {
-            return { success: false, error: "User not found or already verified" };
-        }
-
-        // Generate new verification code
-        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const verificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-        user.emailVerificationToken = verificationCode;
-        user.emailVerificationExpiry = verificationExpires;
-        await user.save();
-
-        return { success: true };
-    } catch (error) {
-        console.error("Resend verification error:", error);
-        return { success: false, error: "Internal server error" };
+    const user = await User.findOne({ email, emailVerified: false });
+    if (!user) {
+      return { success: false, error: "User not found or already verified" };
     }
+
+    // Generate new verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const verificationExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    user.emailVerificationToken = verificationCode;
+    user.emailVerificationExpiry = verificationExpires;
+    await user.save();
+
+    return { success: true };
+  } catch (error) {
+    console.error("Resend verification error:", error);
+    return { success: false, error: "Internal server error" };
+  }
 }
 
 export async function sendMagicLink(email: string): Promise<{ success: boolean; error?: string }> {
-    try {
-        console.log("[DEBUG] Sending magic link to:", email);
-        await connectToDB();
+  try {
+    console.log("[DEBUG] Sending magic link to:", email);
+    await connectToDB();
 
-        const user = await User.findOne({ email });
-        if (!user) {
-            console.log("[DEBUG] User not found for email:", email);
-            return { success: false, error: "User not found" };
-        }
-
-        console.log("[DEBUG] User found:", user.email);
-
-        // Generate magic link token
-        const magicToken = crypto.randomBytes(32).toString('hex');
-        const magicTokenExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-
-        user.resetPasswordToken = magicToken;
-        user.resetPasswordExpiry = magicTokenExpires;
-        await user.save();
-
-        console.log("[DEBUG] Magic token saved:", magicToken.substring(0, 8) + "...");
-
-        // Create magic link URL
-        const magicLinkUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/magic-link?token=${magicToken}`;
-        console.log("[DEBUG] Magic link URL:", magicLinkUrl);
-
-        console.log("[DEBUG] Email sent successfully");
-        return { success: true };
-    } catch (error) {
-        console.error("Send magic link error:", error);
-        return { success: false, error: "Internal server error" };
+    const user = await User.findOne({ email });
+    if (!user) {
+      console.log("[DEBUG] User not found for email:", email);
+      return { success: false, error: "User not found" };
     }
+
+    console.log("[DEBUG] User found:", user.email);
+
+    // Generate magic link token
+    const magicToken = crypto.randomBytes(32).toString('hex');
+    const magicTokenExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    user.resetPasswordToken = magicToken;
+    user.resetPasswordExpiry = magicTokenExpires;
+    await user.save();
+
+    console.log("[DEBUG] Magic token saved:", magicToken.substring(0, 8) + "...");
+
+    // Create magic link URL
+    const magicLinkUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/magic-link?token=${magicToken}`;
+    console.log("[DEBUG] Magic link URL:", magicLinkUrl);
+
+    console.log("[DEBUG] Email sent successfully");
+    return { success: true };
+  } catch (error) {
+    console.error("Send magic link error:", error);
+    return { success: false, error: "Internal server error" };
+  }
 }
 
 export async function verifyMagicLink(token: string): Promise<{ success: boolean; error?: string; accessToken?: string; refreshToken?: string }> {
-    try {
-        console.log("[DEBUG] Token received:", token, "Length:", token?.length);
-        
-        if (!token || token.length !== 64) {
-            console.log("[DEBUG] Invalid token format");
-            return { success: false, error: "Invalid magic link" };
-        }
+  try {
+    console.log("[DEBUG] Token received:", token, "Length:", token?.length);
 
-        await connectToDB();
-        console.log("[DEBUG] Connected to DB");
-
-        const user = await User.findOne({
-            resetPasswordToken: token,
-            resetPasswordExpiry: { $gt: new Date() }
-        });
-
-        console.log("[DEBUG] User found:", !!user);
-        
-        if (!user) {
-            const anyUser = await User.findOne({ resetPasswordToken: token });
-            console.log("[DEBUG] Token exists but expired:", !!anyUser);
-            if (anyUser) {
-                console.log("[DEBUG] Token expires at:", anyUser.resetPasswordExpiry, "Current time:", new Date());
-            }
-            return { success: false, error: "Invalid or expired magic link" };
-        }
-
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpiry = undefined;
-        user.lastLogin = new Date();
-        await user.save();
-
-        // Generate tokens
-        const accessToken = signAccessToken({ ...user.toObject(), roles: [user.role] } as any);
-        const refreshToken = await issueRefreshToken(user.id);
-
-        return {
-            success: true,
-            accessToken,
-            refreshToken
-        };
-    } catch (error) {
-        console.error("Verify magic link error:", error);
-        return { success: false, error: "Internal server error" };
+    if (!token || token.length !== 64) {
+      console.log("[DEBUG] Invalid token format");
+      return { success: false, error: "Invalid magic link" };
     }
+
+    await connectToDB();
+    console.log("[DEBUG] Connected to DB");
+
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpiry: { $gt: new Date() }
+    });
+
+    console.log("[DEBUG] User found:", !!user);
+
+    if (!user) {
+      const anyUser = await User.findOne({ resetPasswordToken: token });
+      console.log("[DEBUG] Token exists but expired:", !!anyUser);
+      if (anyUser) {
+        console.log("[DEBUG] Token expires at:", anyUser.resetPasswordExpiry, "Current time:", new Date());
+      }
+      return { success: false, error: "Invalid or expired magic link" };
+    }
+
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpiry = undefined;
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Generate tokens
+    const accessToken = signAccessToken({
+      _id: user._id,
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      organizationId: String(user.organizationId),
+      roles: [user.role]
+    } as any);
+    const refreshToken = await issueRefreshToken(user.id);
+
+    return {
+      success: true,
+      accessToken,
+      refreshToken
+    };
+  } catch (error) {
+    console.error("Verify magic link error:", error);
+    return { success: false, error: "Internal server error" };
+  }
 }
 
 export async function sendPhoneCode(phone: string): Promise<{ success: boolean; error?: string }> {
-    try {
-        await connectToDB()
-        
-        const user = await User.findOne({ phone })
-        if (!user) {
-            return { success: false, error: "User not found" }
-        }
+  try {
+    await connectToDB()
 
-        // Generate 6-digit code
-        const code = Math.floor(100000 + Math.random() * 900000).toString()
-        const expires = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-
-        user.emailVerificationToken = code
-        user.emailVerificationExpiry = expires
-        await user.save()
-
-        // Send SMS using smsConfig
-       
-        await smsConfig({
-            text: `Your login code is: ${code}. Valid for 10 minutes.`,
-            destinations: [phone]
-        })
-
-        return { success: true }
-    } catch (error) {
-        console.error("Send phone code error:", error)
-        return { success: false, error: "Failed to send SMS" }
+    const user = await User.findOne({ phone })
+    if (!user) {
+      return { success: false, error: "User not found" }
     }
+
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString()
+    const expires = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+
+    user.emailVerificationToken = code
+    user.emailVerificationExpiry = expires
+    await user.save()
+
+    // Send SMS using smsConfig
+
+    await smsConfig({
+      text: `Your login code is: ${code}. Valid for 10 minutes.`,
+      destinations: [phone]
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error("Send phone code error:", error)
+    return { success: false, error: "Failed to send SMS" }
+  }
 }
 
 export async function sendPhoneCodeForProfile(): Promise<{ success: boolean; error?: string }> {
-    try {
-       
+  try {
 
-        const cookieStore = await cookies()
-        const token = cookieStore.get("auth-token")?.value
 
-        if (!token) {
-            return { success: false, error: "Unauthorized" }
-        }
+    const cookieStore = await cookies()
+    const token = cookieStore.get("auth-token")?.value
 
-        const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
-        
-        await connectToDB()
-        
-        const user = await User.findById(decoded.sub)
-        if (!user) {
-            return { success: false, error: "User not found" }
-        }
-
-        // Generate 6-digit code
-        const code = Math.floor(100000 + Math.random() * 900000).toString()
-        const expires = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-
-        user.emailVerificationToken = code
-        user.emailVerificationExpiry = expires
-        await user.save()
-
-        // Send SMS using smsConfig
-       
-        await smsConfig({
-            text: `Your verification code is: ${code}. Valid for 10 minutes.`,
-            destinations: [user.phone!]
-        })
-
-        return { success: true }
-    } catch (error) {
-        console.error("Send phone code for profile error:", error)
-        return { success: false, error: "Failed to send SMS" }
+    if (!token) {
+      return { success: false, error: "Unauthorized" }
     }
+
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
+
+    await connectToDB()
+
+    const user = await User.findById(decoded.sub)
+    if (!user) {
+      return { success: false, error: "User not found" }
+    }
+
+    // Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString()
+    const expires = new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+
+    user.emailVerificationToken = code
+    user.emailVerificationExpiry = expires
+    await user.save()
+
+    // Send SMS using smsConfig
+
+    await smsConfig({
+      text: `Your verification code is: ${code}. Valid for 10 minutes.`,
+      destinations: [user.phone!]
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error("Send phone code for profile error:", error)
+    return { success: false, error: "Failed to send SMS" }
+  }
 }
 
 export async function verifyPhoneCode(phone: string, code: string): Promise<{ success: boolean; error?: string; accessToken?: string; refreshToken?: string }> {
-    try {
-        await connectToDB()
+  try {
+    await connectToDB()
 
-        const user = await User.findOne({
-            phone,
-            emailVerificationToken: code,
-            emailVerificationExpiry: { $gt: new Date() }
-        })
+    const user = await User.findOne({
+      phone,
+      emailVerificationToken: code,
+      emailVerificationExpiry: { $gt: new Date() }
+    })
 
-        if (!user) {
-            return { success: false, error: "Invalid or expired code" }
-        }
-
-        user.emailVerificationToken = undefined
-        user.emailVerificationExpiry = undefined
-        user.lastLogin = new Date()
-        await user.save()
-
-        // Generate tokens
-        const accessToken = signAccessToken({ ...user.toObject(), roles: [user.role] } as any)
-        const refreshToken = await issueRefreshToken(user.id)
-
-        return {
-            success: true,
-            accessToken,
-            refreshToken
-        }
-    } catch (error) {
-        console.error("Verify phone code error:", error)
-        return { success: false, error: "Internal server error" }
+    if (!user) {
+      return { success: false, error: "Invalid or expired code" }
     }
+
+    user.emailVerificationToken = undefined
+    user.emailVerificationExpiry = undefined
+    user.lastLogin = new Date()
+    await user.save()
+
+    // Generate tokens
+    const accessToken = signAccessToken({
+      _id: user._id,
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      organizationId: String(user.organizationId),
+      roles: [user.role]
+    } as any)
+    const refreshToken = await issueRefreshToken(user.id)
+
+    return {
+      success: true,
+      accessToken,
+      refreshToken
+    }
+  } catch (error) {
+    console.error("Verify phone code error:", error)
+    return { success: false, error: "Internal server error" }
+  }
 }
 
 export async function verifyPhoneForProfile(code: string): Promise<{ success: boolean; error?: string }> {
-    try {
-       
+  try {
 
-        const cookieStore = await cookies()
-        const token = cookieStore.get("auth-token")?.value
 
-        if (!token) {
-            return { success: false, error: "Unauthorized" }
-        }
+    const cookieStore = await cookies()
+    const token = cookieStore.get("auth-token")?.value
 
-        const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
-        
-        await connectToDB()
-        
-        const user = await User.findOne({
-            _id: decoded.sub,
-            emailVerificationToken: code,
-            emailVerificationExpiry: { $gt: new Date() }
-        })
-
-        if (!user) {
-            return { success: false, error: "Invalid or expired code" }
-        }
-
-        user.emailVerified = true
-        user.emailVerificationToken = undefined
-        user.emailVerificationExpiry = undefined
-        await user.save()
-
-        return { success: true }
-    } catch (error) {
-        console.error("Verify phone for profile error:", error)
-        return { success: false, error: "Internal server error" }
+    if (!token) {
+      return { success: false, error: "Unauthorized" }
     }
+
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
+
+    await connectToDB()
+
+    const user = await User.findOne({
+      _id: decoded.sub,
+      emailVerificationToken: code,
+      emailVerificationExpiry: { $gt: new Date() }
+    })
+
+    if (!user) {
+      return { success: false, error: "Invalid or expired code" }
+    }
+
+    user.emailVerified = true
+    user.emailVerificationToken = undefined
+    user.emailVerificationExpiry = undefined
+    await user.save()
+
+    return { success: true }
+  } catch (error) {
+    console.error("Verify phone for profile error:", error)
+    return { success: false, error: "Internal server error" }
+  }
 }
 
 export async function getCurrentUser(): Promise<{ success: boolean; error?: string; user?: any }> {
-    try {
-       
+  try {
 
-        const cookieStore = await cookies()
-        const token = cookieStore.get("auth-token")?.value
 
-        if (!token) {
-            return { success: false, error: "Unauthorized" }
-        }
+    const cookieStore = await cookies()
+    const token = cookieStore.get("auth-token")?.value
 
-        const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
-        
-        await connectToDB()
-        const user = await User.findById(decoded.sub)
-        if (!user) return { success: false, error: "User not found" }
-        
-        return {
-            success: true,
-            user: JSON.parse(JSON.stringify(user))
-        }
-    } catch (error) {
-        console.error("Get current user error:", error)
-        return { success: false, error: "Internal server error" }
+    if (!token) {
+      return { success: false, error: "Unauthorized" }
     }
+
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
+
+    await connectToDB()
+    const user = await User.findById(decoded.sub)
+    if (!user) return { success: false, error: "User not found" }
+
+    return {
+      success: true,
+      user: JSON.parse(JSON.stringify(user))
+    }
+  } catch (error) {
+    console.error("Get current user error:", error)
+    return { success: false, error: "Internal server error" }
+  }
 }
 
 export async function updateUserProfile(profileData: { fullName?: string; email?: string; phone?: string; imgUrl?: string }): Promise<{ success: boolean; error?: string }> {
-    try {
-        const cookieStore = await cookies()
-        const token = cookieStore.get("auth-token")?.value
+  try {
+    const cookieStore = await cookies()
+    const token = cookieStore.get("auth-token")?.value
 
-        if (!token) {
-            return { success: false, error: "Unauthorized" }
-        }
-
-        const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
-        
-        await connectToDB()
-        
-        if (profileData.email || profileData.phone) {
-            const existing = await User.findOne({
-                $or: [
-                    ...(profileData.email ? [{ email: profileData.email }] : []),
-                    ...(profileData.phone ? [{ phone: profileData.phone }] : [])
-                ],
-                _id: { $ne: decoded.sub }
-            })
-            
-            if (existing) {
-                return { success: false, error: "Email or phone already in use" }
-            }
-        }
-
-        const updateData: any = {}
-        if (profileData.fullName) updateData.fullName = profileData.fullName
-        if (profileData.email) updateData.email = profileData.email
-        if (profileData.phone) updateData.phone = profileData.phone
-        if (profileData.imgUrl) updateData.imgUrl = profileData.imgUrl
-
-        const user = await User.findByIdAndUpdate(
-            decoded.sub,
-            updateData,
-            { new: true }
-        )
-
-        if (!user) {
-            return { success: false, error: "User not found" }
-        }
-
-        return { success: true }
-    } catch (error) {
-        console.error("Update profile error:", error)
-        return { success: false, error: "Internal server error" }
+    if (!token) {
+      return { success: false, error: "Unauthorized" }
     }
+
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
+
+    await connectToDB()
+
+    if (profileData.email || profileData.phone) {
+      const existing = await User.findOne({
+        $or: [
+          ...(profileData.email ? [{ email: profileData.email }] : []),
+          ...(profileData.phone ? [{ phone: profileData.phone }] : [])
+        ],
+        _id: { $ne: decoded.sub }
+      })
+
+      if (existing) {
+        return { success: false, error: "Email or phone already in use" }
+      }
+    }
+
+    const updateData: any = {}
+    if (profileData.fullName) updateData.fullName = profileData.fullName
+    if (profileData.email) updateData.email = profileData.email
+    if (profileData.phone) updateData.phone = profileData.phone
+    if (profileData.imgUrl) updateData.imgUrl = profileData.imgUrl
+
+    const user = await User.findByIdAndUpdate(
+      decoded.sub,
+      updateData,
+      { new: true }
+    )
+
+    if (!user) {
+      return { success: false, error: "User not found" }
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error("Update profile error:", error)
+    return { success: false, error: "Internal server error" }
+  }
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
-    try {
-       
+  try {
 
-        const cookieStore = await cookies()
-        const token = cookieStore.get("auth-token")?.value
 
-        if (!token) {
-            return { success: false, error: "Unauthorized" }
-        }
+    const cookieStore = await cookies()
+    const token = cookieStore.get("auth-token")?.value
 
-        const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
-        
-        await connectToDB()
-        
-        const user = await User.findById(decoded.sub)
-        if (!user || !user.password) {
-            return { success: false, error: "User not found" }
-        }
-
-        // Verify current password
-        const isValid = await compare(currentPassword, user.password)
-        if (!isValid) {
-            return { success: false, error: "Current password is incorrect" }
-        }
-
-        // Hash new password
-        const newPasswordHash = await hash(newPassword, 12)
-        
-        await User.findByIdAndUpdate(decoded.sub, {
-            password: newPasswordHash
-        })
-
-        return { success: true }
-    } catch (error) {
-        console.error("Change password error:", error)
-        return { success: false, error: "Internal server error" }
+    if (!token) {
+      return { success: false, error: "Unauthorized" }
     }
+
+    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any
+
+    await connectToDB()
+
+    const user = await User.findById(decoded.sub)
+    if (!user || !user.password) {
+      return { success: false, error: "User not found" }
+    }
+
+    // Verify current password
+    const isValid = await compare(currentPassword, user.password)
+    if (!isValid) {
+      return { success: false, error: "Current password is incorrect" }
+    }
+
+    // Hash new password
+    const newPasswordHash = await hash(newPassword, 12)
+
+    await User.findByIdAndUpdate(decoded.sub, {
+      password: newPasswordHash
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error("Change password error:", error)
+    return { success: false, error: "Internal server error" }
+  }
 }
 
 export async function verifyMFACode(code: string, backupCode?: string, mfaToken?: string, rememberDevice?: boolean): Promise<{ success: boolean; error?: string; accessToken?: string; refreshToken?: string; trustedDeviceToken?: string }> {
-    try {
-        let userId: string;
-        
-        if (mfaToken) {
-            // Use the MFA token from login
-            const decoded = jwt.verify(mfaToken, process.env.JWT_ACCESS_SECRET!) as any;
-            if (decoded.type !== 'mfa') {
-                return { success: false, error: "Invalid MFA token" };
-            }
-            userId = decoded.userId;
-        } else {
-            // Fallback to cookie-based auth for existing flows
-            const cookieStore = await cookies();
-            const token = cookieStore.get("auth-token")?.value;
-            
-            if (!token) {
-                return { success: false, error: "Unauthorized" };
-            }
-            
-            const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any;
-            userId = decoded.sub;
-        }
-        
-        await connectToDB();
-        
-        const user = await User.findById(userId);
-        if (!user || !user.twoFactorAuthEnabled) {
-            return { success: false, error: "MFA not enabled" };
-        }
+  try {
+    let userId: string;
 
-        let isValid = false;
+    if (mfaToken) {
+      // Use the MFA token from login
+      const decoded = jwt.verify(mfaToken, process.env.JWT_ACCESS_SECRET!) as any;
+      if (decoded.type !== 'mfa') {
+        return { success: false, error: "Invalid MFA token" };
+      }
+      userId = decoded.userId;
+    } else {
+      // Fallback to cookie-based auth for existing flows
+      const cookieStore = await cookies();
+      const token = cookieStore.get("auth-token")?.value;
 
-        if (backupCode) {
-            // Backup codes not implemented in current model
-            return { success: false, error: "Backup codes not supported" };
-        } else {
-            if (user.twoFactorSecret) {
-                isValid = speakeasy.totp.verify({
-                    secret: user.twoFactorSecret,
-                    encoding: "base32",
-                    token: code,
-                    window: 2,
-                });
-            }
-        }
+      if (!token) {
+        return { success: false, error: "Unauthorized" };
+      }
 
-        if (!isValid) {
-            return { success: false, error: "Invalid verification code" };
-        }
-
-        user.loginAttempts = 0;
-        user.lockoutUntil = undefined;
-        user.lastLogin = new Date();
-        
-        await user.save();
-
-        const accessToken = signAccessToken({ ...user.toObject(), roles: [user.role] } as any);
-        const refreshToken = await issueRefreshToken(user.id);
-
-        return {
-            success: true,
-            accessToken,
-            refreshToken
-        };
-    } catch (error) {
-        console.error("Verify MFA code error:", error);
-        return { success: false, error: "Internal server error" };
+      const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as any;
+      userId = decoded.sub;
     }
+
+    await connectToDB();
+
+    const user = await User.findById(userId);
+    if (!user || !user.twoFactorAuthEnabled) {
+      return { success: false, error: "MFA not enabled" };
+    }
+
+    let isValid = false;
+
+    if (backupCode) {
+      // Backup codes not implemented in current model
+      return { success: false, error: "Backup codes not supported" };
+    } else {
+      if (user.twoFactorSecret) {
+        isValid = speakeasy.totp.verify({
+          secret: user.twoFactorSecret,
+          encoding: "base32",
+          token: code,
+          window: 2,
+        });
+      }
+    }
+
+    if (!isValid) {
+      return { success: false, error: "Invalid verification code" };
+    }
+
+    user.loginAttempts = 0;
+    user.lockoutUntil = undefined;
+    user.lastLogin = new Date();
+
+    await user.save();
+
+    const accessToken = signAccessToken({
+      _id: user._id,
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      organizationId: String(user.organizationId),
+      roles: [user.role]
+    } as any);
+    const refreshToken = await issueRefreshToken(user.id);
+
+    return {
+      success: true,
+      accessToken,
+      refreshToken
+    };
+  } catch (error) {
+    console.error("Verify MFA code error:", error);
+    return { success: false, error: "Internal server error" };
+  }
 }
 
 export async function checkTrustedDevice(userId: string, deviceToken: string): Promise<{ success: boolean; error?: string }> {
-    try {
-        await connectToDB();
-        
-        const user = await User.findById(userId);
-        if (!user) {
-            return { success: false, error: "User not found" };
-        }
+  try {
+    await connectToDB();
 
-        // trustedDevices not implemented in User model
-        return { success: false };
-    } catch (error) {
-        console.error("Check trusted device error:", error);
-        return { success: false, error: "Internal server error" };
+    const user = await User.findById(userId);
+    if (!user) {
+      return { success: false, error: "User not found" };
     }
+
+    // trustedDevices not implemented in User model
+    return { success: false };
+  } catch (error) {
+    console.error("Check trusted device error:", error);
+    return { success: false, error: "Internal server error" };
+  }
 }
 
 export async function fetchUserById(id: string) {
-    try {
-        await connectToDB()
-        const user = await User.findById(id)
-        if (!user) return { success: false, error: "User not found" };
-        return {
-            success: true,
-            user: JSON.parse(JSON.stringify(user))
-        };
+  try {
+    await connectToDB()
+    const user = await User.findById(id)
+    if (!user) return { success: false, error: "User not found" };
+    return {
+      success: true,
+      user: JSON.parse(JSON.stringify(user))
+    };
 
-    } catch (error) {
-        console.error("fetch user error:", error);
-        return { success: false, error: "Internal server error" };
-    }
+  } catch (error) {
+    console.error("fetch user error:", error);
+    return { success: false, error: "Internal server error" };
+  }
 }
 
 
@@ -787,7 +854,9 @@ async function _fetchOrganizationUsers(user: UserType) {
 
     await connectToDB()
 
-    const users = await User.find({ organizationId }).populate("employment.departmentId", "name").sort({ createdAt: -1 })
+    const users = await User.find({
+      organizationId: user.organizationId
+    }).sort({ createdAt: -1 })
 
     return { success: true, users: JSON.parse(JSON.stringify(users)) }
   } catch (error) {
@@ -804,9 +873,9 @@ async function _getUsers(user: UserType) {
 
     await connectToDB()
 
-    const users = await User.find({ 
-      organizationId: user.organizationId,
-      isActive: true 
+    const users = await User.find({
+      organizationId: new mongoose.Types.ObjectId(user.organizationId as string),
+      isActive: true
     }).select("fullName email _id").sort({ fullName: 1 }).lean()
 
     return { success: true, data: JSON.parse(JSON.stringify(users)) }
@@ -840,11 +909,38 @@ async function _createUser(
       throw new Error("User does not belong to any organization")
     }
 
+    // Validate password strength
+    const passwordValidation = validatePassword(data.password);
+    if (!passwordValidation.isValid) {
+      return {
+        success: false,
+        error: passwordValidation.errors.join(". ")
+      };
+    }
+
     await connectToDB()
 
     const existing = await User.findOne({ email: data.email })
     if (existing) {
       return { success: false, error: "User with this email already exists" }
+    }
+
+    // Check organization plan limits
+    const organization = await Organization.findById(organizationId)
+    if (!organization) {
+      return { success: false, error: "Organization not found" }
+    }
+
+    const currentUserCount = await User.countDocuments({
+      organizationId: organizationId,
+      del_flag: false
+    })
+
+    if (currentUserCount >= organization.subscriptionPlan.employeeLimit!) {
+      return {
+        success: false,
+        error: `User limit reached. Your ${organization.subscriptionPlan.plan} plan allows ${organization.subscriptionPlan.employeeLimit} users. Please upgrade your plan.`
+      }
     }
 
     const passwordHash = await hash(data.password, 12)
@@ -860,7 +956,7 @@ async function _createUser(
       employment: {
         employeeID,
         dateOfJoining: new Date(),
-        departmentId: new mongoose.Types.ObjectId(data.departmentId),
+        departmentId: data.departmentId,
       },
       isActive: data.isActive,
       emailVerified: false,
@@ -868,10 +964,10 @@ async function _createUser(
 
     await logAudit({
       organizationId,
-      userId: String(user._id || user.id),
+      userId: String((user as any)._id || user.id),
       action: "create",
       resource: "user",
-      resourceId: newUser._id.toString(),
+      resourceId: (newUser as any)._id.toString(),
       details: { after: { fullName: data.fullName, email: data.email, role: data.role } },
     })
 
@@ -897,8 +993,8 @@ async function _updateUser(
   }
 ) {
   try {
-    await checkWriteAccess(String(user.organizationId));
     if (!user) throw new Error("User not authenticated")
+    await checkWriteAccess(String(user.organizationId));
 
     const organizationId = user.organizationId as string
 
@@ -908,7 +1004,10 @@ async function _updateUser(
 
     await connectToDB()
 
-    const before = await User.findOne({ _id: staffId, organizationId })
+    const before = await User.findOne({
+      _id: new mongoose.Types.ObjectId(staffId),
+      organizationId: new mongoose.Types.ObjectId(organizationId)
+    })
 
     if (!before) {
       return { success: false, error: "User not found" }
@@ -920,9 +1019,16 @@ async function _updateUser(
     if (data.phone) updateData.phone = data.phone
     if (data.role) updateData.role = data.role
     if (data.isActive !== undefined) updateData.isActive = data.isActive
-    if (data.departmentId) updateData["employment.departmentId"] = new mongoose.Types.ObjectId(data.departmentId)
+    if (data.departmentId) updateData["employment.departmentId"] = data.departmentId
 
-    const updatedUser = await User.findOneAndUpdate({ _id: staffId, organizationId }, updateData, { new: true })
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        _id: new mongoose.Types.ObjectId(staffId),
+        organizationId: new mongoose.Types.ObjectId(organizationId)
+      },
+      updateData,
+      { new: true }
+    )
 
     await logAudit({
       organizationId,

@@ -17,7 +17,7 @@ import SideContent from "./sidebar"
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   organization: any,
   userRole: IRole,
-  user:IEmployee
+  user: IEmployee
 }
 
 export function AppSidebar(props: AppSidebarProps) {
@@ -29,7 +29,7 @@ export function AppSidebar(props: AppSidebarProps) {
         <TeamSwitcher user={user}  />
       </SidebarHeader>
       <SidebarContent className="scrollbar-hide">
-        <SideContent organization={organization} role={userRole?.permissions} />
+        <SideContent organization={organization} role={userRole?.permissions} userRole={user.role} />
       </SidebarContent>
       <SidebarFooter>
         <NavUser organization={organization} />

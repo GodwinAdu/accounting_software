@@ -6,6 +6,8 @@ import BankAccount from "../models/bank-account.model";
 import { withAuth } from "../helpers/auth";
 import { logAudit } from "../helpers/audit";
 import { checkWriteAccess } from "../helpers/check-write-access";
+import { checkPermission } from "../helpers/check-permission";
+import { createJournalEntryForBankTransaction } from "../helpers/journal-entry-helper";
 
 async function _createBankTransaction(
   user: any,
@@ -24,6 +26,11 @@ async function _createBankTransaction(
 ) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("transactions_create")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const lastTransaction = await BankTransaction.findOne({ organizationId: user.organizationId })
@@ -54,6 +61,29 @@ async function _createBankTransaction(
         bankAccount.currentBalance -= data.amount;
       }
       await bankAccount.save();
+
+      // Create journal entry if bank account is linked to GL
+      if (bankAccount.accountId && data.transactionType !== "transfer") {
+        const jeResult = await createJournalEntryForBankTransaction(
+          String(user.organizationId),
+          String(user._id),
+          {
+            transactionId: String(transaction._id),
+            transactionNumber,
+            transactionDate: data.transactionDate,
+            description: data.description,
+            bankAccountGLId: String(bankAccount.accountId),
+            amount: data.amount,
+            transactionType: data.transactionType,
+            category: data.category,
+          }
+        );
+
+        if (jeResult.success && jeResult.data) {
+          transaction.journalEntryId = jeResult.data._id;
+          await transaction.save();
+        }
+      }
     }
 
     await logAudit({
@@ -132,6 +162,11 @@ async function _updateBankTransaction(
 ) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("transactions_update")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const oldTransaction = await BankTransaction.findOne({
@@ -168,6 +203,11 @@ async function _updateBankTransaction(
 async function _deleteBankTransaction(user: any, id: string) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("transactions_delete")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const transaction = await BankTransaction.findOneAndUpdate(

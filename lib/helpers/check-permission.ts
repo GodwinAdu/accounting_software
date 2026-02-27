@@ -1,4 +1,7 @@
 import { currentUserRole } from "./get-user-role";
+import { logSecurityEvent } from "./audit";
+import { getRequestMetadata } from "./request-metadata";
+import { currentUser } from "./session";
 
 export async function checkPermission(permission: string): Promise<boolean> {
   try {
@@ -8,8 +11,23 @@ export async function checkPermission(permission: string): Promise<boolean> {
       return false;
     }
 
-    // Check if user has the specific permission
-    return userRole.permissions?.[permission] === true;
+    const hasPermission = userRole.permissions?.[permission] === true;
+    
+    if (!hasPermission) {
+      const user = await currentUser();
+      const { ipAddress, userAgent } = await getRequestMetadata();
+      
+      if (user) {
+        await logSecurityEvent(
+          "permission_denied",
+          String(user._id),
+          String(user.organizationId),
+          { reason: `Missing permission: ${permission}`, ipAddress, userAgent }
+        );
+      }
+    }
+    
+    return hasPermission;
   } catch (error) {
     console.error("Error checking permission:", error);
     return false;
@@ -60,5 +78,33 @@ export async function getUserPermissions(): Promise<Record<string, boolean>> {
   } catch (error) {
     console.error("Error getting user permissions:", error);
     return {};
+  }
+}
+
+export async function checkAdmin(): Promise<boolean> {
+  try {
+    const user = await currentUser();
+    
+    if (!user) {
+      return false;
+    }
+
+    const isAdmin = user.role === "admin";
+    
+    if (!isAdmin) {
+      const { ipAddress, userAgent } = await getRequestMetadata();
+      
+      await logSecurityEvent(
+        "permission_denied",
+        String(user._id),
+        String(user.organizationId),
+        { reason: "Admin access required", ipAddress, userAgent }
+      );
+    }
+    
+    return isAdmin;
+  } catch (error) {
+    console.error("Error checking admin:", error);
+    return false;
   }
 }

@@ -6,10 +6,16 @@ import Vendor from "../models/vendor.model";
 import { withAuth, type User } from "../helpers/auth";
 import { logAudit } from "../helpers/audit";
 import { checkWriteAccess } from "../helpers/check-write-access";
+import { checkPermission } from "../helpers/check-permission";
 
 async function _createVendor(user: User, data: any, path: string) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("vendors_create")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const lastVendor = await Vendor.findOne({ organizationId: user.organizationId })
@@ -83,6 +89,11 @@ async function _getVendorById(user: User, vendorId: string) {
 async function _updateVendor(user: User, vendorId: string, data: any, path: string) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("vendors_update")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const oldVendor = await Vendor.findOne({
@@ -120,6 +131,11 @@ async function _updateVendor(user: User, vendorId: string, data: any, path: stri
 async function _deleteVendor(user: User, vendorId: string, path: string) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("vendors_delete")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const vendor = await Vendor.findOneAndUpdate(

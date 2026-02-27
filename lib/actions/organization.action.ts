@@ -9,6 +9,8 @@ import { withAuth, type User as UserType } from "../helpers/auth"
 import { hash } from "bcryptjs"
 import { logAudit } from "../helpers/audit"
 import { checkWriteAccess } from "../helpers/check-write-access"
+import { validatePassword } from "../helpers/password-validator"
+import { invalidateModuleCache } from "../helpers/module-access"
 
 interface RegisterOrganizationData {
     name: string
@@ -50,6 +52,15 @@ interface RegisterOrganizationData {
 export async function registerOrganization(data: RegisterOrganizationData) {
     try {
         await connectToDB();
+
+        // Validate password strength
+        const passwordValidation = validatePassword(data.password);
+        if (!passwordValidation.isValid) {
+            return { 
+                success: false, 
+                error: passwordValidation.errors.join(". ") 
+            };
+        }
 
         const [existingOrg, existingUser] = await Promise.all([
             Organization.findOne({ email: data.email }),
@@ -474,6 +485,8 @@ async function _updateOrganizationProfile(user: UserType, data: {
             resourceId: organizationId,
             details: { after: data },
         })
+
+        invalidateModuleCache(organizationId);
 
         return { success: true, organization: JSON.parse(JSON.stringify(organization)) }
     } catch (error) {

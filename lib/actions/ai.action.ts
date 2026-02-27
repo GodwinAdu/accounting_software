@@ -4,9 +4,15 @@ import { openai, AI_CONFIG } from "../ai/config";
 import { withAuth } from "../helpers/auth";
 import { connectToDB } from "../connection/mongoose";
 import { revalidatePath } from "next/cache";
+import { checkModuleAccess } from "../helpers/module-access";
+import AIConversation from "../models/ai-conversation.model";
 
 async function _chatWithAI(user: any, message: string, conversationHistory: any[] = [], conversationId?: string) {
   try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
     await connectToDB();
 
     const Account = (await import("../models/account.model")).default;
@@ -106,7 +112,6 @@ Respond with helpful, accurate financial guidance.`;
       followUpQuestions = parsed.questions || [];
     } catch {}
 
-    const AIConversation = (await import("../models/ai-conversation.model")).default;
     
     if (conversationId) {
       await AIConversation.findByIdAndUpdate(conversationId, {
@@ -146,6 +151,10 @@ Respond with helpful, accurate financial guidance.`;
 
 async function _getFinancialInsights(user: any) {
   try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
     await connectToDB();
 
     const Invoice = (await import("../models/invoice.model")).default;
@@ -174,7 +183,7 @@ async function _getFinancialInsights(user: any) {
       return acc;
     }, {});
 
-    const topExpenseCategory = Object.entries(expensesByCategory).sort((a: any, b: any) => b[1] - a[1])[0];
+    const topExpenseCategory = Object.entries(expensesByCategory).sort((a: [string, any], b: [string, any]) => (b[1] as number) - (a[1] as number))[0];
 
     const prompt = `Analyze this financial data and provide 3-5 actionable insights:
 
@@ -222,6 +231,10 @@ Format as bullet points, be specific and actionable.`;
 
 async function _categorizeExpense(user: any, description: string, amount: number, vendor?: string) {
   try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
     await connectToDB();
 
     const Expense = (await import("../models/expense.model")).default;
@@ -290,6 +303,11 @@ Be consistent with existing patterns. Only suggest categories and accounts from 
 
 async function _extractInvoiceData(user: any, imageBase64: string) {
   try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    await connectToDB();
     const prompt = `Extract invoice/receipt data from this image. Return JSON with:
 {
   "vendor": "vendor name",
@@ -331,6 +349,10 @@ async function _extractInvoiceData(user: any, imageBase64: string) {
 
 async function _detectAnomalies(user: any) {
   try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
     await connectToDB();
     const Expense = (await import("../models/expense.model")).default;
     const Invoice = (await import("../models/invoice.model")).default;
@@ -390,6 +412,10 @@ async function _detectAnomalies(user: any) {
 
 async function _forecastFinancials(user: any, months: number = 3) {
   try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
     await connectToDB();
     const Invoice = (await import("../models/invoice.model")).default;
     const Expense = (await import("../models/expense.model")).default;
@@ -454,6 +480,10 @@ ${dataStr}`;
 
 async function _smartReconcile(user: any, bankTransactions: any[]) {
   try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
     await connectToDB();
     const Expense = (await import("../models/expense.model")).default;
     const Invoice = (await import("../models/invoice.model")).default;
@@ -493,7 +523,6 @@ async function _smartReconcile(user: any, bankTransactions: any[]) {
 async function _getConversationHistory(user: any, limit: number = 10) {
   try {
     await connectToDB();
-    const AIConversation = (await import("../models/ai-conversation.model")).default;
 
     const conversations = await AIConversation.find({
       userId: user._id,
@@ -523,7 +552,6 @@ async function _getConversationHistory(user: any, limit: number = 10) {
 async function _getConversation(user: any, conversationId: string) {
   try {
     await connectToDB();
-    const AIConversation = (await import("../models/ai-conversation.model")).default;
 
     const conversation = await AIConversation.findOne({
       _id: conversationId,
@@ -558,7 +586,6 @@ async function _getConversation(user: any, conversationId: string) {
 async function _deleteConversation(user: any, conversationId: string, pathname: string) {
   try {
     await connectToDB();
-    const AIConversation = (await import("../models/ai-conversation.model")).default;
 
     await AIConversation.findOneAndUpdate(
       { _id: conversationId, userId: user._id, organizationId: user.organizationId },
@@ -574,6 +601,10 @@ async function _deleteConversation(user: any, conversationId: string, pathname: 
 
 async function _smartSearch(user: any, query: string) {
   try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
     await connectToDB();
     const Invoice = (await import("../models/invoice.model")).default;
     const Expense = (await import("../models/expense.model")).default;
@@ -664,6 +695,11 @@ Examples:
 
 async function _generateEmail(user: any, type: string, recipientName: string, amount?: number, invoiceNumber?: string, dueDate?: string) {
   try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    await connectToDB();
     const prompts = {
       payment_reminder: `Write a professional payment reminder email for ${recipientName}. Invoice ${invoiceNumber} for GHS ${amount?.toLocaleString()} was due on ${dueDate}. Be polite but firm.`,
       thank_you: `Write a thank you email to ${recipientName} for their payment of GHS ${amount?.toLocaleString()} for invoice ${invoiceNumber}.`,
@@ -689,7 +725,6 @@ async function _generateEmail(user: any, type: string, recipientName: string, am
 async function _searchConversations(user: any, query: string) {
   try {
     await connectToDB();
-    const AIConversation = (await import("../models/ai-conversation.model")).default;
 
     const conversations = await AIConversation.find({
       userId: user._id,
@@ -730,7 +765,7 @@ async function _searchConversations(user: any, query: string) {
 async function _shareConversation(user: any, conversationId: string) {
   try {
     await connectToDB();
-    const AIConversation = (await import("../models/ai-conversation.model")).default;
+   
     const crypto = await import("crypto");
 
     const shareToken = crypto.randomBytes(16).toString("hex");
@@ -749,7 +784,6 @@ async function _shareConversation(user: any, conversationId: string) {
 async function _getSharedConversation(shareToken: string) {
   try {
     await connectToDB();
-    const AIConversation = (await import("../models/ai-conversation.model")).default;
 
     const conversation = await AIConversation.findOne({
       shareToken,
@@ -781,7 +815,6 @@ async function _getSharedConversation(shareToken: string) {
 async function _updateConversationTags(user: any, conversationId: string, tags: string[]) {
   try {
     await connectToDB();
-    const AIConversation = (await import("../models/ai-conversation.model")).default;
 
     await AIConversation.findOneAndUpdate(
       { _id: conversationId, userId: user._id, organizationId: user.organizationId },
@@ -797,7 +830,6 @@ async function _updateConversationTags(user: any, conversationId: string, tags: 
 async function _regenerateResponse(user: any, conversationId: string, messageIndex: number) {
   try {
     await connectToDB();
-    const AIConversation = (await import("../models/ai-conversation.model")).default;
 
     const conversation = await AIConversation.findOne({
       _id: conversationId,
@@ -832,7 +864,6 @@ async function _regenerateResponse(user: any, conversationId: string, messageInd
 async function _editMessage(user: any, conversationId: string, messageIndex: number, newContent: string) {
   try {
     await connectToDB();
-    const AIConversation = (await import("../models/ai-conversation.model")).default;
 
     const conversation = await AIConversation.findOne({
       _id: conversationId,

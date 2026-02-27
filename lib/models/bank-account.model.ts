@@ -24,6 +24,13 @@ export interface IBankAccount extends Document {
   createdBy: mongoose.Types.ObjectId;
   modifiedBy?: mongoose.Types.ObjectId;
   deletedBy?: mongoose.Types.ObjectId;
+  deletedAt?: Date;
+  deletionReason?: string;
+  deletionMetadata?: {
+    ipAddress?: string;
+    userAgent?: string;
+    snapshot?: any;
+  };
   mod_flag: number;
 }
 
@@ -56,6 +63,13 @@ const BankAccountSchema = new Schema<IBankAccount>(
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     modifiedBy: { type: Schema.Types.ObjectId, ref: "User" },
     deletedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    deletedAt: { type: Date },
+    deletionReason: { type: String },
+    deletionMetadata: {
+      ipAddress: { type: String },
+      userAgent: { type: String },
+      snapshot: { type: Schema.Types.Mixed },
+    },
     mod_flag: { type: Number, default: 0 },
   },
   { timestamps: true }

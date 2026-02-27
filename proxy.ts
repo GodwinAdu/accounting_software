@@ -127,7 +127,8 @@ const authConfig = {
         "/payment-callback",
         "/sms-payment-callback",
         "/api/*",
-        "/setup-2fa"
+        "/setup-2fa",
+        "/shared/*"
     ],
     protectedRoutes: [] as string[],
     loginUrl: "/sign-in",

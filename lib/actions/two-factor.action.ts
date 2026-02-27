@@ -14,8 +14,8 @@ export async function enable2FAForLogin(email: string) {
     if (!user) return { success: false, error: "User not found" };
 
     const secret = speakeasy.generateSecret({
-      name: `FindIT (${user.email})`,
-      issuer: "FindIT",
+      name: `SyncBooks (${user.email})`,
+      issuer: "SyncBooks",
     });
 
     await User.findByIdAndUpdate(user._id, {
@@ -75,8 +75,8 @@ export async function enable2FA() {
 
     // Generate secret
     const secret = speakeasy.generateSecret({
-      name: `FindIT: ${user.email}`,
-      issuer: "FindIT",
+      name: `SyncBooks: ${user.email}`,
+      issuer: "SyncBooks",
     });
 
     // Store temporary secret (will be confirmed after verification)

@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, Link2, AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { Building2, Link2, AlertCircle, CheckCircle2, Clock, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import ImportCSVDialog from "./import-csv-dialog";
 
 interface BankFeedsListProps {
   organizationId: string;
@@ -13,15 +15,23 @@ interface BankFeedsListProps {
 }
 
 export default function BankFeedsList({ organizationId, userId, accounts }: BankFeedsListProps) {
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   return (
     <div className="space-y-6">
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          <strong>Bank Feed Integration Coming Soon!</strong> Direct bank connections with Ghana banks (GCB, Ecobank, Stanbic, etc.) are under development. 
-          For now, you can manually add transactions in the Transactions page.
+          <strong>Manual CSV Import Available!</strong> While direct bank API integration is coming soon, you can import bank statements via CSV. 
+          Click "Import CSV" below to upload your transactions.
         </AlertDescription>
       </Alert>
+
+      <div className="flex justify-end">
+        <Button onClick={() => setImportDialogOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
+          <Upload className="h-4 w-4 mr-2" />
+          Import CSV
+        </Button>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
@@ -95,7 +105,7 @@ export default function BankFeedsList({ organizationId, userId, accounts }: Bank
                           <p className="text-sm text-muted-foreground">{account.accountName}</p>
                           <p className="text-sm font-mono">{account.accountNumber}</p>
                           <p className="text-xs text-muted-foreground mt-2">
-                            Bank feed integration will be available soon. Manual transaction entry is currently supported.
+                            Direct API connection coming in Phase 2. Use CSV import for now.
                           </p>
                         </div>
                       </div>
@@ -117,19 +127,22 @@ export default function BankFeedsList({ organizationId, userId, accounts }: Bank
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
             <div>
-              <h4 className="font-medium text-blue-900 mb-2">Upcoming Bank Feed Features</h4>
+              <h4 className="font-medium text-blue-900 mb-2">Future: Direct Bank API Integration (Phase 2)</h4>
               <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
                 <li>Direct API integration with major Ghana banks (GCB, Ecobank, Stanbic, Absa, Fidelity)</li>
-                <li>Automatic daily transaction imports</li>
+                <li>Automatic daily transaction imports (no CSV needed)</li>
                 <li>Real-time balance updates</li>
-                <li>Smart transaction categorization</li>
-                <li>Duplicate detection and matching</li>
-                <li>Secure OAuth 2.0 authentication</li>
+                <li>OAuth 2.0 secure authentication</li>
               </ul>
+              <p className="text-sm text-blue-700 mt-3">
+                <strong>Current Solution:</strong> Use CSV import above to bulk import transactions from your bank statements.
+              </p>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      <ImportCSVDialog open={importDialogOpen} onOpenChange={setImportDialogOpen} accounts={accounts} />
     </div>
   );
 }

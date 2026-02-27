@@ -5,6 +5,7 @@ import BankAccount from "../models/bank-account.model";
 import { withAuth } from "../helpers/auth";
 import { logAudit } from "../helpers/audit";
 import { checkWriteAccess } from "../helpers/check-write-access";
+import { checkPermission } from "../helpers/check-permission";
 
 async function _createBankAccount(
   user: any,
@@ -27,6 +28,11 @@ async function _createBankAccount(
 ) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("bankAccounts_create")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const account = await BankAccount.create({
@@ -107,6 +113,11 @@ async function _updateBankAccount(
 ) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("bankAccounts_update")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const oldAccount = await BankAccount.findOne({
@@ -143,6 +154,11 @@ async function _updateBankAccount(
 async function _deleteBankAccount(user: any, id: string) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("bankAccounts_delete")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const account = await BankAccount.findOneAndUpdate(

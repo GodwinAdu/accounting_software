@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -21,6 +21,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,6 +34,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { createBankAccount } from "@/lib/actions/bank-account.action";
+import { getAccountsByType } from "@/lib/actions/account.action";
 import { toast } from "sonner";
 
 const formSchema = z.object({
@@ -44,6 +46,7 @@ const formSchema = z.object({
   openingBalance: z.string().min(1, "Opening balance is required"),
   openingBalanceDate: z.string().min(1, "Opening balance date is required"),
   bankBranch: z.string().optional(),
+  accountId: z.string().optional(),
   isPrimary: z.boolean().default(false),
   notes: z.string().optional(),
 });
@@ -56,6 +59,7 @@ interface AddBankAccountDialogProps {
 export function AddBankAccountDialog({ open, onOpenChange }: AddBankAccountDialogProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [glAccounts, setGlAccounts] = useState<any[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -68,10 +72,28 @@ export function AddBankAccountDialog({ open, onOpenChange }: AddBankAccountDialo
       openingBalance: "0",
       openingBalanceDate: new Date().toISOString().split("T")[0],
       bankBranch: "",
+      accountId: "",
       isPrimary: false,
       notes: "",
     },
   });
+
+  useEffect(() => {
+    if (open) {
+      loadGLAccounts();
+    }
+  }, [open]);
+
+  const loadGLAccounts = async () => {
+    try {
+      const result = await getAccountsByType("asset");
+      if (result.success) {
+        setGlAccounts(result.data || []);
+      }
+    } catch (error) {
+      console.error("Failed to load GL accounts", error);
+    }
+  };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setLoading(true);
@@ -80,6 +102,7 @@ export function AddBankAccountDialog({ open, onOpenChange }: AddBankAccountDialo
         ...values,
         openingBalance: parseFloat(values.openingBalance),
         openingBalanceDate: new Date(values.openingBalanceDate),
+        accountId: values.accountId && values.accountId !== "none" ? values.accountId : undefined,
       });
 
       if (result.error) {
@@ -189,6 +212,35 @@ export function AddBankAccountDialog({ open, onOpenChange }: AddBankAccountDialo
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="accountId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Link to GL Account (Optional)</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select GL account" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">None (Manual posting)</SelectItem>
+                      {glAccounts.map((acc) => (
+                        <SelectItem key={acc._id} value={acc._id}>
+                          {acc.accountCode} - {acc.accountName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Link to Chart of Accounts for automatic journal entries
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <FormField

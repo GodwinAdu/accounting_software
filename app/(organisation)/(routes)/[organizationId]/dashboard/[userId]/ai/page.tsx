@@ -7,8 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { chatWithAI, getFinancialInsights, getConversationHistory, getConversation, deleteConversation, searchConversations, shareConversation, updateConversationTags, regenerateResponse, editMessage } from "@/lib/actions/ai.action";
 import { toast } from "sonner";
-import Heading from "@/components/commons/Header";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -22,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ShareDialog } from "./_components/share-dialog";
 
 type Message = {
   role: "user" | "assistant";
@@ -34,7 +33,7 @@ export default function AIAssistantPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Hello! I'm PayFlow AI, your financial assistant. I can help you with accounting questions, explain financial reports, guide you through features, and provide insights. How can I assist you today?",
+      content: "Hello! I'm SyncBooks AI, your financial assistant. I can help you with accounting questions, explain financial reports, guide you through features, and provide insights. How can I assist you today?",
       timestamp: new Date(),
     },
   ]);
@@ -154,7 +153,7 @@ export default function AIAssistantPage() {
   const clearChat = () => {
     setMessages([{
       role: "assistant",
-      content: "Hello! I'm PayFlow AI, your financial assistant. I can help you with accounting questions, explain financial reports, guide you through features, and provide insights. How can I assist you today?",
+      content: "Hello! I'm SyncBooks AI, your financial assistant. I can help you with accounting questions, explain financial reports, guide you through features, and provide insights. How can I assist you today?",
       timestamp: new Date(),
     }]);
     setCurrentConversationId(null);
@@ -170,7 +169,7 @@ export default function AIAssistantPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `payflow-ai-chat-${new Date().toISOString().split('T')[0]}.txt`;
+    a.download = `syncbooks-ai-chat-${new Date().toISOString().split('T')[0]}.txt`;
     a.click();
     toast.success("Chat exported");
   };
@@ -267,8 +266,6 @@ export default function AIAssistantPage() {
       const link = `${window.location.origin}/shared/${result.shareToken}`;
       setShareLink(link);
       setShowShareDialog(true);
-      navigator.clipboard.writeText(link);
-      toast.success("Link copied to clipboard");
     } else {
       toast.error("Failed to share");
     }
@@ -328,7 +325,7 @@ export default function AIAssistantPage() {
   };
 
   const quickQuestions = [
-    "How do I reconcile my bank account in PayFlow?",
+    "How do I reconcile my bank account in SyncBooks?",
     "What's the difference between cash and accrual accounting?",
     "How do I create a journal entry for depreciation?",
     "Explain my current cash flow situation",
@@ -336,7 +333,7 @@ export default function AIAssistantPage() {
     "How do I categorize business expenses for tax purposes?",
     "Help me understand my profit margin",
     "What's the best way to manage overdue invoices?",
-    "How do I track inventory in PayFlow?",
+    "How do I track inventory in SyncBooks?",
     "What's the difference between revenue and profit?",
     "How do I handle foreign currency transactions?",
     "Explain accounts receivable vs accounts payable",
@@ -374,7 +371,7 @@ export default function AIAssistantPage() {
       "What records should I keep for tax purposes?",
     ],
     payroll: [
-      "How do I run payroll in PayFlow?",
+      "How do I run payroll in SyncBooks?",
       "How do I calculate employee deductions?",
       "What are statutory deductions?",
       "How do I generate payslips?",
@@ -387,13 +384,14 @@ export default function AIAssistantPage() {
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
-      <Heading
-        title="AI Financial Assistant"
-        description="Get instant answers to your accounting questions"
+      <ShareDialog 
+        open={showShareDialog} 
+        onOpenChange={setShowShareDialog} 
+        shareLink={shareLink}
+        title="SyncBooks AI Conversation"
       />
-      <Separator />
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
         {showHistory && (
           <Card className="shadow-md">
             <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20">
@@ -522,7 +520,7 @@ export default function AIAssistantPage() {
                     <Sparkles className="h-5 w-5" />
                   </div>
                   <div>
-                    <div className="text-lg font-semibold">PayFlow AI Assistant</div>
+                    <div className="text-lg font-semibold">SyncBooks AI Assistant</div>
                     <div className="text-xs font-normal text-white/80">Powered by GPT-4</div>
                   </div>
                 </CardTitle>

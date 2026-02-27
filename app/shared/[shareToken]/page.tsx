@@ -7,8 +7,9 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import "highlight.js/styles/github-dark.css";
 
-export default async function SharedConversationPage({ params }: { params: { shareToken: string } }) {
-  const result = await getSharedConversation(params.shareToken);
+export default async function SharedConversationPage({ params }: { params: Promise<{ shareToken: string }> }) {
+  const { shareToken } = await params;
+  const result = await getSharedConversation(shareToken);
 
   if (!result.success || !result.conversation) {
     return (

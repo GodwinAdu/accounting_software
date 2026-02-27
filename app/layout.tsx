@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FindIT - Financial Management System",
+  title: "SyncBooks - Financial Management System",
   description: "Complete accounting, inventory, and business management solution.",
 };
 

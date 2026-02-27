@@ -15,10 +15,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { ChevronLeft, ChevronRight, Eye, Trash2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Eye, Trash2, Archive, Database } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { deleteAuditLog, clearAllAuditLogs } from "@/lib/actions/audit-log.action"
+import { archiveOldAuditLogs, optimizeAuditLogIndexes } from "@/lib/actions/audit-log-maintenance.action"
 import { toast } from "sonner"
 
 interface AuditLog {
@@ -48,7 +49,9 @@ export default function AuditLogTable({
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [showClearAll, setShowClearAll] = useState(false)
+  const [showArchive, setShowArchive] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isArchiving, setIsArchiving] = useState(false)
 
   const actionColors: Record<string, string> = {
     create: "bg-green-500",
@@ -96,6 +99,29 @@ export default function AuditLogTable({
     }
   }
 
+  const handleArchive = async () => {
+    setIsArchiving(true)
+    const result = await archiveOldAuditLogs()
+    setIsArchiving(false)
+
+    if (result.success) {
+      toast.success(result.message)
+      setShowArchive(false)
+      router.refresh()
+    } else {
+      toast.error(result.error || "Failed to archive logs")
+    }
+  }
+
+  const handleOptimizeIndexes = async () => {
+    const result = await optimizeAuditLogIndexes()
+    if (result.success) {
+      toast.success("Database indexes optimized")
+    } else {
+      toast.error(result.error || "Failed to optimize indexes")
+    }
+  }
+
   if (logs.length === 0) {
     return (
       <Card>
@@ -111,10 +137,20 @@ export default function AuditLogTable({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Activity Log</CardTitle>
-          <Button variant="destructive" size="sm" onClick={() => setShowClearAll(true)}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            Clear All
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowArchive(true)}>
+              <Archive className="mr-2 h-4 w-4" />
+              Archive Old
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleOptimizeIndexes}>
+              <Database className="mr-2 h-4 w-4" />
+              Optimize
+            </Button>
+            <Button variant="destructive" size="sm" onClick={() => setShowClearAll(true)}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Clear All
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -202,47 +238,56 @@ export default function AuditLogTable({
       </Card>
 
       <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Audit Log Details</DialogTitle>
           </DialogHeader>
           {selectedLog && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm font-medium">User</p>
-                  <p className="text-sm text-muted-foreground">{selectedLog.userId?.fullName}</p>
+                  <p className="text-sm font-medium text-muted-foreground">User</p>
+                  <p className="text-sm font-semibold">{selectedLog.userId?.fullName}</p>
+                  <p className="text-xs text-muted-foreground">{selectedLog.userId?.email}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Action</p>
+                  <p className="text-sm font-medium text-muted-foreground">Action</p>
                   <Badge className={actionColors[selectedLog.action]}>{selectedLog.action}</Badge>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Resource</p>
-                  <p className="text-sm text-muted-foreground capitalize">{selectedLog.resource}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Resource</p>
+                  <p className="text-sm font-semibold capitalize">{selectedLog.resource}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Resource ID</p>
-                  <p className="text-sm text-muted-foreground">{selectedLog.resourceId || "N/A"}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Resource ID</p>
+                  <p className="text-sm font-mono text-xs break-all">{selectedLog.resourceId || "N/A"}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">IP Address</p>
-                  <p className="text-sm text-muted-foreground">{selectedLog.ipAddress || "N/A"}</p>
+                  <p className="text-sm font-medium text-muted-foreground">IP Address</p>
+                  <p className="text-sm font-semibold">{selectedLog.ipAddress || "N/A"}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Date & Time</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm font-medium text-muted-foreground">Date & Time</p>
+                  <p className="text-sm font-semibold">
                     {new Date(selectedLog.createdAt).toLocaleString()}
                   </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Status</p>
+                  <Badge variant={selectedLog.status === "success" ? "default" : "destructive"}>
+                    {selectedLog.status}
+                  </Badge>
                 </div>
               </div>
 
               {selectedLog.details && Object.keys(selectedLog.details).length > 0 && (
                 <div>
                   <p className="text-sm font-medium mb-2">Details</p>
-                  <pre className="bg-muted p-4 rounded-md text-xs overflow-auto max-h-96">
-                    {JSON.stringify(selectedLog.details, null, 2)}
-                  </pre>
+                  <div className="bg-muted p-4 rounded-md overflow-auto max-h-[400px]">
+                    <pre className="text-xs whitespace-pre-wrap break-words">
+                      {JSON.stringify(selectedLog.details, null, 2)}
+                    </pre>
+                  </div>
                 </div>
               )}
             </div>
@@ -279,6 +324,23 @@ export default function AuditLogTable({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleClearAll} disabled={isDeleting} className="bg-destructive text-destructive-foreground">
               {isDeleting ? "Clearing..." : "Clear All"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showArchive} onOpenChange={setShowArchive}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archive Old Audit Logs</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will delete audit logs older than 90 days to keep the database lean and improve performance.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleArchive} disabled={isArchiving}>
+              {isArchiving ? "Archiving..." : "Archive Now"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

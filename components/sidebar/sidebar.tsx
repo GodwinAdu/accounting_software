@@ -3,11 +3,11 @@ import { NavMain } from './nav-main'
 
 
 
-const SideContent = ({ role, organization }: { role:any, organization:any }) => {
+const SideContent = ({ role, organization, userRole }: { role: any, organization: any, userRole: string }) => {
 
     return (
         <>
-            <NavMain organization={organization} role={role} />
+            <NavMain organization={organization} role={role} userRole={userRole} />
         </>
     )
 }

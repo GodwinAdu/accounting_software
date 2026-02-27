@@ -16,6 +16,7 @@ export interface IGeneralLedger extends Document {
   fiscalPeriod: number;
   isReconciled: boolean;
   reconciledDate?: Date;
+  createdBy?: mongoose.Types.ObjectId;
   del_flag: boolean;
 }
 
@@ -36,6 +37,7 @@ const GeneralLedgerSchema: Schema = new Schema(
     fiscalPeriod: { type: Number, required: true },
     isReconciled: { type: Boolean, default: false },
     reconciledDate: { type: Date },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User" },
     del_flag: { type: Boolean, default: false },
   },
   { timestamps: true }

@@ -1,4 +1,4 @@
-# FindIT
+# SyncBooks
 
 A modern financial management SaaS platform built with Next.js, TypeScript, and MongoDB.
 

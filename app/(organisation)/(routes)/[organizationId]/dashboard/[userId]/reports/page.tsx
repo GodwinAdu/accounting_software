@@ -4,7 +4,7 @@ import { FileText, TrendingUp, DollarSign, Calendar, FileBarChart, Scale, Receip
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: "Reports | FindIT",
+  title: "Reports | SyncBooks",
   description: "Financial reports and analytics",
 };
 

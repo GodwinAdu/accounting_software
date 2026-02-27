@@ -71,15 +71,6 @@ export default function UsersList({
       ),
     },
     {
-      accessorKey: "department",
-      header: "Department",
-      cell: ({ row }) => (
-        <span className="text-sm">
-          {row.original.employment?.departmentId?.name || "Unassigned"}
-        </span>
-      ),
-    },
-    {
       accessorKey: "role",
       header: "Role",
       cell: ({ row }) => {

@@ -78,7 +78,7 @@ export default async function KeyboardShortcutsPage({ params }: { params: Props 
 
   return (
     <div className="space-y-6">
-      <Heading title="Keyboard Shortcuts" description="Master FindIT with these keyboard shortcuts" />
+      <Heading title="Keyboard Shortcuts" description="Master SyncBooks with these keyboard shortcuts" />
       <Separator />
 
       <div className="grid gap-6 md:grid-cols-2">

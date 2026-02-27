@@ -6,10 +6,16 @@ import Account from "../models/account.model";
 import { withAuth } from "../helpers/auth";
 import { logAudit } from "../helpers/audit";
 import { checkWriteAccess } from "../helpers/check-write-access";
+import { checkPermission } from "../helpers/check-permission";
 
 async function _createAccount(user: any, data: any) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("chartOfAccounts_create")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     // Remove parentAccountId if it's empty or undefined
@@ -97,6 +103,11 @@ async function _getAccountById(user: any, id: string) {
 async function _updateAccount(user: any, id: string, data: any) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("chartOfAccounts_update")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     const oldAccount = await Account.findOne({
@@ -134,6 +145,11 @@ async function _updateAccount(user: any, id: string, data: any) {
 async function _deleteAccount(user: any, id: string, pathname: string) {
   try {
     await checkWriteAccess(String(user.organizationId));
+    
+    if (!await checkPermission("chartOfAccounts_delete")) {
+      return { success: false, error: "Permission denied" };
+    }
+    
     await connectToDB();
 
     // Check if account has transactions
