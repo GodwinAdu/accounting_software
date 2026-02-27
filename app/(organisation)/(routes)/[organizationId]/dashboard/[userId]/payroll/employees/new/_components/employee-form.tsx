@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { createEmployee } from "@/lib/actions/employee.action";
 import { createDepartment } from "@/lib/actions/department.action";
 import { toast } from "sonner";
+import { SalarySuggestionModal } from "@/components/ai";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +46,7 @@ const employeeSchema = z.object({
 
 type EmployeeFormValues = z.infer<typeof employeeSchema>;
 
-export function EmployeeForm({users, departments: initialDepartments}) {
+export function EmployeeForm({users, departments: initialDepartments, hasAIAccess}) {
   const router = useRouter();
   const params = useParams()
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,6 +54,7 @@ export function EmployeeForm({users, departments: initialDepartments}) {
   const [departments, setDepartments] = useState(initialDepartments || []);
   const [openDept, setOpenDept] = useState(false);
   const [newDeptName, setNewDeptName] = useState("");
+  const [showAISalary, setShowAISalary] = useState(false);
 
   const {orgainzation, userId } = params
 
@@ -515,6 +517,16 @@ export function EmployeeForm({users, departments: initialDepartments}) {
                     )}
                   />
                 </div>
+                {hasAIAccess && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowAISalary(true)}
+                    className="w-full"
+                  >
+                    Get AI Salary Suggestion
+                  </Button>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -635,6 +647,14 @@ export function EmployeeForm({users, departments: initialDepartments}) {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {hasAIAccess && (
+          <SalarySuggestionModal
+            open={showAISalary}
+            onClose={() => setShowAISalary(false)}
+            onApply={(salary) => form.setValue("salary", salary)}
+          />
+        )}
       </form>
     </Form>
   );

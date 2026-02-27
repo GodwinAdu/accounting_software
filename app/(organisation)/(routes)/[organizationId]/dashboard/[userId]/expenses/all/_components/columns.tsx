@@ -19,6 +19,7 @@ export type Expense = {
   amount: number;
   paymentMethod: "cash" | "card" | "bank_transfer" | "mobile_money" | "cheque";
   status: "paid" | "pending" | "approved" | "rejected";
+  isReimbursable?: boolean;
   receiptUrl?: string;
 };
 
@@ -47,7 +48,15 @@ export const columns: ColumnDef<Expense>[] = [
     header: "Category",
     cell: ({ row }) => {
       const category = row.original.categoryId?.name;
-      return category ? <Badge variant="outline">{category}</Badge> : "—";
+      const isReimbursable = row.original.isReimbursable;
+      return (
+        <div className="flex items-center gap-2">
+          {category ? <Badge variant="outline">{category}</Badge> : "—"}
+          {isReimbursable && (
+            <Badge className="bg-purple-100 text-purple-700 text-xs">Reimbursable</Badge>
+          )}
+        </div>
+      );
     },
   },
   {

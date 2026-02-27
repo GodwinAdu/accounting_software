@@ -6,13 +6,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, Package, Layers, Users } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { currentUser } from "@/lib/helpers/session";
+import { checkModuleAccess } from "@/lib/helpers/module-access";
+import { DemandForecast, PriceOptimization } from "@/components/ai";
 
 export default async function ProductDetailPage({
   params,
 }: {
-  params: { organizationId: string; userId: string; productId: string };
+  params: Promise<{ organizationId: string; userId: string; productId: string }>;
 }) {
-  const result = await getProductById(params.productId);
+  const user = await currentUser();
+  const { organizationId, userId, productId } = await params;
+  const hasAIAccess = user ? await checkModuleAccess(user.organizationId, "ai") : false;
+  
+  const result = await getProductById(productId);
 
   if (result.error || !result.data) {
     notFound();
@@ -24,7 +31,7 @@ export default async function ProductDetailPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href={`/${params.organizationId}/dashboard/${params.userId}/products/all`}>
+          <Link href={`/${organizationId}/dashboard/${userId}/products/all`}>
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
@@ -91,6 +98,13 @@ export default async function ProductDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      {hasAIAccess && (
+        <div className="grid gap-6 md:grid-cols-2">
+          <DemandForecast productId={productId} productName={product.name} />
+          <PriceOptimization productId={productId} productName={product.name} currentPrice={product.sellingPrice} />
+        </div>
+      )}
 
       {(product.salesAccountId || product.purchaseAccountId || product.inventoryAccountId) && (
         <Card>

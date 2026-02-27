@@ -8,6 +8,8 @@ import { getAccounts, getChartOfAccountsSummary, initializeDefaultAccounts } fro
 import { checkPermission } from "@/lib/helpers/check-permission";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 export default async function ChartOfAccountsPage({
   params,
@@ -86,6 +88,21 @@ export default async function ChartOfAccountsPage({
           </div>
         </div>
       </div>
+
+      <Alert className="border-blue-200 bg-blue-50">
+        <Info className="h-4 w-4 text-blue-600" />
+        <AlertTitle className="text-blue-900 font-semibold">Chart of Accounts Guide</AlertTitle>
+        <AlertDescription className="text-blue-800 mt-2">
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            <li><span className="font-semibold">Assets:</span> What you own (Cash, Inventory, Equipment)</li>
+            <li><span className="font-semibold">Liabilities:</span> What you owe (Loans, Accounts Payable)</li>
+            <li><span className="font-semibold">Equity:</span> Owner's stake (Capital, Retained Earnings)</li>
+            <li><span className="font-semibold">Revenue:</span> Income from sales and services</li>
+            <li><span className="font-semibold">Expenses:</span> Costs of running your business</li>
+            <li className="text-red-700 font-semibold mt-2">⚠️ Cannot delete accounts with transactions - deactivate instead</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
 
       <DataTable columns={columns} data={formattedAccounts} searchKey="name" />
     </div>

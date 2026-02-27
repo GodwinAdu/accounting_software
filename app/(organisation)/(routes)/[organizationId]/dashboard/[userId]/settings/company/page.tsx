@@ -13,6 +13,8 @@ import TaxSettingsTab from "./_components/tax-settings-tab"
 import PayrollSettingsTab from "./_components/payroll-settings-tab"
 import NotificationsTab from "./_components/notifications-tab"
 import DangerZoneTab from "./_components/danger-zone-tab"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Info } from "lucide-react"
 
 export default function CompanySettingsPage() {
   const searchParams = useSearchParams()
@@ -24,6 +26,13 @@ export default function CompanySettingsPage() {
         <h1 className="text-3xl font-bold">Company Settings</h1>
         <p className="text-muted-foreground">Manage your organization settings and preferences</p>
       </div>
+
+      <Alert className="border-amber-200 bg-amber-50">
+        <Info className="h-4 w-4 text-amber-600" />
+        <AlertDescription className="text-amber-800">
+          <span className="font-semibold">Important:</span> Changes to fiscal year, currency, and tax settings affect all financial reports. Configure these settings carefully before entering transactions.
+        </AlertDescription>
+      </Alert>
 
       <Tabs defaultValue={defaultTab} className="space-y-6">
         <div className="overflow-x-auto">

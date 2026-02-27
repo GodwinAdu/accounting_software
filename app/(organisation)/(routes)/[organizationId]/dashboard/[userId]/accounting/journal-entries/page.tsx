@@ -8,6 +8,8 @@ import { getJournalEntries } from "@/lib/actions/journal-entry.action";
 import { checkPermission } from "@/lib/helpers/check-permission";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 export default async function JournalEntriesPage({
   params,
@@ -76,6 +78,19 @@ export default async function JournalEntriesPage({
           </div>
         </div>
       </div>
+
+      <Alert className="border-blue-200 bg-blue-50">
+        <Info className="h-4 w-4 text-blue-600" />
+        <AlertTitle className="text-blue-900 font-semibold">Understanding Journal Entries</AlertTitle>
+        <AlertDescription className="text-blue-800 mt-2">
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            <li><span className="font-semibold">Draft entries</span> can be edited or deleted</li>
+            <li><span className="font-semibold">Posted entries</span> update the General Ledger and cannot be edited (only reversed)</li>
+            <li><span className="font-semibold">Debits must equal credits</span> - this is the foundation of double-entry bookkeeping</li>
+            <li>Use <span className="font-semibold">reversal entries</span> to correct posted mistakes</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
 
       <DataTable columns={columns} data={formattedEntries} />
     </div>

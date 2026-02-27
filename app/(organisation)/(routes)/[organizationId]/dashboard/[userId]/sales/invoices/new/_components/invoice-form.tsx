@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { CalendarIcon, Plus, Trash2, Save, Send, Eye, ArrowLeft, Printer, Download } from "lucide-react";
+import { CalendarIcon, Plus, Trash2, Save, Send, Eye, ArrowLeft, Printer, Download, Sparkles, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useReactToPrint } from "react-to-print";
@@ -41,7 +41,7 @@ import { Separator } from "@/components/ui/separator";
 import { CustomerCombobox } from "./customer-combobox";
 import { AccountSelector } from "@/components/forms/account-selector";
 import { ProjectSelector } from "@/components/selectors/project-selector";
-import { createInvoice, updateInvoice } from "@/lib/actions/invoice.action";
+import { createInvoice, updateInvoice, getInvoices } from "@/lib/actions/invoice.action";
 import { getCustomers } from "@/lib/actions/customer.action";
 import { useParams, usePathname } from "next/navigation";
 import { toast } from "sonner";
@@ -99,15 +99,18 @@ const paymentTermsOptions = [
 
 type InvoiceFormProps = {
   initialData?: any;
+  hasAIAccess?: boolean;
 };
 
-export function InvoiceForm({ initialData }: InvoiceFormProps) {
+export function InvoiceForm({ initialData, hasAIAccess = false }: InvoiceFormProps) {
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<any>(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const orgSettings = useOrganizationSettings();
   
@@ -300,6 +303,53 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
 
   const selectedCustomer = customers.find(c => c._id === form.watch("customerId"));
 
+  // Load AI suggestions when customer changes
+  useEffect(() => {
+    const loadAISuggestions = async () => {
+      if (!hasAIAccess || !form.watch("customerId") || isEditMode) return;
+      
+      setIsLoadingAI(true);
+      try {
+        const invoicesResult = await getInvoices();
+        if (invoicesResult.success) {
+          const customerInvoices = invoicesResult.data.filter(
+            (inv: any) => inv.customerId?._id === form.watch("customerId")
+          );
+          
+          if (customerInvoices.length > 0) {
+            // Get most common items from past invoices
+            const itemFrequency: any = {};
+            customerInvoices.forEach((inv: any) => {
+              inv.lineItems?.forEach((item: any) => {
+                const key = item.description;
+                if (!itemFrequency[key]) {
+                  itemFrequency[key] = { ...item, count: 0 };
+                }
+                itemFrequency[key].count++;
+              });
+            });
+            
+            const topItems = Object.values(itemFrequency)
+              .sort((a: any, b: any) => b.count - a.count)
+              .slice(0, 3);
+            
+            setAiSuggestions({
+              items: topItems,
+              avgTotal: customerInvoices.reduce((sum: number, inv: any) => sum + (inv.totalAmount || 0), 0) / customerInvoices.length,
+              lastPaymentTerms: customerInvoices[0].paymentTerms,
+            });
+          }
+        }
+      } catch (error) {
+        console.error('AI suggestions error:', error);
+      } finally {
+        setIsLoadingAI(false);
+      }
+    };
+
+    loadAISuggestions();
+  }, [form.watch("customerId"), hasAIAccess, isEditMode]);
+
   return (
     <>
     <Form {...form}>
@@ -459,6 +509,70 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
                 </div>
               </CardContent>
             </Card>
+
+            {/* AI Suggestions */}
+            {hasAIAccess && aiSuggestions && (
+              <Card className="border-emerald-200 bg-emerald-50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-emerald-900">
+                    <Sparkles className="h-5 w-5" />
+                    AI Smart Suggestions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-emerald-800">
+                    Based on {selectedCustomer?.name}'s history:
+                  </p>
+                  {aiSuggestions.items.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-emerald-900">Frequently ordered items:</p>
+                      {aiSuggestions.items.map((item: any, idx: number) => (
+                        <Button
+                          key={idx}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-start text-left bg-white hover:bg-emerald-100"
+                          onClick={() => {
+                            const currentItems = form.getValues("lineItems");
+                            form.setValue("lineItems", [
+                              ...currentItems,
+                              {
+                                description: item.description,
+                                quantity: item.quantity,
+                                rate: item.rate,
+                                taxRate: item.taxRate || defaultTaxRate,
+                                taxAmount: 0,
+                                amount: item.quantity * item.rate,
+                              },
+                            ]);
+                            toast.success(`Added "${item.description}" to invoice`);
+                          }}
+                        >
+                          <Plus className="h-3 w-3 mr-2" />
+                          {item.description} - GHS {item.rate} (ordered {item.count}x)
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="text-xs text-emerald-700 space-y-1 pt-2 border-t border-emerald-200">
+                    <p>• Avg invoice: <span className="font-semibold">GHS {aiSuggestions.avgTotal.toFixed(2)}</span></p>
+                    <p>• Usual terms: <span className="font-semibold">{paymentTermsOptions.find(t => t.value === aiSuggestions.lastPaymentTerms)?.label}</span></p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {isLoadingAI && hasAIAccess && (
+              <Card className="border-blue-200 bg-blue-50">
+                <CardContent className="py-4">
+                  <div className="flex items-center gap-2 text-blue-700">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm">Loading AI suggestions...</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Line Items */}
             <Card>
@@ -656,7 +770,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-muted-foreground mb-4">
-                  Link to project or select specific accounts to override defaults.
+                  Optional: Link to project or customize account mappings.
                 </p>
                 
                 <div className="space-y-4">
@@ -665,7 +779,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
                     name="projectId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Project</FormLabel>
+                        <FormLabel>Project (Optional)</FormLabel>
                         <FormControl>
                           <ProjectSelector
                             value={field.value || ""}
@@ -673,7 +787,7 @@ export function InvoiceForm({ initialData }: InvoiceFormProps) {
                           />
                         </FormControl>
                         <p className="text-xs text-muted-foreground mt-1">
-                          Link this invoice to a project for tracking
+                          Leave empty for general invoices
                         </p>
                       </FormItem>
                     )}

@@ -127,9 +127,8 @@ export default function ProjectForm({ initialData }: ProjectFormProps) {
           Back to Projects
         </Button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Card>
+        <div className="space-y-6">
+          <Card>
               <CardHeader>
                 <CardTitle>{isEdit ? "Edit Project" : "New Project"}</CardTitle>
                 <CardDescription>Enter project details</CardDescription>
@@ -400,35 +399,33 @@ export default function ProjectForm({ initialData }: ProjectFormProps) {
                 />
               </CardContent>
             </Card>
-          </div>
+          </Card>
 
-          <div className="space-y-6">
-            <Card className="sticky top-6">
-              <CardHeader>
-                <CardTitle>Actions</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Button
-                  type="submit"
-                  className="w-full bg-emerald-600 hover:bg-emerald-700"
-                  disabled={isSubmitting}
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {isSubmitting ? "Saving..." : isEdit ? "Update Project" : "Create Project"}
-                </Button>
+          <Card className="sticky top-6">
+            <CardHeader>
+              <CardTitle>Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button
+                type="submit"
+                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                disabled={isSubmitting}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {isSubmitting ? "Saving..." : isEdit ? "Update Project" : "Create Project"}
+              </Button>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => router.back()}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => router.back()}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </form>
     </Form>

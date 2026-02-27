@@ -8,6 +8,8 @@ import { currentUser } from "@/lib/helpers/session";
 import { checkPermission } from "@/lib/helpers/check-permission";
 import Link from "next/link";
 import { ProductsTable } from "./_components/products-table";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Package } from "lucide-react";
 
 export default async function ProductsPage({
   params,
@@ -85,6 +87,19 @@ export default async function ProductsPage({
           </div>
         </div>
       </div>
+
+      <Alert className="border-blue-200 bg-blue-50">
+        <Package className="h-4 w-4 text-blue-600" />
+        <AlertTitle className="text-blue-900 font-semibold">Product & Inventory Management</AlertTitle>
+        <AlertDescription className="text-blue-800 mt-2">
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            <li><span className="font-semibold">Inventory tracking:</span> Enable for physical products, disable for services</li>
+            <li><span className="font-semibold">Cost vs Selling Price:</span> Cost is what you pay, selling price is what customers pay</li>
+            <li><span className="font-semibold">Tax settings:</span> Set tax rates per product for accurate invoicing</li>
+            <li><span className="font-semibold">Reorder levels:</span> Get alerts when stock falls below minimum quantity</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
 
       <ProductsTable products={products} />
     </div>

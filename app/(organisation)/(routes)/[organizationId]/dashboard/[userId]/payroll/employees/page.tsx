@@ -5,6 +5,9 @@ import { columns } from "./_components/columns";
 import Heading from "@/components/commons/Header";
 import { Separator } from "@/components/ui/separator";
 import { getEmployees, getEmployeeSummary } from "@/lib/actions/employee.action";
+import { PayrollAnalysis } from "@/components/ai";
+import { checkModuleAccess } from "@/lib/helpers/module-access";
+import { currentUser } from "@/lib/helpers/session";
 import Link from "next/link";
 
 export default async function EmployeesPage({
@@ -13,6 +16,8 @@ export default async function EmployeesPage({
   params: Promise<{ organizationId: string; userId: string }>;
 }) {
   const { organizationId, userId } = await params;
+  const user = await currentUser();
+  const hasAIAccess = await checkModuleAccess(user?.organizationId!, "ai");
 
   const [employeesResult, summaryResult] = await Promise.all([
     getEmployees(),
@@ -74,6 +79,12 @@ export default async function EmployeesPage({
           </div>
         </div>
       </div>
+
+      {hasAIAccess && (
+        <div className="grid gap-4">
+          <PayrollAnalysis />
+        </div>
+      )}
 
       <DataTable columns={columns} data={formattedEmployees} />
     </div>

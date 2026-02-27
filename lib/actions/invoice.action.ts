@@ -35,6 +35,7 @@ async function _createInvoice(
       revenueAccountId: data.revenueAccountId || undefined,
       receivableAccountId: data.receivableAccountId || undefined,
       taxAccountId: data.taxAccountId || undefined,
+      projectId: data.projectId || undefined,
     };
 
     const invoice = await Invoice.create({

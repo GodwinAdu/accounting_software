@@ -2,12 +2,17 @@ import { redirect } from "next/navigation";
 import { getDashboardStats } from "@/lib/actions/dashboard.action";
 import { checkPermission } from "@/lib/helpers/check-permission";
 import { SubscriptionWarningBanner } from "@/components/subscription-warning-banner";
+import { FinancialInsights } from "@/components/ai";
+import { checkModuleAccess } from "@/lib/helpers/module-access";
+import { currentUser } from "@/lib/helpers/session";
 import DashboardClient from "./_components/dashboard-client";
 
 type Props = Promise<{ organizationId: string; userId: string }>;
 
 const page = async ({ params }: { params: Props }) => {
   const { organizationId, userId } = await params;
+  const user = await currentUser();
+  const hasAIAccess = await checkModuleAccess(user?.organizationId!, "ai");
 
   const hasViewPermission = await checkPermission("dashboard_view");
   if (!hasViewPermission) redirect("/unauthorized");
@@ -61,6 +66,11 @@ const page = async ({ params }: { params: Props }) => {
   return (
     <div className="space-y-6">
       <SubscriptionWarningBanner organizationId={organizationId} userId={userId} />
+      {hasAIAccess && (
+        <div className="grid gap-4">
+          <FinancialInsights />
+        </div>
+      )}
       <DashboardClient initialStats={stats} />
     </div>
   );

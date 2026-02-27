@@ -13,7 +13,8 @@ import { createExpense } from "@/lib/actions/expense.action";
 import { getVendors } from "@/lib/actions/vendor.action";
 import { getExpenseCategories } from "@/lib/actions/expense-category.action";
 import { getCustomers } from "@/lib/actions/customer.action";
-import { categorizeExpense } from "@/lib/actions/ai.action";
+import { categorizeExpense, extractInvoiceData } from "@/lib/actions/ai.action";
+import { getExpenses } from "@/lib/actions/expense.action";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,6 +65,7 @@ const expenseSchema = z.object({
   notes: z.string().optional(),
   billable: z.boolean().default(false),
   customerId: z.string().optional(),
+  isReimbursable: z.boolean().default(false),
   hasReceipt: z.boolean().default(false),
   expenseAccountId: z.string().optional(),
   paymentAccountId: z.string().optional(),
@@ -72,7 +74,11 @@ const expenseSchema = z.object({
 
 type ExpenseFormValues = z.infer<typeof expenseSchema>;
 
-export function ExpenseForm() {
+interface ExpenseFormProps {
+  hasAIAccess: boolean;
+}
+
+export function ExpenseForm({ hasAIAccess }: ExpenseFormProps) {
   const router = useRouter();
   const params = useParams();
   const pathname = usePathname();
@@ -84,6 +90,8 @@ export function ExpenseForm() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [aiSuggestion, setAiSuggestion] = useState<any>(null);
   const [isCategorizingAI, setIsCategorizingAI] = useState(false);
+  const [isScanningReceipt, setIsScanningReceipt] = useState(false);
+  const [anomalyWarning, setAnomalyWarning] = useState<string | null>(null);
 
   const form = useForm<ExpenseFormValues>({
     resolver: zodResolver(expenseSchema),
@@ -102,6 +110,7 @@ export function ExpenseForm() {
       notes: "",
       billable: false,
       customerId: "",
+      isReimbursable: false,
       taxAmount: 0,
       isTaxable: true,
       hasReceipt: false,
@@ -156,12 +165,76 @@ export function ExpenseForm() {
   const taxAmount = form.watch("taxAmount");
   const description = form.watch("description");
   const vendorId = form.watch("vendorId");
+  const categoryId = form.watch("categoryId");
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Check for anomalies when amount/vendor/category changes (only if AI enabled)
+  useEffect(() => {
+    if (!hasAIAccess) return;
+    
+    const checkAnomaly = async () => {
+      if (!amount || amount <= 0 || !vendorId || !categoryId) return;
+      
+      const expensesResult = await getExpenses();
+      if (!expensesResult.success) return;
+
+      const similarExpenses = expensesResult.data.filter(
+        (exp: any) => exp.vendorId?._id === vendorId && exp.categoryId?._id === categoryId
+      );
+
+      if (similarExpenses.length >= 3) {
+        const amounts = similarExpenses.map((e: any) => e.amount);
+        const avg = amounts.reduce((a: number, b: number) => a + b, 0) / amounts.length;
+        const stdDev = Math.sqrt(amounts.reduce((sq: number, n: number) => sq + Math.pow(n - avg, 2), 0) / amounts.length);
+        
+        if (amount > avg + 2 * stdDev) {
+          setAnomalyWarning(`⚠️ This amount is ${((amount / avg - 1) * 100).toFixed(0)}% higher than your average for this vendor/category (GHS ${avg.toFixed(2)})`);
+        } else {
+          setAnomalyWarning(null);
+        }
+      }
+    };
+
+    checkAnomaly();
+  }, [amount, vendorId, categoryId, hasAIAccess]);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setReceiptFile(file);
       form.setValue("hasReceipt", true);
+
+      // Auto-scan receipt with AI if it's an image and AI is enabled
+      if (hasAIAccess && file.type.startsWith('image/')) {
+        setIsScanningReceipt(true);
+        try {
+          const reader = new FileReader();
+          reader.onload = async (event) => {
+            const base64 = event.target?.result?.toString().split(',')[1];
+            if (base64) {
+              const result = await extractInvoiceData(base64);
+              if (result.success && result.data) {
+                const data = result.data;
+                if (data.amount) form.setValue('amount', data.amount);
+                if (data.date) form.setValue('date', new Date(data.date));
+                if (data.vendor) {
+                  const matchingVendor = vendors.find(v => 
+                    v.name.toLowerCase().includes(data.vendor.toLowerCase())
+                  );
+                  if (matchingVendor) form.setValue('vendorId', matchingVendor.id);
+                }
+                if (data.tax) form.setValue('taxAmount', data.tax);
+                if (data.items?.[0]?.description) form.setValue('description', data.items[0].description);
+                toast.success('Receipt scanned successfully!');
+              }
+            }
+          };
+          reader.readAsDataURL(file);
+        } catch (error) {
+          console.error('Receipt scan error:', error);
+        } finally {
+          setIsScanningReceipt(false);
+        }
+      }
     }
   };
 
@@ -219,6 +292,7 @@ export function ExpenseForm() {
         description: data.description,
         notes: data.notes,
         status: "pending" as const,
+        isReimbursable: data.isReimbursable,
         expenseAccountId: data.expenseAccountId || undefined,
         paymentAccountId: data.paymentAccountId || undefined,
         projectId: data.projectId || undefined,
@@ -366,38 +440,50 @@ export function ExpenseForm() {
                   )}
                 />
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAICategorize}
-                    disabled={isCategorizingAI || !description || !amount}
-                    className="bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 hover:from-emerald-100 hover:to-teal-100"
-                  >
-                    {isCategorizingAI ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4 mr-2 text-emerald-600" />
-                    )}
-                    {isCategorizingAI ? "Analyzing..." : "AI Categorize"}
-                  </Button>
-                  {aiSuggestion && (
-                    <div className="flex-1 text-sm">
-                      <span className="text-muted-foreground">AI suggests: </span>
-                      <span className="font-medium text-emerald-600">{aiSuggestion.category}</span>
-                      <span className="text-xs text-muted-foreground ml-2">({aiSuggestion.confidence})</span>
+                {hasAIAccess && (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAICategorize}
+                        disabled={isCategorizingAI || !description || !amount}
+                        className="bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 hover:from-emerald-100 hover:to-teal-100"
+                      >
+                        {isCategorizingAI ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4 mr-2 text-emerald-600" />
+                        )}
+                        {isCategorizingAI ? "Analyzing..." : "AI Categorize"}
+                      </Button>
+                      {aiSuggestion && (
+                        <div className="flex-1 text-sm">
+                          <span className="text-muted-foreground">AI suggests: </span>
+                          <span className="font-medium text-emerald-600">{aiSuggestion.category}</span>
+                          <span className="text-xs text-muted-foreground ml-2">({aiSuggestion.confidence})</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {aiSuggestion?.reasoning && (
-                  <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                    <p className="text-sm text-blue-900 dark:text-blue-100">
-                      <span className="font-medium">AI Reasoning: </span>
-                      {aiSuggestion.reasoning}
-                    </p>
-                  </div>
+                    {aiSuggestion?.reasoning && (
+                      <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+                        <p className="text-sm text-blue-900 dark:text-blue-100">
+                          <span className="font-medium">AI Reasoning: </span>
+                          {aiSuggestion.reasoning}
+                        </p>
+                      </div>
+                    )}
+
+                    {anomalyWarning && (
+                      <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                        <p className="text-sm text-amber-900 dark:text-amber-100">
+                          {anomalyWarning}
+                        </p>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 <div className="grid grid-cols-2 gap-4">
@@ -520,8 +606,13 @@ export function ExpenseForm() {
             {/* Receipt Upload */}
             <Card>
               <CardHeader>
-                <CardTitle>Receipt</CardTitle>
-                <CardDescription>Upload receipt or proof of payment</CardDescription>
+                <CardTitle>Receipt {hasAIAccess && isScanningReceipt && "(Scanning...)"}</CardTitle>
+                <CardDescription>
+                  {hasAIAccess 
+                    ? "Upload receipt - AI will auto-extract data from images"
+                    : "Upload receipt or proof of payment"
+                  }
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {!receiptFile ? (
@@ -563,12 +654,30 @@ export function ExpenseForm() {
               </CardContent>
             </Card>
 
-            {/* Billable Expense */}
+            {/* Billable & Reimbursable */}
             <Card>
               <CardHeader>
                 <CardTitle>Additional Options</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="isReimbursable"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Reimbursable Expense</FormLabel>
+                        <FormDescription>
+                          Mark this if you paid with personal funds and need to be reimbursed
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="billable"

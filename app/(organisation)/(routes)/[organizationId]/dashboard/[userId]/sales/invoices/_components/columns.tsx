@@ -3,17 +3,20 @@
 import { useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Wallet } from "lucide-react";
+import { Edit, Trash2, Wallet, Mail } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
 import { deleteInvoice } from "@/lib/actions/invoice.action";
 import { CellAction } from "@/components/table/cell-action";
 import { RecordPaymentModal } from "@/components/payment/record-payment-modal";
+import { AIEmailModal } from "./ai-email-modal";
+import { useAIEmailAccess } from "./ai-email-context";
 
 export type Invoice = {
   _id: string;
   id: string;
   invoiceNumber: string;
   customer: string;
+  customerName?: string;
   customerEmail?: string;
   date: string;
   dueDate: string;
@@ -87,8 +90,40 @@ export const columns: ColumnDef<Invoice>[] = [
       const orgId = segments[1];
       const userId = segments[3];
       const [showPaymentModal, setShowPaymentModal] = useState(false);
+      const [showEmailModal, setShowEmailModal] = useState(false);
+      const [emailType, setEmailType] = useState<"payment_reminder" | "thank_you" | "overdue_notice">("payment_reminder");
+      const { hasAIAccess } = useAIEmailAccess();
 
       const actions = [];
+
+      // Add AI Email action for sent/overdue/paid invoices (only if AI enabled)
+      if (hasAIAccess) {
+        if (invoice.status === "sent" || invoice.status === "overdue") {
+          actions.push({
+            label: "Send Reminder",
+            type: "custom" as const,
+            icon: <Mail className="h-4 w-4" />,
+            permissionKey: "invoices_view",
+            onClick: () => {
+              setEmailType(invoice.status === "overdue" ? "overdue_notice" : "payment_reminder");
+              setShowEmailModal(true);
+            },
+          });
+        }
+
+        if (invoice.status === "paid") {
+          actions.push({
+            label: "Thank You Email",
+            type: "custom" as const,
+            icon: <Mail className="h-4 w-4" />,
+            permissionKey: "invoices_view",
+            onClick: () => {
+              setEmailType("thank_you");
+              setShowEmailModal(true);
+            },
+          });
+        }
+      }
 
       // Add Pay action for sent/overdue invoices
       if (invoice.status === "sent" || invoice.status === "overdue") {
@@ -137,6 +172,16 @@ export const columns: ColumnDef<Invoice>[] = [
             amount={invoice.balance}
             currency="GHS"
             customerEmail={invoice.customerEmail || ""}
+          />
+          <AIEmailModal
+            open={showEmailModal}
+            onClose={() => setShowEmailModal(false)}
+            type={emailType}
+            recipientName={invoice.customerName || invoice.customer}
+            recipientEmail={invoice.customerEmail}
+            amount={invoice.amount}
+            invoiceNumber={invoice.invoiceNumber}
+            dueDate={invoice.dueDate}
           />
         </>
       );

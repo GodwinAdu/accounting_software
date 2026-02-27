@@ -5,6 +5,8 @@ import { checkPermission } from "@/lib/helpers/check-permission";
 import { getExpenses, getExpenseSummary } from "@/lib/actions/expense.action";
 import { ExpensesList } from "./_components/expenses-list";
 import Heading from "@/components/commons/Header";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Info } from "lucide-react";
 
 type Props = Promise<{ organizationId: string; userId: string }>;
 
@@ -41,6 +43,20 @@ export default async function AllExpensesPage({ params }: { params: Props }) {
         description="Track and manage all business expenses"
       />
       <Separator />
+      
+      <Alert className="border-blue-200 bg-blue-50">
+        <Info className="h-4 w-4 text-blue-600" />
+        <AlertTitle className="text-blue-900 font-semibold">Expense Management Guide</AlertTitle>
+        <AlertDescription className="text-blue-800 mt-2">
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            <li><span className="font-semibold">Attach receipts</span> for audit compliance and tax deductions</li>
+            <li><span className="font-semibold">Reimbursable expenses</span> will be tracked for employee reimbursement</li>
+            <li><span className="font-semibold">Approval workflow</span> - pending expenses require manager approval before posting</li>
+            <li><span className="font-semibold">Categories</span> help organize expenses for reporting and tax purposes</li>
+          </ul>
+        </AlertDescription>
+      </Alert>
+
       <ExpensesList expenses={expenses} summary={summary} hasCreatePermission={hasCreatePermission} />
     </div>
   );

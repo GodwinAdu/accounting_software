@@ -27,8 +27,15 @@ async function _getGeneralLedger(user: any, filters: any) {
 
     const entries = await GeneralLedger.find(query)
       .populate("accountId", "accountName accountCode accountType")
-      .populate("journalEntryId", "entryNumber description")
-      .populate("createdBy", "firstName lastName email")
+      .populate({
+        path: "journalEntryId",
+        select: "entryNumber description entryType referenceType referenceNumber status postedDate createdBy postedBy notes",
+        populate: [
+          { path: "createdBy", select: "fullName email" },
+          { path: "postedBy", select: "fullName email" }
+        ]
+      })
+      .populate("createdBy", "fullName email")
       .sort({ transactionDate: -1, createdAt: -1 })
       .lean();
 
@@ -57,8 +64,15 @@ async function _getAccountLedger(user: any, accountId: string, startDate?: strin
     }
 
     const entries = await GeneralLedger.find(query)
-      .populate("journalEntryId", "entryNumber description entryType")
-      .populate("createdBy", "firstName lastName email")
+      .populate({
+        path: "journalEntryId",
+        select: "entryNumber description entryType referenceType referenceNumber status postedDate createdBy postedBy notes",
+        populate: [
+          { path: "createdBy", select: "fullName email" },
+          { path: "postedBy", select: "fullName email" }
+        ]
+      })
+      .populate("createdBy", "fullName email")
       .sort({ transactionDate: 1, createdAt: 1 })
       .lean();
 

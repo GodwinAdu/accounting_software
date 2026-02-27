@@ -15,6 +15,7 @@ export interface IExpense extends Document {
   description?: string;
   receiptUrl?: string;
   status: "pending" | "approved" | "paid" | "rejected";
+  isReimbursable: boolean;
   expenseAccountId?: mongoose.Types.ObjectId;
   paymentAccountId?: mongoose.Types.ObjectId;
   projectId?: mongoose.Types.ObjectId;
@@ -50,6 +51,7 @@ const ExpenseSchema = new Schema<IExpense>(
     description: { type: String },
     receiptUrl: { type: String },
     status: { type: String, enum: ["pending", "approved", "paid", "rejected"], default: "pending" },
+    isReimbursable: { type: Boolean, default: false },
     expenseAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     paymentAccountId: { type: Schema.Types.ObjectId, ref: "Account" },
     projectId: { type: Schema.Types.ObjectId, ref: "Project" },

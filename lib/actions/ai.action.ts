@@ -163,7 +163,8 @@ async function _getFinancialInsights(user: any) {
 
     const [invoices, expenses, accounts] = await Promise.all([
       Invoice.find({ organizationId: user.organizationId, del_flag: false }),
-      Expense.find({ organizationId: user.organizationId, del_flag: false }),
+      Expense.find({ organizationId: user.organizationId, del_flag: false })
+        .populate("categoryId", "name"),
       Account.find({ organizationId: user.organizationId, del_flag: false, accountType: { $in: ["revenue", "expense"] } }),
     ]);
 
@@ -178,8 +179,8 @@ async function _getFinancialInsights(user: any) {
     const totalOverdue = overdueInvoices.reduce((sum, inv) => sum + ((inv.totalAmount || 0) - (inv.paidAmount || 0)), 0);
 
     const expensesByCategory = expenses.reduce((acc: any, exp) => {
-      const category = exp.category || "Uncategorized";
-      acc[category] = (acc[category] || 0) + (exp.amount || 0);
+      const categoryName = (exp.categoryId as any)?.name || "Uncategorized";
+      acc[categoryName] = (acc[categoryName] || 0) + (exp.amount || 0);
       return acc;
     }, {});
 
@@ -240,18 +241,24 @@ async function _categorizeExpense(user: any, description: string, amount: number
     const Expense = (await import("../models/expense.model")).default;
     const Account = (await import("../models/account.model")).default;
 
-    const [recentExpenses, expenseAccounts] = await Promise.all([
-      Expense.find({ organizationId: user.organizationId, del_flag: false }).sort({ date: -1 }).limit(50),
+    const ExpenseCategory = (await import("../models/expense-category.model")).default;
+
+    const [recentExpenses, expenseAccounts, expenseCategories] = await Promise.all([
+      Expense.find({ organizationId: user.organizationId, del_flag: false })
+        .populate("categoryId", "name")
+        .sort({ date: -1 })
+        .limit(50),
       Account.find({ organizationId: user.organizationId, del_flag: false, accountType: "expense" }),
+      ExpenseCategory.find({ organizationId: user.organizationId, del_flag: false }),
     ]);
 
     const categoryExamples = recentExpenses
-      .filter(exp => exp.category && exp.description)
+      .filter(exp => exp.categoryId && exp.description)
       .slice(0, 20)
-      .map(exp => `${exp.description} -> ${exp.category}`)
+      .map(exp => `${exp.description} -> ${(exp.categoryId as any)?.name}`)
       .join("\n");
 
-    const availableCategories = [...new Set(recentExpenses.map(exp => exp.category).filter(Boolean))];
+    const availableCategories = expenseCategories.map(cat => (cat as any).name);
     const availableAccounts = expenseAccounts.map(acc => `${acc.accountName} (${acc.accountCode})`);
 
     const prompt = `You are an AI expense categorization assistant. Analyze the expense and suggest the best category and account.
@@ -358,12 +365,16 @@ async function _detectAnomalies(user: any) {
     const Invoice = (await import("../models/invoice.model")).default;
 
     const [expenses, invoices] = await Promise.all([
-      Expense.find({ organizationId: user.organizationId, del_flag: false }).sort({ date: -1 }).limit(100),
+      Expense.find({ organizationId: user.organizationId, del_flag: false })
+        .populate("categoryId", "name")
+        .sort({ date: -1 })
+        .limit(100),
       Invoice.find({ organizationId: user.organizationId, del_flag: false }).sort({ createdAt: -1 }).limit(100),
     ]);
 
     const expenseStats = expenses.reduce((acc, exp) => {
-      const key = `${exp.vendorId}-${exp.category}`;
+      const categoryName = (exp.categoryId as any)?.name || "Uncategorized";
+      const key = `${exp.vendorId}-${categoryName}`;
       if (!acc[key]) acc[key] = [];
       acc[key].push(exp.amount);
       return acc;
@@ -372,7 +383,8 @@ async function _detectAnomalies(user: any) {
     const anomalies = [];
 
     for (const exp of expenses.slice(0, 20)) {
-      const key = `${exp.vendorId}-${exp.category}`;
+      const categoryName = (exp.categoryId as any)?.name || "Uncategorized";
+      const key = `${exp.vendorId}-${categoryName}`;
       const amounts = expenseStats[key] || [];
       if (amounts.length > 3) {
         const avg = amounts.reduce((a, b) => a + b, 0) / amounts.length;
@@ -420,9 +432,10 @@ async function _forecastFinancials(user: any, months: number = 3) {
     const Invoice = (await import("../models/invoice.model")).default;
     const Expense = (await import("../models/expense.model")).default;
 
-    const [invoices, expenses] = await Promise.all([
+    const [expenses, invoices] = await Promise.all([
+      Expense.find({ organizationId: user.organizationId, del_flag: false })
+        .populate("categoryId", "name"),
       Invoice.find({ organizationId: user.organizationId, del_flag: false }),
-      Expense.find({ organizationId: user.organizationId, del_flag: false }),
     ]);
 
     const monthlyData: any = {};
@@ -489,7 +502,8 @@ async function _smartReconcile(user: any, bankTransactions: any[]) {
     const Invoice = (await import("../models/invoice.model")).default;
 
     const [expenses, invoices] = await Promise.all([
-      Expense.find({ organizationId: user.organizationId, del_flag: false }),
+      Expense.find({ organizationId: user.organizationId, del_flag: false })
+        .populate("categoryId", "name"),
       Invoice.find({ organizationId: user.organizationId, del_flag: false }),
     ]);
 
@@ -613,7 +627,9 @@ async function _smartSearch(user: any, query: string) {
 
     const [invoices, expenses, customers, vendors] = await Promise.all([
       Invoice.find({ organizationId: user.organizationId, del_flag: false }).limit(100),
-      Expense.find({ organizationId: user.organizationId, del_flag: false }).limit(100),
+      Expense.find({ organizationId: user.organizationId, del_flag: false })
+        .populate("categoryId", "name")
+        .limit(100),
       Customer.find({ organizationId: user.organizationId, del_flag: false }).limit(50),
       Vendor.find({ organizationId: user.organizationId, del_flag: false }).limit(50),
     ]);
@@ -682,7 +698,7 @@ Examples:
         id: String(exp._id),
         description: exp.description,
         amount: exp.amount,
-        category: exp.category,
+        category: (exp.categoryId as any)?.name,
         date: exp.date,
       }));
     }
@@ -700,11 +716,21 @@ async function _generateEmail(user: any, type: string, recipientName: string, am
     }
 
     await connectToDB();
+    
+    const Organization = (await import("../models/organization.model")).default;
+    const organization = await Organization.findById(user.organizationId);
+    
+    const senderName = user.fullName || "[Your Name]";
+    const senderEmail = user.email || "[Your Email]";
+    const companyName = organization?.name || "[Your Company]";
+    const companyPhone = organization?.emailSettings?.fromEmail || organization?.email || "[Company Email]";
+    const companyContact = organization?.phone || "[Company Phone]";
+    
     const prompts = {
-      payment_reminder: `Write a professional payment reminder email for ${recipientName}. Invoice ${invoiceNumber} for GHS ${amount?.toLocaleString()} was due on ${dueDate}. Be polite but firm.`,
-      thank_you: `Write a thank you email to ${recipientName} for their payment of GHS ${amount?.toLocaleString()} for invoice ${invoiceNumber}.`,
-      overdue_notice: `Write a professional overdue payment notice to ${recipientName}. Invoice ${invoiceNumber} for GHS ${amount?.toLocaleString()} is now ${Math.floor((Date.now() - new Date(dueDate!).getTime()) / 86400000)} days overdue.`,
-      welcome: `Write a welcome email to new customer ${recipientName} thanking them for choosing our services.`,
+      payment_reminder: `Write a professional payment reminder email for ${recipientName}. Invoice ${invoiceNumber} for GHS ${amount?.toLocaleString()} was due on ${dueDate}. Be polite but firm. Sign off with:\n\nBest regards,\n${senderName}\n${companyName}\n${companyPhone}\n${companyContact}`,
+      thank_you: `Write a thank you email to ${recipientName} for their payment of GHS ${amount?.toLocaleString()} for invoice ${invoiceNumber}. Sign off with:\n\nBest regards,\n${senderName}\n${companyName}\n${companyPhone}\n${companyContact}`,
+      overdue_notice: `Write a professional overdue payment notice to ${recipientName}. Invoice ${invoiceNumber} for GHS ${amount?.toLocaleString()} is now ${Math.floor((Date.now() - new Date(dueDate!).getTime()) / 86400000)} days overdue. Be firm but professional. Sign off with:\n\nBest regards,\n${senderName}\n${companyName}\n${companyPhone}\n${companyContact}`,
+      welcome: `Write a welcome email to new customer ${recipientName} thanking them for choosing our services. Sign off with:\n\nBest regards,\n${senderName}\n${companyName}\n${companyPhone}\n${companyContact}`,
     };
 
     const prompt = prompts[type as keyof typeof prompts] || prompts.payment_reminder;
@@ -717,6 +743,49 @@ async function _generateEmail(user: any, type: string, recipientName: string, am
     });
 
     return { success: true, email: response.choices[0].message.content };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function _sendEmail(user: any, recipientEmail: string, subject: string, body: string) {
+  try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    await connectToDB();
+    
+    const Organization = (await import("../models/organization.model")).default;
+    const organization = await Organization.findById(user.organizationId);
+    
+    const emailSettings = organization?.emailSettings;
+    
+    if (!emailSettings?.smtpHost || !emailSettings?.smtpUsername || !emailSettings?.smtpPassword) {
+      return { success: false, error: "Email settings not configured. Please configure SMTP settings in organization settings." };
+    }
+
+    const nodemailer = await import("nodemailer");
+    
+    const transporter = nodemailer.default.createTransport({
+      host: emailSettings.smtpHost,
+      port: emailSettings.smtpPort || 587,
+      secure: emailSettings.smtpPort === 465,
+      auth: {
+        user: emailSettings.smtpUsername,
+        pass: emailSettings.smtpPassword,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"${emailSettings.fromName || organization?.name}" <${emailSettings.fromEmail || emailSettings.smtpUsername}>`,
+      to: recipientEmail,
+      subject,
+      text: body,
+      html: body.replace(/\n/g, "<br>"),
+    });
+
+    return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
@@ -892,6 +961,386 @@ async function _editMessage(user: any, conversationId: string, messageIndex: num
   }
 }
 
+// PAYROLL AI FEATURES
+async function _suggestSalary(user: any, role: string, experience: number, industry?: string) {
+  try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    const prompt = `Suggest a competitive salary range in Ghana for:
+Role: ${role}
+Experience: ${experience} years
+Industry: ${industry || "General"}
+
+Return JSON: {"min": 0, "max": 0, "average": 0, "currency": "GHS", "reasoning": "explanation"}`;
+
+    const response = await openai.chat.completions.create({
+      model: AI_CONFIG.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      max_tokens: 200,
+      response_format: { type: "json_object" },
+    });
+
+    return { success: true, suggestion: JSON.parse(response.choices[0].message.content || "{}") };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function _analyzePayroll(user: any) {
+  try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    await connectToDB();
+    const PayrollRun = (await import("../models/payroll-run.model")).default;
+
+    const payrolls = await PayrollRun.find({ organizationId: user.organizationId, del_flag: false })
+      .sort({ payPeriodEnd: -1 })
+      .limit(12);
+
+    const totalPayroll = payrolls.reduce((sum, p) => sum + (p.totalNetPay || 0), 0);
+    const avgPayroll = totalPayroll / (payrolls.length || 1);
+
+    const anomalies = payrolls.filter(p => Math.abs((p.totalNetPay || 0) - avgPayroll) > avgPayroll * 0.3);
+
+    const prompt = `Analyze payroll data:
+Total: GHS ${totalPayroll.toLocaleString()}
+Average: GHS ${avgPayroll.toLocaleString()}
+Anomalies: ${anomalies.length}
+
+Provide 3-5 insights on cost optimization, compliance, and trends.`;
+
+    const response = await openai.chat.completions.create({
+      model: AI_CONFIG.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 400,
+    });
+
+    return { success: true, insights: response.choices[0].message.content, anomalies: anomalies.length };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// ACCOUNTING AI FEATURES
+async function _suggestJournalEntry(user: any, description: string, amount: number) {
+  try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    await connectToDB();
+    const Account = (await import("../models/account.model")).default;
+    const accounts = await Account.find({ organizationId: user.organizationId, del_flag: false });
+
+    const accountList = accounts.map(a => `${a.accountName} (${a.accountCode}) - ${a.accountType}`).join("\n");
+
+    const prompt = `Suggest journal entry for:
+Description: ${description}
+Amount: GHS ${amount.toLocaleString()}
+
+Available accounts:
+${accountList}
+
+Return JSON: {"debit": {"account": "name", "amount": 0}, "credit": {"account": "name", "amount": 0}, "reasoning": "explanation"}`;
+
+    const response = await openai.chat.completions.create({
+      model: AI_CONFIG.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      max_tokens: 300,
+      response_format: { type: "json_object" },
+    });
+
+    return { success: true, suggestion: JSON.parse(response.choices[0].message.content || "{}") };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// TAX AI FEATURES
+async function _suggestTaxDeductions(user: any) {
+  try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    await connectToDB();
+    const Expense = (await import("../models/expense.model")).default;
+    const expenses = await Expense.find({ organizationId: user.organizationId, del_flag: false })
+      .populate("categoryId", "name")
+      .limit(100);
+
+    const categories = expenses.reduce((acc: any, exp) => {
+      const cat = (exp.categoryId as any)?.name || "Other";
+      acc[cat] = (acc[cat] || 0) + exp.amount;
+      return acc;
+    }, {});
+
+    const prompt = `Analyze expenses for tax deductions in Ghana:
+${Object.entries(categories).map(([k, v]) => `${k}: GHS ${(v as number).toLocaleString()}`).join("\n")}
+
+Suggest tax-deductible items and estimated savings.`;
+
+    const response = await openai.chat.completions.create({
+      model: AI_CONFIG.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.5,
+      max_tokens: 500,
+    });
+
+    return { success: true, suggestions: response.choices[0].message.content };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// PRODUCTS/INVENTORY AI FEATURES
+async function _forecastDemand(user: any, productId: string) {
+  try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    await connectToDB();
+    const Invoice = (await import("../models/invoice.model")).default;
+    const invoices = await Invoice.find({ 
+      organizationId: user.organizationId, 
+      del_flag: false,
+      "items.productId": productId 
+    });
+
+    const monthlySales: any = {};
+    invoices.forEach(inv => {
+      const month = new Date(inv.createdAt).toISOString().slice(0, 7);
+      const qty = inv.items.find((i: any) => String(i.productId) === productId)?.quantity || 0;
+      monthlySales[month] = (monthlySales[month] || 0) + qty;
+    });
+
+    const prompt = `Forecast demand for next 3 months based on:
+${Object.entries(monthlySales).map(([m, q]) => `${m}: ${q} units`).join("\n")}
+
+Return JSON: {"forecast": [{"month": "YYYY-MM", "quantity": 0}], "reorderPoint": 0, "confidence": "high/medium/low"}`;
+
+    const response = await openai.chat.completions.create({
+      model: AI_CONFIG.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.4,
+      max_tokens: 300,
+      response_format: { type: "json_object" },
+    });
+
+    return { success: true, forecast: JSON.parse(response.choices[0].message.content || "{}") };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function _optimizePrice(user: any, productId: string, currentPrice: number) {
+  try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    await connectToDB();
+    const Invoice = (await import("../models/invoice.model")).default;
+    const invoices = await Invoice.find({ 
+      organizationId: user.organizationId, 
+      del_flag: false,
+      "items.productId": productId 
+    }).limit(50);
+
+    const sales = invoices.map(inv => {
+      const item = inv.items.find((i: any) => String(i.productId) === productId);
+      return { price: item?.unitPrice || 0, quantity: item?.quantity || 0 };
+    });
+
+    const prompt = `Optimize price for product:
+Current: GHS ${currentPrice}
+Sales history: ${sales.length} transactions
+Avg quantity: ${sales.reduce((s, i) => s + i.quantity, 0) / sales.length}
+
+Return JSON: {"suggestedPrice": 0, "expectedRevenue": 0, "reasoning": "explanation"}`;
+
+    const response = await openai.chat.completions.create({
+      model: AI_CONFIG.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      max_tokens: 250,
+      response_format: { type: "json_object" },
+    });
+
+    return { success: true, optimization: JSON.parse(response.choices[0].message.content || "{}") };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// CRM AI FEATURES
+async function _segmentCustomers(user: any) {
+  try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    await connectToDB();
+    const Customer = (await import("../models/customer.model")).default;
+    const Invoice = (await import("../models/invoice.model")).default;
+
+    const customers = await Customer.find({ organizationId: user.organizationId, del_flag: false });
+    const invoices = await Invoice.find({ organizationId: user.organizationId, del_flag: false });
+
+    const customerData = customers.map(c => {
+      const custInvoices = invoices.filter(inv => String(inv.customerId) === String(c._id));
+      const total = custInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
+      return { name: c.name, total, count: custInvoices.length };
+    });
+
+    const prompt = `Segment ${customers.length} customers into groups (High-value, Regular, At-risk, New):
+Top customers: ${customerData.slice(0, 10).map(c => `${c.name}: GHS ${c.total.toLocaleString()}`).join(", ")}
+
+Return JSON: {"segments": [{"name": "segment", "count": 0, "characteristics": "description"}]}`;
+
+    const response = await openai.chat.completions.create({
+      model: AI_CONFIG.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.5,
+      max_tokens: 400,
+      response_format: { type: "json_object" },
+    });
+
+    return { success: true, segments: JSON.parse(response.choices[0].message.content || "{}") };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function _scoreLeads(user: any, leadData: any[]) {
+  try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    const prompt = `Score these leads (0-100):
+${leadData.map(l => `${l.name}: ${l.company || "N/A"}, ${l.email || "N/A"}`).join("\n")}
+
+Return JSON: {"scores": [{"name": "name", "score": 0, "priority": "high/medium/low", "reasoning": "why"}]}`;
+
+    const response = await openai.chat.completions.create({
+      model: AI_CONFIG.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.4,
+      max_tokens: 500,
+      response_format: { type: "json_object" },
+    });
+
+    return { success: true, scores: JSON.parse(response.choices[0].message.content || "{}") };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// PROJECTS AI FEATURES
+async function _forecastProjectBudget(user: any, projectName: string, estimatedHours: number, resources: number) {
+  try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    const prompt = `Forecast budget for project:
+Name: ${projectName}
+Estimated hours: ${estimatedHours}
+Resources: ${resources}
+
+Return JSON: {"estimatedCost": 0, "contingency": 0, "timeline": "duration", "risks": ["risk1"]}`;
+
+    const response = await openai.chat.completions.create({
+      model: AI_CONFIG.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.5,
+      max_tokens: 300,
+      response_format: { type: "json_object" },
+    });
+
+    return { success: true, forecast: JSON.parse(response.choices[0].message.content || "{}") };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// BUDGETING AI FEATURES
+async function _suggestBudget(user: any, category: string) {
+  try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    await connectToDB();
+    const Expense = (await import("../models/expense.model")).default;
+    const expenses = await Expense.find({ 
+      organizationId: user.organizationId, 
+      del_flag: false 
+    }).populate("categoryId", "name").limit(100);
+
+    const categoryExpenses = expenses.filter(e => (e.categoryId as any)?.name === category);
+    const total = categoryExpenses.reduce((s, e) => s + e.amount, 0);
+    const avg = total / (categoryExpenses.length || 1);
+
+    const prompt = `Suggest monthly budget for ${category}:
+Historical avg: GHS ${avg.toLocaleString()}
+Total expenses: ${categoryExpenses.length}
+
+Return JSON: {"suggested": 0, "min": 0, "max": 0, "reasoning": "explanation"}`;
+
+    const response = await openai.chat.completions.create({
+      model: AI_CONFIG.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.4,
+      max_tokens: 200,
+      response_format: { type: "json_object" },
+    });
+
+    return { success: true, budget: JSON.parse(response.choices[0].message.content || "{}") };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function _analyzeVariance(user: any, budgeted: number, actual: number, category: string) {
+  try {
+    if (!await checkModuleAccess(user.organizationId, "ai")) {
+      return { success: false, error: "AI module is not enabled for your organization" };
+    }
+
+    const variance = actual - budgeted;
+    const percentVariance = ((variance / budgeted) * 100).toFixed(1);
+
+    const prompt = `Analyze budget variance:
+Category: ${category}
+Budgeted: GHS ${budgeted.toLocaleString()}
+Actual: GHS ${actual.toLocaleString()}
+Variance: ${percentVariance}%
+
+Provide analysis and recommendations.`;
+
+    const response = await openai.chat.completions.create({
+      model: AI_CONFIG.model,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.6,
+      max_tokens: 300,
+    });
+
+    return { success: true, analysis: response.choices[0].message.content, variance: parseFloat(percentVariance) };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 export const chatWithAI = await withAuth(_chatWithAI);
 export const getFinancialInsights = await withAuth(_getFinancialInsights);
 export const categorizeExpense = await withAuth(_categorizeExpense);
@@ -904,11 +1353,37 @@ export const forecastFinancials = await withAuth(_forecastFinancials);
 export const smartReconcile = await withAuth(_smartReconcile);
 export const smartSearch = await withAuth(_smartSearch);
 export const generateEmail = await withAuth(_generateEmail);
+export const sendEmail = await withAuth(_sendEmail);
 export const searchConversations = await withAuth(_searchConversations);
 export const shareConversation = await withAuth(_shareConversation);
 export const updateConversationTags = await withAuth(_updateConversationTags);
 export const regenerateResponse = await withAuth(_regenerateResponse);
 export const editMessage = await withAuth(_editMessage);
+
+// Payroll AI
+export const suggestSalary = await withAuth(_suggestSalary);
+export const analyzePayroll = await withAuth(_analyzePayroll);
+
+// Accounting AI
+export const suggestJournalEntry = await withAuth(_suggestJournalEntry);
+
+// Tax AI
+export const suggestTaxDeductions = await withAuth(_suggestTaxDeductions);
+
+// Products/Inventory AI
+export const forecastDemand = await withAuth(_forecastDemand);
+export const optimizePrice = await withAuth(_optimizePrice);
+
+// CRM AI
+export const segmentCustomers = await withAuth(_segmentCustomers);
+export const scoreLeads = await withAuth(_scoreLeads);
+
+// Projects AI
+export const forecastProjectBudget = await withAuth(_forecastProjectBudget);
+
+// Budgeting AI
+export const suggestBudget = await withAuth(_suggestBudget);
+export const analyzeVariance = await withAuth(_analyzeVariance);
 
 export async function getSharedConversation(shareToken: string) {
   return _getSharedConversation(shareToken);

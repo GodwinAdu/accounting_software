@@ -8,6 +8,8 @@ import Link from 'next/link'
 import { currentUserRole } from '@/lib/helpers/get-user-role'
 import RolesDisplayPage from './_components/Roles'
 import { fetchOrganizationUserById } from '@/lib/actions/organization.action'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Shield } from 'lucide-react'
 
 
 type RolePermissions = {
@@ -49,6 +51,14 @@ const page = async () => {
         )}
       </div>
       <Separator />
+      
+      <Alert className="border-blue-200 bg-blue-50">
+        <Shield className="h-4 w-4 text-blue-600" />
+        <AlertDescription className="text-blue-800">
+          <span className="font-semibold">Role Permissions:</span> Define what users can view, create, edit, or delete. Assign roles carefully to maintain data security and proper segregation of duties.
+        </AlertDescription>
+      </Alert>
+
       <div className="">
         <RolesDisplayPage roles={roles} enabledModules={enabledModules} />
       </div>

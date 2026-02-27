@@ -1,182 +1,420 @@
-# PayFlow AI Features
+# AI Features Documentation
 
 ## Overview
-PayFlow now includes AI-powered features using OpenAI GPT-4o-mini to enhance financial management and automate routine tasks.
+This document describes all AI features available across different modules in the accounting system. All features require the AI module to be enabled for the organization.
 
-## Implemented Features
+---
 
-### 1. AI Financial Assistant (Chat) ✅
-**Location**: `/{organizationId}/dashboard/{userId}/ai`
+## Expenses Module
 
-**Features**:
-- Real-time conversational AI assistant
-- Context-aware responses based on organization's financial data
-- Conversation history tracking
-- Quick question templates
-- Financial insights sidebar with live metrics
+### 1. AI Categorization
+**Function:** `categorizeExpense(description, amount, vendor?)`
+**Purpose:** Suggests expense category and account based on description, amount, and vendor
+**Returns:** 
+```typescript
+{
+  success: boolean;
+  suggestion: {
+    category: string;
+    account: string;
+    confidence: "high" | "medium" | "low";
+    reasoning: string;
+    tags: string[];
+  }
+}
+```
+**Usage:**
+```typescript
+const result = await categorizeExpense("Office supplies from Staples", 150, "Staples");
+```
 
-**Capabilities**:
-- Accounting guidance (debits, credits, journal entries)
-- PayFlow feature navigation and help
-- Financial analysis and trend identification
-- Tax and compliance advice
-- Business insights and KPI recommendations
-- Step-by-step instructions for complex tasks
+### 2. Receipt OCR
+**Function:** `extractInvoiceData(imageBase64)`
+**Purpose:** Extracts data from receipt/invoice images
+**Returns:**
+```typescript
+{
+  success: boolean;
+  data: {
+    vendor: string;
+    amount: number;
+    date: string;
+    invoiceNumber: string;
+    items: Array<{description: string, quantity: number, price: number}>;
+    tax: number;
+    confidence: "high" | "medium" | "low";
+  }
+}
+```
 
-**UI Highlights**:
-- Modern gradient design with smooth animations
-- Auto-scrolling chat interface
-- Message timestamps
-- Loading indicators
-- Professional avatar system
-- Responsive layout with sidebar metrics
+### 3. Anomaly Detection
+**Function:** `detectAnomalies()`
+**Purpose:** Detects unusual expenses and potential duplicates
+**Returns:**
+```typescript
+{
+  success: boolean;
+  anomalies: Array<{
+    type: "unusual_amount" | "duplicate";
+    severity: "high" | "medium" | "low";
+    description: string;
+    reference: string;
+    date: Date;
+  }>
+}
+```
 
-### 2. Smart Expense Categorization ✅
-**Location**: `/{organizationId}/dashboard/{userId}/expenses/all/new`
+---
 
-**Features**:
-- AI-powered expense category suggestions
-- Learns from historical expense patterns
-- Confidence scoring (high/medium/low)
-- Reasoning explanation for suggestions
-- Account mapping recommendations
-- Tag suggestions for better organization
+## Sales/Invoices Module
 
-**How It Works**:
-1. User enters expense description and amount
-2. Clicks "AI Categorize" button
-3. AI analyzes description, amount, and vendor
-4. Compares with historical expense patterns
-5. Suggests category, account, and tags
-6. Auto-fills category field if match found
+### 1. Smart Invoice Suggestions
+**Function:** `smartSearch(query)` (can be adapted for invoice suggestions)
+**Purpose:** Analyzes customer history and suggests frequently ordered items
 
-**Benefits**:
-- Saves time on manual categorization
-- Ensures consistency across expenses
-- Reduces categorization errors
-- Learns organization-specific patterns
+### 2. AI Email Generator
+**Function:** `generateEmail(type, recipientName, amount?, invoiceNumber?, dueDate?)`
+**Purpose:** Generates professional emails for invoices
+**Types:** `payment_reminder`, `thank_you`, `overdue_notice`, `welcome`
+**Returns:**
+```typescript
+{
+  success: boolean;
+  email: string;
+}
+```
 
-### 3. Financial Insights Dashboard ✅
-**Location**: `/{organizationId}/dashboard/{userId}/ai-assistant`
+### 3. Email Sending
+**Function:** `sendEmail(recipientEmail, subject, body)`
+**Purpose:** Sends emails directly via SMTP
+**Returns:**
+```typescript
+{
+  success: boolean;
+  error?: string;
+}
+```
 
-**Features**:
-- Automated financial health analysis
-- AI-generated actionable insights
-- Key metrics dashboard
-- Critical alerts and recommendations
-- Potential savings identification
+---
 
-**Metrics Tracked**:
-- Financial health score (0-100)
-- Total revenue (30 days)
-- Total expenses (30 days)
-- Net cash flow
-- New insights count
-- Critical alerts count
-- Potential impact/savings
+## Payroll Module
 
-**Insight Categories**:
-- Financial health assessment
-- Cash flow concerns
-- Cost optimization opportunities
-- Revenue growth suggestions
-- Risk areas to address
+### 1. Salary Suggestions
+**Function:** `suggestSalary(role, experience, industry?)`
+**Purpose:** Suggests competitive salary ranges based on role and experience
+**Returns:**
+```typescript
+{
+  success: boolean;
+  suggestion: {
+    min: number;
+    max: number;
+    average: number;
+    currency: "GHS";
+    reasoning: string;
+  }
+}
+```
+**Example:**
+```typescript
+const result = await suggestSalary("Software Engineer", 5, "Technology");
+// Returns: { min: 8000, max: 15000, average: 11500, currency: "GHS", reasoning: "..." }
+```
 
-## Navigation
+### 2. Payroll Analysis
+**Function:** `analyzePayroll()`
+**Purpose:** Analyzes payroll data for cost optimization and anomalies
+**Returns:**
+```typescript
+{
+  success: boolean;
+  insights: string;
+  anomalies: number;
+}
+```
 
-The AI features are accessible via the sidebar under "AI Assistant":
-- **AI Chat**: Interactive financial assistant
-- **Financial Insights**: Automated insights dashboard
+---
 
-## Technical Details
+## Accounting Module
 
-### AI Configuration
-- **Model**: GPT-4o-mini (cost-effective)
-- **Temperature**: 0.7 (balanced creativity)
-- **Max Tokens**: 1500 (comprehensive responses)
-- **API**: OpenAI Chat Completions
+### 1. Journal Entry Suggestions
+**Function:** `suggestJournalEntry(description, amount)`
+**Purpose:** Suggests debit/credit accounts for journal entries
+**Returns:**
+```typescript
+{
+  success: boolean;
+  suggestion: {
+    debit: { account: string, amount: number };
+    credit: { account: string, amount: number };
+    reasoning: string;
+  }
+}
+```
+**Example:**
+```typescript
+const result = await suggestJournalEntry("Purchased office equipment", 5000);
+// Returns: { debit: { account: "Equipment", amount: 5000 }, credit: { account: "Cash", amount: 5000 }, ... }
+```
 
-### Key Files
-- `/lib/ai/config.ts` - OpenAI configuration
-- `/lib/actions/ai.action.ts` - AI server actions
-  - `chatWithAI()` - Chat functionality
-  - `getFinancialInsights()` - Insights generation
-  - `categorizeExpense()` - Expense categorization
-- `/app/.../ai/page.tsx` - Chat interface
-- `/app/.../ai-assistant/page.tsx` - Insights dashboard
-- `/app/.../expenses/all/new/_components/expense-form.tsx` - Expense form with AI
+---
 
-### Security
-- All AI actions use `withAuth()` wrapper
-- Organization-scoped data access
-- No sensitive data in prompts
-- Rate limiting recommended for production
+## Tax Module
 
-## Future Enhancements (Planned)
+### 1. Tax Deduction Suggestions
+**Function:** `suggestTaxDeductions()`
+**Purpose:** Analyzes expenses and suggests tax-deductible items
+**Returns:**
+```typescript
+{
+  success: boolean;
+  suggestions: string; // Detailed analysis with estimated savings
+}
+```
 
-### 3. Invoice Data Extraction (OCR)
-- Upload invoice images/PDFs
-- Extract vendor, amount, date, line items
-- Auto-populate invoice form
-- Confidence scoring for extracted data
+---
 
-### 4. Financial Predictions
-- Revenue forecasting
-- Expense trend analysis
-- Cash flow predictions
-- Seasonal pattern detection
-- Budget variance predictions
+## Products/Inventory Module
+
+### 1. Demand Forecasting
+**Function:** `forecastDemand(productId)`
+**Purpose:** Forecasts product demand for next 3 months
+**Returns:**
+```typescript
+{
+  success: boolean;
+  forecast: {
+    forecast: Array<{ month: string, quantity: number }>;
+    reorderPoint: number;
+    confidence: "high" | "medium" | "low";
+  }
+}
+```
+
+### 2. Price Optimization
+**Function:** `optimizePrice(productId, currentPrice)`
+**Purpose:** Suggests optimal pricing based on sales history
+**Returns:**
+```typescript
+{
+  success: boolean;
+  optimization: {
+    suggestedPrice: number;
+    expectedRevenue: number;
+    reasoning: string;
+  }
+}
+```
+
+---
+
+## CRM Module
+
+### 1. Customer Segmentation
+**Function:** `segmentCustomers()`
+**Purpose:** Segments customers into groups (High-value, Regular, At-risk, New)
+**Returns:**
+```typescript
+{
+  success: boolean;
+  segments: {
+    segments: Array<{
+      name: string;
+      count: number;
+      characteristics: string;
+    }>
+  }
+}
+```
+
+### 2. Lead Scoring
+**Function:** `scoreLeads(leadData)`
+**Purpose:** Scores leads 0-100 with priority levels
+**Input:**
+```typescript
+leadData: Array<{ name: string, company?: string, email?: string }>
+```
+**Returns:**
+```typescript
+{
+  success: boolean;
+  scores: {
+    scores: Array<{
+      name: string;
+      score: number;
+      priority: "high" | "medium" | "low";
+      reasoning: string;
+    }>
+  }
+}
+```
+
+---
+
+## Projects Module
+
+### 1. Project Budget Forecasting
+**Function:** `forecastProjectBudget(projectName, estimatedHours, resources)`
+**Purpose:** Forecasts project costs, timeline, and risks
+**Returns:**
+```typescript
+{
+  success: boolean;
+  forecast: {
+    estimatedCost: number;
+    contingency: number;
+    timeline: string;
+    risks: string[];
+  }
+}
+```
+
+---
+
+## Budgeting Module
+
+### 1. Budget Suggestions
+**Function:** `suggestBudget(category)`
+**Purpose:** Suggests monthly budget based on historical spending
+**Returns:**
+```typescript
+{
+  success: boolean;
+  budget: {
+    suggested: number;
+    min: number;
+    max: number;
+    reasoning: string;
+  }
+}
+```
+
+### 2. Variance Analysis
+**Function:** `analyzeVariance(budgeted, actual, category)`
+**Purpose:** Analyzes budget vs actual variance with recommendations
+**Returns:**
+```typescript
+{
+  success: boolean;
+  analysis: string;
+  variance: number; // Percentage
+}
+```
+
+---
+
+## AI Assistant (Dashboard)
+
+### 1. Chat with AI
+**Function:** `chatWithAI(message, conversationHistory?, conversationId?)`
+**Purpose:** Financial assistant for accounting guidance
+**Returns:**
+```typescript
+{
+  success: boolean;
+  message: string;
+  followUpQuestions: string[];
+  usage: object;
+}
+```
+
+### 2. Financial Insights
+**Function:** `getFinancialInsights()`
+**Purpose:** Analyzes revenue, expenses, profit margins
+**Returns:**
+```typescript
+{
+  success: boolean;
+  insights: string;
+  metrics: {
+    totalRevenue: number;
+    totalExpenses: number;
+    netIncome: number;
+    profitMargin: string;
+    overdueInvoices: number;
+    totalOverdue: number;
+  }
+}
+```
+
+### 3. Smart Search
+**Function:** `smartSearch(query)`
+**Purpose:** Natural language search across invoices, expenses, customers, vendors
+**Returns:**
+```typescript
+{
+  success: boolean;
+  intent: string;
+  results: any[];
+  response: string;
+}
+```
+
+### 4. Financial Forecasting
+**Function:** `forecastFinancials(months?)`
+**Purpose:** Predicts future revenue/expenses
+**Returns:**
+```typescript
+{
+  success: boolean;
+  forecast: Array<{ month: string, revenue: number, expenses: number, confidence: string }>;
+  insights: string;
+  trend: "growing" | "stable" | "declining";
+  historical: any[];
+}
+```
 
 ### 5. Smart Reconciliation
-- Auto-match bank transactions
-- Suggest reconciliation entries
-- Identify discrepancies
-- Learn from user corrections
+**Function:** `smartReconcile(bankTransactions)`
+**Purpose:** Matches bank transactions with invoices/expenses
+**Returns:**
+```typescript
+{
+  success: boolean;
+  matches: Array<{
+    transaction: any;
+    match: { type: "expense" | "invoice", id: string };
+    confidence: string;
+  }>
+}
+```
 
-### 6. Anomaly Detection
-- Unusual transaction alerts
-- Duplicate expense detection
-- Fraud pattern recognition
-- Budget overrun warnings
+---
 
-### 7. Natural Language Reporting
-- "Show me Q4 revenue by customer"
-- "Compare expenses this month vs last month"
-- Generate custom reports via chat
-- Export insights to PDF/Excel
+## Implementation Notes
 
-## Best Practices
+### Access Control
+All AI features check for AI module access:
+```typescript
+if (!await checkModuleAccess(user.organizationId, "ai")) {
+  return { success: false, error: "AI module is not enabled for your organization" };
+}
+```
 
-1. **Chat Usage**:
-   - Be specific in questions
-   - Provide context when needed
-   - Use quick questions for common tasks
-   - Review AI suggestions before applying
+### Authentication
+All exported functions use `withAuth` wrapper for user authentication.
 
-2. **Expense Categorization**:
-   - Enter clear descriptions
-   - Include vendor information
-   - Review AI suggestions
-   - Correct mistakes to improve learning
+### Error Handling
+All functions return a consistent response format:
+```typescript
+{
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+```
 
-3. **Financial Insights**:
-   - Review insights weekly
-   - Act on critical alerts promptly
-   - Track potential savings
-   - Monitor health score trends
+### Usage in Components
+```typescript
+"use client";
+import { suggestSalary } from "@/lib/actions/ai.action";
 
-## Cost Optimization
-
-- Using GPT-4o-mini for cost efficiency
-- Caching common responses
-- Limiting conversation history
-- Optimized token usage
-- Batch processing where possible
-
-## Support
-
-For issues or feature requests:
-1. Check documentation in `/documentation`
-2. Use AI Chat for guidance
-3. Contact support team
-4. Review audit logs for debugging
+const handleSuggest = async () => {
+  const result = await suggestSalary("Developer", 3, "Tech");
+  if (result.success) {
+    console.log(result.suggestion);
+  } else {
+    console.error(result.error);
+  }
+};
+```

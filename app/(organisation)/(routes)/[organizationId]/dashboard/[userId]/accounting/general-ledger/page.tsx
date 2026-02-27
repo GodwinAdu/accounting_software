@@ -36,6 +36,7 @@ export default async function GeneralLedgerPage({
   const totalCredit = transactions.reduce((sum: number, t: any) => sum + t.credit, 0);
 
   const formattedTransactions = transactions.map((txn: any) => ({
+    ...txn,
     id: txn._id,
     date: new Date(txn.transactionDate).toLocaleDateString(),
     reference: txn.journalEntryId?.entryNumber || "N/A",
@@ -44,8 +45,6 @@ export default async function GeneralLedgerPage({
     debit: txn.debit || 0,
     credit: txn.credit || 0,
     balance: txn.runningBalance || 0,
-    createdBy: txn.createdBy || null,
-    createdAt: txn.createdAt || null,
   }));
 
   console.log('Transactions count:', transactions.length);

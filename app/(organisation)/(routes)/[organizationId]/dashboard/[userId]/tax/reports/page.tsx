@@ -4,6 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import Heading from "@/components/commons/Header";
 import { Separator } from "@/components/ui/separator";
 import { checkPermission } from "@/lib/helpers/check-permission";
+import { TaxDeductions } from "@/components/ai";
+import { checkModuleAccess } from "@/lib/helpers/module-access";
+import { currentUser } from "@/lib/helpers/session";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -13,6 +16,8 @@ export default async function TaxReportsPage({
   params: Promise<{ organizationId: string; userId: string }>;
 }) {
   const { organizationId, userId } = await params;
+  const user = await currentUser();
+  const hasAIAccess = await checkModuleAccess(user?.organizationId!, "ai");
 
   const hasViewPermission = await checkPermission("tax_view");
   if (!hasViewPermission) redirect(`/${organizationId}/dashboard/${userId}`);
@@ -45,6 +50,12 @@ export default async function TaxReportsPage({
         />
       </div>
       <Separator />
+
+      {hasAIAccess && (
+        <div className="grid gap-4">
+          <TaxDeductions />
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {taxReports.map((report) => {

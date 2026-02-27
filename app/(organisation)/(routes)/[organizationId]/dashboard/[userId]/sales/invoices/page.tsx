@@ -4,6 +4,7 @@ import Heading from "@/components/commons/Header";
 import { Separator } from "@/components/ui/separator";
 import { checkPermission } from "@/lib/helpers/check-permission";
 import { getInvoices, getInvoiceSummary } from "@/lib/actions/invoice.action";
+import { checkModuleAccess } from "@/lib/helpers/module-access";
 import InvoicesList from "./_components/invoices-list";
 
 type Props = Promise<{ organizationId: string; userId: string }>;
@@ -20,6 +21,7 @@ export default async function InvoicesPage({ params }: { params: Props }) {
   }
 
   const hasCreatePermission = await checkPermission("invoices_create");
+  const hasAIAccess = await checkModuleAccess(String(user.organizationId), "ai");
 
   const [invoicesResult, summaryResult] = await Promise.all([
     getInvoices(),
@@ -42,7 +44,7 @@ export default async function InvoicesPage({ params }: { params: Props }) {
         description="Create and manage customer invoices"
       />
       <Separator />
-      <InvoicesList invoices={invoices} summary={summary} hasCreatePermission={hasCreatePermission} organizationId={organizationId} userId={userId} />
+      <InvoicesList invoices={invoices} summary={summary} hasCreatePermission={hasCreatePermission} hasAIAccess={hasAIAccess} organizationId={organizationId} userId={userId} />
     </div>
   );
 }
