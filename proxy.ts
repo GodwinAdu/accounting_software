@@ -146,6 +146,9 @@ const authConfig = {
         "/shared/*",
         "/terms"
     ],
+    superAdminRoutes: [
+        "/super-admin/*"
+    ],
     protectedRoutes: [] as string[],
     loginUrl: "/sign-in",
     afterAuthUrl: "/dashboard",

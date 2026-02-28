@@ -205,7 +205,7 @@ export async function loginUser(data: LoginParams) {
       fullName: user.fullName,
       role: user.role,
       organizationId: String(user.organizationId),
-      roles: [user.role]
+      
     } as any);
     const refreshToken = await issueRefreshToken(user._id.toString());
 
@@ -441,7 +441,7 @@ export async function verifyMagicLink(token: string): Promise<{ success: boolean
       fullName: user.fullName,
       role: user.role,
       organizationId: String(user.organizationId),
-      roles: [user.role]
+      
     } as any);
     const refreshToken = await issueRefreshToken(user.id);
 
@@ -556,7 +556,7 @@ export async function verifyPhoneCode(phone: string, code: string): Promise<{ su
       fullName: user.fullName,
       role: user.role,
       organizationId: String(user.organizationId),
-      roles: [user.role]
+      
     } as any)
     const refreshToken = await issueRefreshToken(user.id)
 
@@ -789,7 +789,7 @@ export async function verifyMFACode(code: string, backupCode?: string, mfaToken?
       fullName: user.fullName,
       role: user.role,
       organizationId: String(user.organizationId),
-      roles: [user.role]
+      
     } as any);
     const refreshToken = await issueRefreshToken(user.id);
 

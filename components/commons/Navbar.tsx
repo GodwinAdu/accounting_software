@@ -4,13 +4,14 @@ import { Separator } from "../ui/separator";
 import { SidebarTrigger } from "../ui/sidebar";
 import FullScreenButton from "./FullScreen";
 import UserDropdown from "./user-dropdown";
-
-
-
+import Link from "next/link";
+import { Shield } from "lucide-react";
+import { Button } from "../ui/button";
 
 const Navbar = ({ user, pro }: { user: IEmployee; pro: boolean }) => {
+    const isSuperAdmin = user?.role === "super_admin";
 
-
+    console.log(isSuperAdmin,"super admin")
 
     return (
         <header
@@ -22,6 +23,14 @@ const Navbar = ({ user, pro }: { user: IEmployee; pro: boolean }) => {
             </div>
 
             <div className="dashboard-stats flex gap-2 sm:gap-4 ml-auto items-center pr-2 sm:pr-10">
+                {isSuperAdmin && (
+                    <Link href="/super-admin/dashboard">
+                        <Button variant="outline" size="sm" className="gap-2">
+                            <Shield className="h-4 w-4" />
+                            <span className="hidden sm:inline">Super Admin</span>
+                        </Button>
+                    </Link>
+                )}
                 
                 <div className="fullscreen hidden sm:block">
                     <FullScreenButton />

@@ -173,6 +173,7 @@ async function _deleteRole(user: User, roleId: string, path: string) {
 
 async function _fetchRoleByName(user: User, roleName: string) {
     try {
+        console.log("Fetching role by name:", roleName)
         if (!user) throw new Error("User not authorized");
 
         await connectToDB();

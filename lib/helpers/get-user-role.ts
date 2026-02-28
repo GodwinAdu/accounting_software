@@ -14,6 +14,8 @@ export const currentUserRole = cache(async () => {
             throw new Error('User not found');
         }
 
+        console.log("user role cache", user?.role   )
+
         const roleName = user?.role as string;
         const cacheKey = `${user.organizationId}_${roleName}`;
         const now = Date.now();
@@ -23,6 +25,8 @@ export const currentUserRole = cache(async () => {
         if (cached && now - cached.timestamp < ROLE_CACHE_TTL) {
             return cached.role;
         }
+
+        console.log("Fetching role for org:", user.organizationId, "Role:", roleName, "Cache key:", cacheKey, "cache",cached)
        
         const userRole = await fetchRoleByName(roleName);
 

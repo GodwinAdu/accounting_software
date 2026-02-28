@@ -6,7 +6,7 @@ interface User {
     _id: string | mongoose.Types.ObjectId
     email: string
     name?: string
-    roles: string[]
+    role: string
 }
 
 interface RefreshTokenDoc {
@@ -22,7 +22,7 @@ export function signAccessToken(user: User) {
     if (!process.env.JWT_ACCESS_SECRET) {
         throw new Error("JWT_ACCESS_SECRET is not set in environment variables");
     }
-    const payload = { sub: (user._id as string).toString(), roles: user.roles, email: user.email, name: user.name }
+    const payload = { sub: (user._id as string).toString(), role: user.role, email: user.email, name: user.name }
     const token = jwt.sign(payload, process.env.JWT_ACCESS_SECRET!, { expiresIn: process.env.ACCESS_TOKEN_TTL! } as jwt.SignOptions)
     return token
 }
@@ -48,7 +48,7 @@ export function verifyAccessToken(token: string) {
 
     return jwt.verify(token, process.env.JWT_ACCESS_SECRET!) as {
         sub: string
-        roles: string[]
+        role: string
         email: string
         name?: string
         iat: number

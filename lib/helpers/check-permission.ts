@@ -5,6 +5,9 @@ import { currentUser } from "./session";
 
 export async function checkPermission(permission: string): Promise<boolean> {
   try {
+    const user = await currentUser();
+    
+   
     const userRole = await currentUserRole();
     
     if (!userRole) {
@@ -14,7 +17,6 @@ export async function checkPermission(permission: string): Promise<boolean> {
     const hasPermission = userRole.permissions?.[permission] === true;
     
     if (!hasPermission) {
-      const user = await currentUser();
       const { ipAddress, userAgent } = await getRequestMetadata();
       
       if (user) {
@@ -36,6 +38,13 @@ export async function checkPermission(permission: string): Promise<boolean> {
 
 export async function checkAnyPermission(permissions: string[]): Promise<boolean> {
   try {
+    const user = await currentUser();
+    
+    // Super admin has all permissions
+    if (user?.role === "super_admin") {
+      return true;
+    }
+    
     const userRole = await currentUserRole();
     
     if (!userRole) {
@@ -52,6 +61,13 @@ export async function checkAnyPermission(permissions: string[]): Promise<boolean
 
 export async function checkAllPermissions(permissions: string[]): Promise<boolean> {
   try {
+    const user = await currentUser();
+    
+    // Super admin has all permissions
+    if (user?.role === "super_admin") {
+      return true;
+    }
+    
     const userRole = await currentUserRole();
     
     if (!userRole) {
